@@ -1,0 +1,128 @@
+import { Schema } from "effect";
+
+export class Project extends Schema.Class<Project>("Project")({
+  id: Schema.String,
+  repo: Schema.String,
+  defaultBranch: Schema.String,
+  baseDevbox: Schema.optional(Schema.String),
+  image: Schema.optional(Schema.String),
+  workdir: Schema.String,
+  branchPrefix: Schema.optional(Schema.String),
+  bootstrap: Schema.Array(Schema.String),
+  dev: Schema.Struct({
+    command: Schema.String,
+    cwd: Schema.optional(Schema.String),
+    ports: Schema.Array(Schema.Number)
+  }),
+  herdr: Schema.Struct({
+    install: Schema.Literals(["manual", "auto", "never"]),
+    sessionPrefix: Schema.String
+  }),
+  agents: Schema.Struct({
+    default: Schema.String,
+    panes: Schema.Array(
+      Schema.Struct({
+        label: Schema.String,
+        command: Schema.String,
+        cwd: Schema.optional(Schema.String)
+      })
+    )
+  })
+}) {}
+
+export class Port extends Schema.Class<Port>("Port")({
+  label: Schema.String,
+  port: Schema.Number,
+  url: Schema.String
+}) {}
+
+export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({
+  id: Schema.String,
+  name: Schema.String,
+  host: Schema.String,
+  project: Schema.optional(Schema.String),
+  slug: Schema.optional(Schema.String),
+  summary: Schema.optional(Schema.String),
+  repo: Schema.optional(Schema.String),
+  branch: Schema.optional(Schema.String),
+  state: Schema.Literals([
+    "discovering",
+    "creating",
+    "bootstrapping",
+    "ready",
+    "running",
+    "blocked",
+    "stopped",
+    "failed",
+    "destroying",
+    "unknown"
+  ]),
+  source: Schema.Literals(["exe", "cache", "mock"]),
+  ports: Schema.Array(Port),
+  raw: Schema.optional(Schema.String)
+}) {}
+
+export class CreateThreadVmRequest extends Schema.Class<CreateThreadVmRequest>(
+  "CreateThreadVmRequest"
+)({
+  project: Schema.String,
+  summary: Schema.String,
+  branch: Schema.optional(Schema.String),
+  baseDevbox: Schema.optional(Schema.String),
+  image: Schema.optional(Schema.String),
+  startingPrompt: Schema.optional(Schema.String),
+  pinned: Schema.optional(Schema.Boolean)
+}) {}
+
+export class CreateThreadVmResponse extends Schema.Class<CreateThreadVmResponse>(
+  "CreateThreadVmResponse"
+)({
+  threadVm: ThreadVm,
+  message: Schema.String
+}) {}
+
+export class TerminalAttachRequest extends Schema.Class<TerminalAttachRequest>(
+  "TerminalAttachRequest"
+)({
+  threadVmId: Schema.String,
+  restart: Schema.optional(Schema.Boolean)
+}) {}
+
+export class TerminalAttachResponse extends Schema.Class<TerminalAttachResponse>(
+  "TerminalAttachResponse"
+)({
+  sessionId: Schema.String,
+  streamUrl: Schema.String,
+  inputUrl: Schema.String,
+  resizeUrl: Schema.String,
+  closeUrl: Schema.String,
+  status: Schema.Literals(["running", "exited"]),
+  reused: Schema.Boolean,
+  createdAt: Schema.Number
+}) {}
+
+export class TerminalInputRequest extends Schema.Class<TerminalInputRequest>(
+  "TerminalInputRequest"
+)({
+  data: Schema.String
+}) {}
+
+export class TerminalResizeRequest extends Schema.Class<TerminalResizeRequest>(
+  "TerminalResizeRequest"
+)({
+  cols: Schema.Number,
+  rows: Schema.Number
+}) {}
+
+export class ApiError extends Schema.TaggedErrorClass<ApiError>()(
+  "ApiError",
+  {
+    message: Schema.String,
+    detail: Schema.optional(Schema.String)
+  }
+) {}
+
+export type ProjectModel = typeof Project.Type;
+export type ThreadVmModel = typeof ThreadVm.Type;
+export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
+export type TerminalAttachResponseModel = typeof TerminalAttachResponse.Type;

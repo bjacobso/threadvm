@@ -1,0 +1,29 @@
+projects:
+  onboarded:
+    repo: https://repo.int.exe.xyz/org/onboarded.git
+    defaultBranch: main
+    baseDevbox: onboarded-base
+    image: exeuntu
+    workdir: /work/onboarded
+    branchPrefix: ben/
+    bootstrap:
+      - mise install
+      - pnpm install
+      - pnpm db:prepare
+    dev:
+      command: pnpm dev
+      cwd: apps/web
+      ports: [3000]
+    herdr:
+      install: manual
+      sessionPrefix: threadvm
+    agents:
+      default: codex
+      panes:
+        - label: agent
+          command: codex
+        - label: server
+          command: pnpm dev
+          cwd: apps/web
+        - label: tests
+          command: pnpm test --watch
