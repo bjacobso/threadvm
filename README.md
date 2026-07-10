@@ -4,7 +4,7 @@ ThreadVM is a local web app for spinning up one isolated development VM per codi
 
 Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want persistent panes or agent sessions.
 
-Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, and browser terminal bridge are implemented. Workspace creation currently requests the VM create/clone operation; full repo bootstrap and dev-server automation are next.
+Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, and basic stop/remove lifecycle actions are implemented. Workspace creation currently requests the VM create/clone operation; full repo bootstrap and dev-server automation are next.
 
 ## What It Does
 
@@ -267,6 +267,8 @@ Implemented:
 - Vite/React/xterm web UI with ThreadVM sidebar, inspector, quick switcher, and attach button.
 - shadcn/Tailwind 4 UI tokens with JetBrains Mono across app chrome and terminal.
 - Effect Atom client state for inventory, project config, reconciliation, selection, terminal status, and clipboard notices.
+- New ThreadVM form backed by `POST /api/threadvms`.
+- Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.
 - Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.
 - Example project config in `examples/projects.yaml`.
 
@@ -275,7 +277,7 @@ Next:
 - Write exe.dev metadata/tags for created ThreadVMs.
 - Recover richer metadata from `/work/.harness/threadvm.json`.
 - Bootstrap repo, branch, dependencies, dev server, and ports after VM create/clone.
-- Add provisioning progress streams and a proper New ThreadVM form.
+- Add provisioning progress streams.
 - Add optional Herdr install/start/layout automation after the plain VM terminal path is solid.
 
 See [PLAN.md](./PLAN.md) for the broader product and architecture plan.

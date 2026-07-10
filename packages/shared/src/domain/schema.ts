@@ -81,6 +81,13 @@ export class CreateThreadVmResponse extends Schema.Class<CreateThreadVmResponse>
   message: Schema.String
 }) {}
 
+export class ThreadVmLifecycleResponse extends Schema.Class<ThreadVmLifecycleResponse>(
+  "ThreadVmLifecycleResponse"
+)({
+  threadVm: ThreadVm,
+  message: Schema.String
+}) {}
+
 export class TerminalAttachRequest extends Schema.Class<TerminalAttachRequest>(
   "TerminalAttachRequest"
 )({
@@ -126,4 +133,5 @@ export type ProjectModel = typeof Project.Type;
 export type ThreadVmModel = typeof ThreadVm.Type;
 export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
 export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;
+export type ThreadVmLifecycleResponseModel = typeof ThreadVmLifecycleResponse.Type;
 export type TerminalAttachResponseModel = typeof TerminalAttachResponse.Type;

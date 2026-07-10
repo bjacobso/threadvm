@@ -51,6 +51,14 @@ export interface CreateThreadVmState {
   readonly createdThreadVmId: string | undefined;
 }
 
+export interface ThreadVmLifecycleState {
+  readonly status: "idle" | "running" | "succeeded" | "failed";
+  readonly action: "stop" | "remove" | undefined;
+  readonly threadVmId: string | undefined;
+  readonly message: string | undefined;
+  readonly error: string | undefined;
+}
+
 export const selectedVmKey = "threadvm.selectedVmId";
 export const activeTerminalVmKey = "threadvm.activeTerminalVmId";
 
@@ -80,6 +88,13 @@ export const createThreadVmAtom = AtomRef.make<CreateThreadVmState>({
   message: undefined,
   error: undefined,
   createdThreadVmId: undefined
+});
+export const threadVmLifecycleAtom = AtomRef.make<ThreadVmLifecycleState>({
+  status: "idle",
+  action: undefined,
+  threadVmId: undefined,
+  message: undefined,
+  error: undefined
 });
 
 const emptyTerminalSessionAtom = AtomRef.make<TerminalSessionState>({
@@ -236,6 +251,91 @@ export const createThreadVmActionAtom = {
       message: undefined,
       error: undefined,
       createdThreadVmId: undefined
+    });
+  }
+} as const;
+
+const lifecycleStarted = (
+  action: ThreadVmLifecycleState["action"],
+  threadVmId: string
+) => {
+  threadVmLifecycleAtom.set({
+    status: "running",
+    action,
+    threadVmId,
+    message: undefined,
+    error: undefined
+  });
+};
+
+const lifecycleFailed = (
+  action: ThreadVmLifecycleState["action"],
+  threadVmId: string,
+  cause: unknown
+) => {
+  threadVmLifecycleAtom.set({
+    status: "failed",
+    action,
+    threadVmId,
+    message: undefined,
+    error: cause instanceof Error ? cause.message : String(cause)
+  });
+};
+
+export const threadVmLifecycleActionAtom = {
+  stop: async (threadVmId: string) => {
+    lifecycleStarted("stop", threadVmId);
+    try {
+      const response = await threadVmApi.stopThreadVm(threadVmId);
+      threadVmsAtom.update((current) =>
+        current.map((threadVm) =>
+          threadVm.id === response.threadVm.id ? response.threadVm : threadVm
+        )
+      );
+      threadVmLifecycleAtom.set({
+        status: "succeeded",
+        action: "stop",
+        threadVmId,
+        message: response.message,
+        error: undefined
+      });
+      return response;
+    } catch (cause) {
+      lifecycleFailed("stop", threadVmId, cause);
+      throw cause;
+    }
+  },
+  remove: async (threadVmId: string) => {
+    lifecycleStarted("remove", threadVmId);
+    try {
+      const response = await threadVmApi.removeThreadVm(threadVmId);
+      threadVmsAtom.update((current) => {
+        const next = current.filter((threadVm) => threadVm.id !== threadVmId);
+        if (selectedThreadVmIdAtom.value === threadVmId) {
+          setSelectedThreadVmId(next[0]?.id);
+        }
+        return next;
+      });
+      threadVmLifecycleAtom.set({
+        status: "succeeded",
+        action: "remove",
+        threadVmId,
+        message: response.message,
+        error: undefined
+      });
+      return response;
+    } catch (cause) {
+      lifecycleFailed("remove", threadVmId, cause);
+      throw cause;
+    }
+  },
+  reset: () => {
+    threadVmLifecycleAtom.set({
+      status: "idle",
+      action: undefined,
+      threadVmId: undefined,
+      message: undefined,
+      error: undefined
     });
   }
 } as const;

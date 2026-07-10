@@ -2,7 +2,8 @@ import { Context, Effect, Layer } from "effect";
 import {
   CreateThreadVmRequest,
   CreateThreadVmResponse,
-  ThreadVm
+  ThreadVm,
+  ThreadVmLifecycleResponse
 } from "../domain/schema.js";
 import { ConfigError, ConfigService } from "./ConfigService.js";
 import { ExeDevError, ExeDevService } from "./ExeDevService.js";
@@ -28,6 +29,12 @@ export class WorkspaceService extends Context.Service<
     readonly createThreadVm: (
       request: CreateThreadVmRequest
     ) => Effect.Effect<CreateThreadVmResponse, WorkspaceError>;
+    readonly stopThreadVm: (
+      id: string
+    ) => Effect.Effect<ThreadVmLifecycleResponse, WorkspaceError>;
+    readonly removeThreadVm: (
+      id: string
+    ) => Effect.Effect<ThreadVmLifecycleResponse, WorkspaceError>;
   }
 >()("WorkspaceService") {}
 
@@ -78,6 +85,42 @@ export const WorkspaceServiceLive = Layer.effect(
         });
       });
 
-    return { listThreadVms, getThreadVm, createThreadVm } as const;
+    const stopThreadVm = (id: string) =>
+      Effect.gen(function* () {
+        const threadVm = yield* getThreadVm(id);
+        yield* exe
+          .stopVm(id)
+          .pipe(Effect.mapError(toWorkspaceError(`Failed to stop ${id}`)));
+        return new ThreadVmLifecycleResponse({
+          threadVm: new ThreadVm({
+            ...threadVm,
+            state: "stopped"
+          }),
+          message: `Stop requested for ${threadVm.name}.`
+        });
+      });
+
+    const removeThreadVm = (id: string) =>
+      Effect.gen(function* () {
+        const threadVm = yield* getThreadVm(id);
+        yield* exe
+          .removeVm(id)
+          .pipe(Effect.mapError(toWorkspaceError(`Failed to remove ${id}`)));
+        return new ThreadVmLifecycleResponse({
+          threadVm: new ThreadVm({
+            ...threadVm,
+            state: "destroying"
+          }),
+          message: `Remove requested for ${threadVm.name}.`
+        });
+      });
+
+    return {
+      listThreadVms,
+      getThreadVm,
+      createThreadVm,
+      stopThreadVm,
+      removeThreadVm
+    } as const;
   })
 );

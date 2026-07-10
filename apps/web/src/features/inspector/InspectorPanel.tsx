@@ -3,6 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useSelectedThreadVm } from "@/state/atoms";
 import { ThreadVmStateBadge } from "../threadvms/ThreadVmStateBadge";
+import { LifecycleActions } from "./LifecycleActions";
 import { MetadataTable } from "./MetadataTable";
 import { PortLinks } from "./PortLinks";
 
@@ -36,6 +37,8 @@ export function InspectorPanel() {
                   ]
                 ]}
               />
+              <Separator />
+              <LifecycleActions threadVm={selected} />
             </>
           ) : (
             <p className="text-sm text-muted-foreground">Select a ThreadVM.</p>

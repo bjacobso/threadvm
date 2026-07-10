@@ -55,6 +55,22 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           );
         })
       )
+      .handle("stop", ({ params: { id } }) =>
+        Effect.gen(function* () {
+          const workspaces = yield* WorkspaceService;
+          return yield* workspaces.stopThreadVm(id).pipe(
+            Effect.mapError(toApiError(`Failed to stop ${id}`))
+          );
+        })
+      )
+      .handle("remove", ({ params: { id } }) =>
+        Effect.gen(function* () {
+          const workspaces = yield* WorkspaceService;
+          return yield* workspaces.removeThreadVm(id).pipe(
+            Effect.mapError(toApiError(`Failed to remove ${id}`))
+          );
+        })
+      )
 );
 
 export const TerminalApiLive = HttpApiBuilder.group(

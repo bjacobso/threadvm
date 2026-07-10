@@ -3,13 +3,15 @@ import type {
   CreateThreadVmResponseModel,
   ProjectModel,
   TerminalAttachResponseModel,
+  ThreadVmLifecycleResponseModel,
   ThreadVmModel
 } from "@threadvm/shared/domain";
 import {
   CreateThreadVmResponse,
   Project,
   TerminalAttachResponse,
-  ThreadVm
+  ThreadVm,
+  ThreadVmLifecycleResponse
 } from "@threadvm/shared/domain";
 import { Schema } from "effect";
 
@@ -17,6 +19,8 @@ const decodeProjects = Schema.decodeUnknownPromise(Schema.Array(Project));
 const decodeThreadVms = Schema.decodeUnknownPromise(Schema.Array(ThreadVm));
 const decodeCreateThreadVm =
   Schema.decodeUnknownPromise(CreateThreadVmResponse);
+const decodeThreadVmLifecycle =
+  Schema.decodeUnknownPromise(ThreadVmLifecycleResponse);
 const decodeTerminalAttach = Schema.decodeUnknownPromise(TerminalAttachResponse);
 
 const apiJson = async (
@@ -50,6 +54,22 @@ export const threadVmApi = {
       await apiJson("/api/threadvms", {
         method: "POST",
         body: JSON.stringify(request)
+      })
+    ),
+  stopThreadVm: async (
+    threadVmId: string
+  ): Promise<ThreadVmLifecycleResponseModel> =>
+    await decodeThreadVmLifecycle(
+      await apiJson(`/api/threadvms/${encodeURIComponent(threadVmId)}/stop`, {
+        method: "POST"
+      })
+    ),
+  removeThreadVm: async (
+    threadVmId: string
+  ): Promise<ThreadVmLifecycleResponseModel> =>
+    await decodeThreadVmLifecycle(
+      await apiJson(`/api/threadvms/${encodeURIComponent(threadVmId)}`, {
+        method: "DELETE"
       })
     ),
   attachTerminal: async (

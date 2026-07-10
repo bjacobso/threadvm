@@ -13,7 +13,8 @@ import {
   Project,
   TerminalAttachRequest,
   TerminalAttachResponse,
-  ThreadVm
+  ThreadVm,
+  ThreadVmLifecycleResponse
 } from "../domain/schema.js";
 
 const IdParams = Schema.Struct({
@@ -22,6 +23,9 @@ const IdParams = Schema.Struct({
 
 const ApiErrorResponse = ApiError.pipe(HttpApiSchema.status(500));
 const AcceptedThreadVmResponse = CreateThreadVmResponse.pipe(
+  HttpApiSchema.status(202)
+);
+const AcceptedThreadVmLifecycleResponse = ThreadVmLifecycleResponse.pipe(
   HttpApiSchema.status(202)
 );
 const CreatedTerminalAttachResponse = TerminalAttachResponse.pipe(
@@ -55,6 +59,20 @@ const ThreadVmsGroup = HttpApiGroup.make("threadvms")
     HttpApiEndpoint.post("create", "/threadvms", {
       payload: CreateThreadVmRequest,
       success: AcceptedThreadVmResponse,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("stop", "/threadvms/:id/stop", {
+      params: IdParams,
+      success: AcceptedThreadVmLifecycleResponse,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.delete("remove", "/threadvms/:id", {
+      params: IdParams,
+      success: AcceptedThreadVmLifecycleResponse,
       error: ApiErrorResponse
     })
   )
