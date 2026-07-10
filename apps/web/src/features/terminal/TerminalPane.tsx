@@ -9,10 +9,9 @@ import {
   terminalUiAtom,
   useAtomRef
 } from "@/state/atoms";
-import { threadVmApi } from "@/state/apiClient";
-import { writeStored } from "@/state/storage";
 import { parseOsc52 } from "./osc52";
 import { TerminalToolbar } from "./TerminalToolbar";
+import { terminalSessionActionAtom } from "./terminalSessionActions";
 import { terminalFontStack, xtermTheme } from "./xtermTheme";
 
 interface TerminalPaneProps {
@@ -23,25 +22,15 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
-  const cleanupRef = useRef<((closeRemote?: boolean) => void) | null>(null);
   const resizeTimerRef = useRef<number | undefined>(undefined);
-  const lastRemoteSizeRef = useRef<{ cols: number; rows: number } | undefined>(
-    undefined
-  );
   const autoAttachRef = useRef<string | undefined>(undefined);
+  const selectedIdRef = useRef<string | undefined>(selected?.id);
   const sessionAtom = useMemo(
     () => terminalSessionAtomFamily(selected?.id),
     [selected?.id]
   );
   const session = useAtomRef(sessionAtom);
   const terminalUi = useAtomRef(terminalUiAtom);
-
-  const setSession = useCallback(
-    (next: typeof session) => {
-      sessionAtom.set(next);
-    },
-    [sessionAtom]
-  );
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -93,43 +82,17 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     [copyToClipboard]
   );
 
-  const sendResize = useCallback(async (force = false) => {
+  const getTerminalSize = useCallback(() => {
     const terminal = terminalRef.current;
-    const attach = sessionAtom.value.attach;
-    if (!terminal || !attach) {
-      return;
+    if (!terminal) {
+      return undefined;
     }
 
-    const nextSize = {
+    return {
       cols: terminal.cols,
       rows: terminal.rows
     };
-    const lastSize = lastRemoteSizeRef.current;
-    if (
-      !force &&
-      lastSize?.cols === nextSize.cols &&
-      lastSize.rows === nextSize.rows
-    ) {
-      return;
-    }
-    lastRemoteSizeRef.current = nextSize;
-
-    await fetch(attach.resizeUrl, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(nextSize)
-    });
-  }, [sessionAtom]);
-
-  const cleanupAttachment = useCallback(
-    (closeRemote = false) => {
-      cleanupRef.current?.(closeRemote);
-      cleanupRef.current = null;
-      lastRemoteSizeRef.current = undefined;
-      setSession({ status: "detached", attach: undefined });
-    },
-    [setSession]
-  );
+  }, []);
 
   const fitAndSync = useCallback(() => {
     const fit = fitRef.current;
@@ -150,9 +113,12 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
 
     resizeTimerRef.current = window.setTimeout(() => {
       resizeTimerRef.current = undefined;
-      void sendResize();
+      void terminalSessionActionAtom.resize(
+        selectedIdRef.current,
+        getTerminalSize()
+      );
     }, 80);
-  }, [sendResize, sessionAtom]);
+  }, [getTerminalSize, sessionAtom]);
 
   useEffect(() => {
     if (!elementRef.current) {
@@ -174,6 +140,9 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
 
     terminalRef.current = terminal;
     fitRef.current = fit;
+    const dataDisposable = terminal.onData((data) => {
+      void terminalSessionActionAtom.sendInput(selectedIdRef.current, data);
+    });
 
     const observer = new ResizeObserver(() => {
       window.requestAnimationFrame(fitAndSync);
@@ -186,10 +155,11 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     return () => {
       window.removeEventListener("resize", onResize);
       observer.disconnect();
-      cleanupRef.current?.(false);
+      terminalSessionActionAtom.cleanup(selectedIdRef.current, false);
       if (resizeTimerRef.current !== undefined) {
         window.clearTimeout(resizeTimerRef.current);
       }
+      dataDisposable.dispose();
       osc52Disposable.dispose();
       terminal.dispose();
       terminalRef.current = null;
@@ -198,12 +168,16 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
   }, [fitAndSync, handleOsc52]);
 
   useEffect(() => {
-    cleanupAttachment(false);
+    const previousId = selectedIdRef.current;
+    if (previousId !== selected?.id) {
+      terminalSessionActionAtom.cleanup(previousId, false);
+    }
+    selectedIdRef.current = selected?.id;
     terminalRef.current?.reset();
     if (selected) {
       terminalRef.current?.writeln(`Ready to attach ${selected.name}.`);
     }
-  }, [cleanupAttachment, selected?.id, selected?.name]);
+  }, [selected?.id, selected?.name]);
 
   const attachTerminal = useCallback(
     async (restart = false) => {
@@ -211,78 +185,19 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
         return;
       }
 
-      cleanupAttachment(false);
-      setSession({ status: "connecting", attach: undefined });
-      const terminal = terminalRef.current;
-      terminal?.reset();
-      terminal?.writeln(
-        `${restart ? "Restarting" : "Attaching"} ${selected.name}...`
-      );
       fitAndSync();
-
-      try {
-        const nextAttach = await threadVmApi.attachTerminal(selected.id, restart);
-        let closed = false;
-
-        setSession({
-          attach: nextAttach,
-          status: nextAttach.status === "exited" ? "exited" : "attached"
-        });
-        writeStored(activeTerminalVmKey, selected.id);
-        fitAndSync();
-        await sendResize(true);
-
-        const source = new EventSource(nextAttach.streamUrl);
-        source.onopen = () => {
-          if (!closed) {
-            setSession({ attach: nextAttach, status: "attached" });
-          }
-        };
-        source.onmessage = (event) => {
-          terminalRef.current?.write(JSON.parse(event.data));
-        };
-        source.addEventListener("exit", () => {
-          if (closed) {
-            return;
-          }
-          terminalRef.current?.writeln("\r\n[terminal exited]");
-          setSession({ attach: nextAttach, status: "exited" });
-          writeStored(activeTerminalVmKey, undefined);
-          source.close();
-        });
-        source.onerror = () => {
-          if (closed) {
-            return;
-          }
-          terminalRef.current?.writeln("\r\n[terminal stream disconnected]");
-          setSession({ attach: nextAttach, status: "disconnected" });
-          source.close();
-        };
-
-        const dataDisposable = terminalRef.current?.onData((data) => {
-          void fetch(nextAttach.inputUrl, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ data })
-          });
-        });
-
-        cleanupRef.current = (closeRemote = false) => {
-          closed = true;
-          dataDisposable?.dispose();
-          source.close();
-          if (closeRemote) {
-            void fetch(nextAttach.closeUrl, { method: "DELETE" });
-          }
-        };
-      } catch (cause) {
-        setSession({ status: "disconnected", attach: undefined });
-        terminal?.writeln(
-          `\r\n[attach failed: ${cause instanceof Error ? cause.message : String(cause)}]`
-        );
-      }
+      await terminalSessionActionAtom.attach({
+        threadVm: selected,
+        restart,
+        view: {
+          reset: () => terminalRef.current?.reset(),
+          write: (data) => terminalRef.current?.write(data),
+          writeln: (data) => terminalRef.current?.writeln(data),
+          getSize: getTerminalSize
+        }
+      });
     },
-    [cleanupAttachment, fitAndSync, selected, sendResize, setSession]
+    [fitAndSync, getTerminalSize, selected]
   );
 
   useEffect(() => {
