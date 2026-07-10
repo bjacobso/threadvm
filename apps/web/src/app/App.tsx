@@ -8,6 +8,7 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InspectorPanel } from "@/features/inspector/InspectorPanel";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
+import { NewThreadVmDialog } from "@/features/threadvms/NewThreadVmDialog";
 import { ThreadVmCommandPalette } from "@/features/threadvms/ThreadVmCommandPalette";
 import { ThreadVmList } from "@/features/threadvms/ThreadVmList";
 import {
@@ -19,6 +20,7 @@ import {
 export function App() {
   const selected = useSelectedThreadVm();
   const [commandOpen, setCommandOpen] = useState(false);
+  const [newThreadVmOpen, setNewThreadVmOpen] = useState(false);
 
   useEffect(() => {
     void loadProjectConfigAtom.run();
@@ -43,7 +45,10 @@ export function App() {
       <main className="h-svh min-h-0 bg-background text-foreground">
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           <ResizablePanel defaultSize="18%" minSize="14%" maxSize="28%">
-            <ThreadVmList onOpenQuickSwitch={() => setCommandOpen(true)} />
+            <ThreadVmList
+              onOpenQuickSwitch={() => setCommandOpen(true)}
+              onOpenNewThreadVm={() => setNewThreadVmOpen(true)}
+            />
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel defaultSize="62%" minSize="36%">
@@ -56,6 +61,10 @@ export function App() {
         </ResizablePanelGroup>
       </main>
       <ThreadVmCommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
+      <NewThreadVmDialog
+        open={newThreadVmOpen}
+        onOpenChange={setNewThreadVmOpen}
+      />
       <Toaster richColors position="bottom-right" />
     </TooltipProvider>
   );

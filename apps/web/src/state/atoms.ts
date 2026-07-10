@@ -1,6 +1,7 @@
 import { AtomRef } from "effect/unstable/reactivity";
 import { useMemo, useSyncExternalStore } from "react";
 import type {
+  CreateThreadVmRequestModel,
   ProjectModel,
   TerminalAttachResponseModel,
   ThreadVmModel
@@ -43,6 +44,13 @@ export interface ReconciliationState {
   readonly error: string | undefined;
 }
 
+export interface CreateThreadVmState {
+  readonly status: "idle" | "creating" | "succeeded" | "failed";
+  readonly message: string | undefined;
+  readonly error: string | undefined;
+  readonly createdThreadVmId: string | undefined;
+}
+
 export const selectedVmKey = "threadvm.selectedVmId";
 export const activeTerminalVmKey = "threadvm.activeTerminalVmId";
 
@@ -66,6 +74,12 @@ export const selectedThreadVmIdAtom = AtomRef.make<string | undefined>(
 export const terminalUiAtom = AtomRef.make<TerminalUiState>({
   clipboardNotice: undefined,
   focusedPanel: "terminal"
+});
+export const createThreadVmAtom = AtomRef.make<CreateThreadVmState>({
+  status: "idle",
+  message: undefined,
+  error: undefined,
+  createdThreadVmId: undefined
 });
 
 const emptyTerminalSessionAtom = AtomRef.make<TerminalSessionState>({
@@ -177,5 +191,51 @@ export const refreshThreadVmsAtom = {
     } finally {
       inventoryLoadingAtom.set(false);
     }
+  }
+} as const;
+
+export const createThreadVmActionAtom = {
+  run: async (request: CreateThreadVmRequestModel) => {
+    createThreadVmAtom.set({
+      status: "creating",
+      message: undefined,
+      error: undefined,
+      createdThreadVmId: undefined
+    });
+
+    try {
+      const response = await threadVmApi.createThreadVm(request);
+      threadVmsAtom.update((current) => {
+        const withoutCreated = current.filter(
+          (threadVm) => threadVm.id !== response.threadVm.id
+        );
+        return [response.threadVm, ...withoutCreated];
+      });
+      setSelectedThreadVmId(response.threadVm.id);
+      createThreadVmAtom.set({
+        status: "succeeded",
+        message: response.message,
+        error: undefined,
+        createdThreadVmId: response.threadVm.id
+      });
+      return response;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      createThreadVmAtom.set({
+        status: "failed",
+        message: undefined,
+        error: message,
+        createdThreadVmId: undefined
+      });
+      throw cause;
+    }
+  },
+  reset: () => {
+    createThreadVmAtom.set({
+      status: "idle",
+      message: undefined,
+      error: undefined,
+      createdThreadVmId: undefined
+    });
   }
 } as const;

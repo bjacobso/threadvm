@@ -125,4 +125,5 @@ export class ApiError extends Schema.TaggedErrorClass<ApiError>()(
 export type ProjectModel = typeof Project.Type;
 export type ThreadVmModel = typeof ThreadVm.Type;
 export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
+export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;
 export type TerminalAttachResponseModel = typeof TerminalAttachResponse.Type;

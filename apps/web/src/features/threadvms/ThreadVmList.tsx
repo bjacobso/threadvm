@@ -1,4 +1,4 @@
-import { RefreshCwIcon, SearchIcon } from "lucide-react";
+import { PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,9 +21,13 @@ import { ThreadVmRow } from "./ThreadVmRow";
 
 interface ThreadVmListProps {
   readonly onOpenQuickSwitch: () => void;
+  readonly onOpenNewThreadVm: () => void;
 }
 
-export function ThreadVmList({ onOpenQuickSwitch }: ThreadVmListProps) {
+export function ThreadVmList({
+  onOpenQuickSwitch,
+  onOpenNewThreadVm
+}: ThreadVmListProps) {
   const threadVms = useAtomRef(threadVmsAtom);
   const selectedId = useAtomRef(selectedThreadVmIdAtom);
   const loading = useAtomRef(inventoryLoadingAtom);
@@ -39,6 +43,20 @@ export function ThreadVmList({ onOpenQuickSwitch }: ThreadVmListProps) {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={onOpenNewThreadVm}
+                aria-label="Create ThreadVM"
+              >
+                <PlusIcon data-icon="inline-start" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Create ThreadVM</TooltipContent>
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

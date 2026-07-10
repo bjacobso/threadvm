@@ -1,9 +1,12 @@
 import type {
+  CreateThreadVmRequestModel,
+  CreateThreadVmResponseModel,
   ProjectModel,
   TerminalAttachResponseModel,
   ThreadVmModel
 } from "@threadvm/shared/domain";
 import {
+  CreateThreadVmResponse,
   Project,
   TerminalAttachResponse,
   ThreadVm
@@ -12,6 +15,8 @@ import { Schema } from "effect";
 
 const decodeProjects = Schema.decodeUnknownPromise(Schema.Array(Project));
 const decodeThreadVms = Schema.decodeUnknownPromise(Schema.Array(ThreadVm));
+const decodeCreateThreadVm =
+  Schema.decodeUnknownPromise(CreateThreadVmResponse);
 const decodeTerminalAttach = Schema.decodeUnknownPromise(TerminalAttachResponse);
 
 const apiJson = async (
@@ -38,6 +43,15 @@ export const threadVmApi = {
     await decodeProjects(await apiJson("/api/projects")),
   listThreadVms: async (): Promise<ReadonlyArray<ThreadVmModel>> =>
     await decodeThreadVms(await apiJson("/api/threadvms")),
+  createThreadVm: async (
+    request: CreateThreadVmRequestModel
+  ): Promise<CreateThreadVmResponseModel> =>
+    await decodeCreateThreadVm(
+      await apiJson("/api/threadvms", {
+        method: "POST",
+        body: JSON.stringify(request)
+      })
+    ),
   attachTerminal: async (
     threadVmId: string,
     restart = false
