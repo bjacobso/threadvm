@@ -273,6 +273,7 @@ Implemented:
 - New ThreadVM form backed by `POST /api/threadvms`.
 - Local metadata cache for created ThreadVMs, including project, branch, summary, repo, and preview-port hints.
 - Background SSH provisioning after create/clone: repo clone/fetch, branch checkout, configured bootstrap commands, VM-side metadata write, dev command startup, and configured port probing before `ready`.
+- VM-side metadata recovery from configured project workdirs, with recovered metadata written back into the local cache.
 - Per-VM provisioning SSE stream at `/rpc/threadvms/:id/provisioning`.
 - Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.
 - Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.
@@ -281,9 +282,7 @@ Implemented:
 Next:
 
 - Write exe.dev metadata/tags for created ThreadVMs.
-- Recover richer metadata from `/work/.harness/threadvm.json`.
 - Add detailed step logs to provisioning progress streams.
-- Reconcile VM-side metadata back into the local cache.
 - Add optional Herdr install/start/layout automation after the plain VM terminal path is solid.
 
 See [PLAN.md](./PLAN.md) for the broader product and architecture plan.

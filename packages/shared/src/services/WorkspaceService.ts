@@ -1,4 +1,4 @@
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Schema } from "effect";
 import { posix } from "node:path";
 import {
   CreateThreadVmRequest,
@@ -80,6 +80,7 @@ export const WorkspaceServiceLive = Layer.effect(
     const exe = yield* ExeDevService;
     const store = yield* LocalStore;
     const ssh = yield* SshService;
+    const decodeMetadata = Schema.decodeUnknownEffect(ThreadVmMetadata);
 
     const previewPortsForProject = (threadVm: ThreadVm, project: Project) =>
       project.dev.ports.map(
@@ -211,6 +212,72 @@ export const WorkspaceServiceLive = Layer.effect(
       );
     };
 
+    const readRemoteMetadata = (
+      threadVm: ThreadVm,
+      projects: ReadonlyArray<Project>
+    ): Effect.Effect<ThreadVmMetadata | undefined, never> => {
+      if (threadVm.source === "mock" || projects.length === 0) {
+        return Effect.succeed(undefined);
+      }
+
+      const candidatePaths = projects
+        .filter(
+          (project) =>
+            threadVm.name === project.id ||
+            threadVm.name.startsWith(`${project.id}-`)
+        )
+        .map((project) => posix.join(project.workdir, ".harness", "threadvm.json"));
+
+      if (candidatePaths.length === 0) {
+        return Effect.succeed(undefined);
+      }
+      const script = [
+        "set -euo pipefail",
+        "for path in \"$@\"; do",
+        "  if [ -s \"$path\" ]; then",
+        "    cat \"$path\"",
+        "    exit 0",
+        "  fi",
+        "done",
+        "exit 3"
+      ].join("\n");
+
+      return ssh
+        .exec(
+          threadVm.host,
+          `bash -s -- ${candidatePaths.map(shellQuote).join(" ")} <<'THREADVM_READ_METADATA'\n${script}\nTHREADVM_READ_METADATA`,
+          { timeoutMs: 30_000 }
+        )
+        .pipe(
+          Effect.flatMap((result) =>
+            Effect.try({
+              try: () => JSON.parse(result.stdout) as unknown,
+              catch: () => undefined
+            })
+          ),
+          Effect.flatMap((parsed) =>
+            parsed === undefined ? Effect.succeed(undefined) : decodeMetadata(parsed)
+          ),
+          Effect.map((metadata) =>
+            metadata?.id === threadVm.id ? metadata : undefined
+          ),
+          Effect.catch(() => Effect.succeed(undefined))
+        );
+    };
+
+    const resolveMetadata = (
+      threadVm: ThreadVm,
+      localMetadata: ThreadVmMetadata | undefined,
+      projects: ReadonlyArray<Project>
+    ) =>
+      localMetadata
+        ? Effect.succeed(localMetadata)
+        : readRemoteMetadata(threadVm, projects).pipe(
+            Effect.tap((metadata) =>
+              metadata ? rememberThreadVm(metadata) : Effect.void
+            )
+          );
+
     const prepareRepo = (threadVm: ThreadVm, project: Project, branch: string) =>
       runRemote(
         threadVm,
@@ -334,26 +401,40 @@ export const WorkspaceServiceLive = Layer.effect(
       });
 
     const listThreadVms = Effect.gen(function* () {
-      const [vms, metadata] = yield* Effect.all(
+      const [vms, metadata, projects] = yield* Effect.all(
         [
           exe.listVms.pipe(
             Effect.mapError(toWorkspaceError("Failed to list ThreadVMs"))
           ),
           store.listThreadVmMetadata.pipe(
             Effect.mapError(toWorkspaceError("Failed to load ThreadVM metadata"))
+          ),
+          config.listProjects.pipe(
+            Effect.mapError(toWorkspaceError("Failed to load project config"))
           )
         ] as const,
         { concurrency: 2 }
       );
       const metadataById = new Map(metadata.map((entry) => [entry.id, entry]));
-      return vms.map((threadVm) =>
-        enrichThreadVm(threadVm, metadataById.get(threadVm.id))
+      return yield* Effect.forEach(
+        vms,
+        (threadVm) =>
+          resolveMetadata(
+            threadVm,
+            metadataById.get(threadVm.id),
+            projects
+          ).pipe(
+            Effect.map((resolvedMetadata) =>
+              enrichThreadVm(threadVm, resolvedMetadata)
+            )
+          ),
+        { concurrency: 4 }
       );
     });
 
     const getThreadVm = (id: string) =>
       Effect.gen(function* () {
-        const [threadVm, metadata] = yield* Effect.all(
+        const [threadVm, metadata, projects] = yield* Effect.all(
           [
             exe.getVm(id).pipe(
               Effect.mapError(toWorkspaceError(`Failed to get ${id}`))
@@ -362,11 +443,19 @@ export const WorkspaceServiceLive = Layer.effect(
               Effect.mapError(
                 toWorkspaceError(`Failed to load ThreadVM metadata for ${id}`)
               )
+            ),
+            config.listProjects.pipe(
+              Effect.mapError(toWorkspaceError("Failed to load project config"))
             )
           ] as const,
           { concurrency: 2 }
         );
-        return enrichThreadVm(threadVm, metadata);
+        const resolvedMetadata = yield* resolveMetadata(
+          threadVm,
+          metadata,
+          projects
+        );
+        return enrichThreadVm(threadVm, resolvedMetadata);
       });
 
     const rememberThreadVm = (metadata: ThreadVmMetadata) =>
