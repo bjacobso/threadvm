@@ -56,6 +56,11 @@ export function InspectorPanel() {
                               {step.status}
                               {step.message ? ` - ${step.message}` : ""}
                             </span>
+                            {step.outputExcerpt ? (
+                              <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
+                                {step.outputExcerpt}
+                              </pre>
+                            ) : null}
                           </li>
                         ))}
                       </ol>

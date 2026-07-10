@@ -57,7 +57,8 @@ export class ProvisioningStep extends Schema.Class<ProvisioningStep>(
   status: Schema.Literals(["pending", "running", "succeeded", "failed"]),
   startedAt: Schema.optional(Schema.Number),
   finishedAt: Schema.optional(Schema.Number),
-  message: Schema.optional(Schema.String)
+  message: Schema.optional(Schema.String),
+  outputExcerpt: Schema.optional(Schema.String)
 }) {}
 
 export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({

@@ -10,6 +10,7 @@ import {
   ThreadVmLifecycleResponse,
   ThreadVmMetadata
 } from "../domain/schema.js";
+import type { CommandResult } from "./CommandService.js";
 import { ConfigError, ConfigService } from "./ConfigService.js";
 import { ExeDevError, ExeDevService } from "./ExeDevService.js";
 import { LocalStore } from "./LocalStore.js";
@@ -95,6 +96,76 @@ const commandFailureMessage = (cause: unknown) => {
   }
 
   return cause instanceof Error ? cause.message : String(cause);
+};
+
+const commandErrorFromCause = (cause: unknown) => {
+  const nested = cause instanceof WorkspaceError ? cause.cause : cause;
+  return nested instanceof SshError ? nested.cause : nested;
+};
+
+const truncateMiddle = (input: string, maxLength = 2_000) => {
+  const trimmed = input.trim();
+  if (trimmed.length <= maxLength) {
+    return trimmed || undefined;
+  }
+  const half = Math.floor((maxLength - 15) / 2);
+  return `${trimmed.slice(0, half)}\n... truncated ...\n${trimmed.slice(-half)}`;
+};
+
+const commandResultExcerpt = (result: CommandResult) =>
+  truncateMiddle(
+    [
+      result.stdout.trim() ? `stdout:\n${result.stdout.trim()}` : "",
+      result.stderr.trim() ? `stderr:\n${result.stderr.trim()}` : ""
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+  );
+
+const provisioningOutputExcerpt = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return truncateMiddle(
+      value
+        .map((entry, index) => {
+          const excerpt = commandResultExcerpt(entry as CommandResult);
+          return excerpt ? `command ${index + 1}:\n${excerpt}` : "";
+        })
+        .filter(Boolean)
+        .join("\n\n")
+    );
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "stdout" in value &&
+    "stderr" in value
+  ) {
+    return commandResultExcerpt(value as CommandResult);
+  }
+
+  return undefined;
+};
+
+const provisioningFailureOutputExcerpt = (cause: unknown) => {
+  const commandError = commandErrorFromCause(cause);
+  if (
+    commandError instanceof Object &&
+    "stdout" in commandError &&
+    "stderr" in commandError &&
+    typeof commandError.stdout === "string" &&
+    typeof commandError.stderr === "string"
+  ) {
+    return commandResultExcerpt({
+      stdout: commandError.stdout,
+      stderr: commandError.stderr,
+      exitCode:
+        "exitCode" in commandError && typeof commandError.exitCode === "number"
+          ? commandError.exitCode
+          : 1
+    });
+  }
+  return undefined;
 };
 
 export const WorkspaceServiceLive = Layer.effect(
@@ -369,7 +440,8 @@ export const WorkspaceServiceLive = Layer.effect(
       id: string,
       label: string,
       status: ProvisioningStep["status"],
-      message?: string
+      message?: string,
+      outputExcerpt?: string
     ) => {
       const existing = (metadata.provisioningSteps ?? []).find(
         (step) => step.id === id
@@ -385,7 +457,8 @@ export const WorkspaceServiceLive = Layer.effect(
             status === "running" ? now : existing?.startedAt ?? metadata.updatedAt,
           finishedAt:
             status === "succeeded" || status === "failed" ? now : undefined,
-          message
+          message,
+          outputExcerpt
         })
       );
     };
@@ -416,9 +489,16 @@ export const WorkspaceServiceLive = Layer.effect(
     ) => {
       const running = setProvisioningStep(metadata, id, label, "running");
       return persistProvisioningMetadata(threadVm, project, running).pipe(
-        Effect.andThen(work),
-        Effect.andThen(() => {
-          const succeeded = setProvisioningStep(running, id, label, "succeeded");
+        Effect.andThen(() => work),
+        Effect.andThen((result) => {
+          const succeeded = setProvisioningStep(
+            running,
+            id,
+            label,
+            "succeeded",
+            undefined,
+            provisioningOutputExcerpt(result)
+          );
           return persistProvisioningMetadata(threadVm, project, succeeded).pipe(
             Effect.as(succeeded)
           );
@@ -430,7 +510,8 @@ export const WorkspaceServiceLive = Layer.effect(
             id,
             label,
             "failed",
-            message
+            message,
+            provisioningFailureOutputExcerpt(cause)
           );
           return persistProvisioningMetadata(threadVm, project, failed).pipe(
             Effect.andThen(Effect.fail(cause))
@@ -452,7 +533,7 @@ export const WorkspaceServiceLive = Layer.effect(
             ].join("\n"),
             600_000
           ),
-        { discard: true }
+        { concurrency: 1 }
       );
 
     const startDevServer = (
