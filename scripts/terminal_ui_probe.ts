@@ -16,7 +16,10 @@ import {
   TabsTrigger
 } from "../apps/web/src/components/ui/tabs.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
-import { focusTerminalPane } from "../apps/web/src/features/terminal/terminalFocus.js";
+import {
+  focusTerminalPane,
+  forwardSurfaceMouseDownToTerminal
+} from "../apps/web/src/features/terminal/terminalFocus.js";
 import {
   nextThreadVmSelection,
   threadVmNavigationAction
@@ -136,6 +139,57 @@ Object.defineProperty(globalThis, "EventSource", {
   value: MockEventSource,
   configurable: true
 });
+
+if (typeof MouseEvent === "undefined") {
+  Object.defineProperty(globalThis, "MouseEvent", {
+    value: class ProbeMouseEvent extends Event {
+      readonly altKey: boolean;
+      readonly button: number;
+      readonly buttons: number;
+      readonly clientX: number;
+      readonly clientY: number;
+      readonly ctrlKey: boolean;
+      readonly detail: number;
+      readonly metaKey: boolean;
+      readonly relatedTarget: EventTarget | null;
+      readonly screenX: number;
+      readonly screenY: number;
+      readonly shiftKey: boolean;
+
+      constructor(type: string, init: MouseEventInit = {}) {
+        super(type, init);
+        this.altKey = init.altKey ?? false;
+        this.button = init.button ?? 0;
+        this.buttons = init.buttons ?? 0;
+        this.clientX = init.clientX ?? 0;
+        this.clientY = init.clientY ?? 0;
+        this.ctrlKey = init.ctrlKey ?? false;
+        this.detail = init.detail ?? 0;
+        this.metaKey = init.metaKey ?? false;
+        this.relatedTarget = init.relatedTarget ?? null;
+        this.screenX = init.screenX ?? 0;
+        this.screenY = init.screenY ?? 0;
+        this.shiftKey = init.shiftKey ?? false;
+      }
+    },
+    configurable: true
+  });
+}
+
+class ProbeElement extends EventTarget {
+  readonly children = new Set<ProbeElement>();
+
+  appendChild(child: ProbeElement) {
+    this.children.add(child);
+  }
+
+  contains(target: EventTarget | null): boolean {
+    return (
+      target === this ||
+      Array.from(this.children).some((child) => child.contains(target))
+    );
+  }
+}
 
 const vm: ThreadVmModel = {
   id: "vm-1",
@@ -301,6 +355,28 @@ focusTerminalPane({
 });
 assert.equal(focusedPanelAtom.value, "terminal");
 assert.equal(focusCount, 1);
+focusedPanelAtom.set("inspector");
+let forwardedFocusCount = 0;
+let forwardedMouseDownCount = 0;
+const surface = new ProbeElement();
+const terminalElement = new ProbeElement();
+surface.appendChild(terminalElement);
+terminalElement.addEventListener("mousedown", () => {
+  forwardedMouseDownCount += 1;
+});
+forwardSurfaceMouseDownToTerminal(
+  new MouseEvent("mousedown", { bubbles: true, clientX: 12, clientY: 34 }),
+  {
+    element: terminalElement,
+    focus: () => {
+      forwardedFocusCount += 1;
+    }
+  },
+  surface as unknown as HTMLElement
+);
+assert.equal(focusedPanelAtom.value, "terminal");
+assert.equal(forwardedFocusCount, 1);
+assert.equal(forwardedMouseDownCount, 1);
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
