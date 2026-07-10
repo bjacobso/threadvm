@@ -30,6 +30,7 @@ export const forwardSurfaceMouseDownToTerminal = (
     event.target instanceof Node &&
     terminalElement.contains(event.target)
   ) {
+    terminal.focus();
     return;
   }
 

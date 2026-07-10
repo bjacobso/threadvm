@@ -195,6 +195,13 @@ class ProbeElement extends EventTarget {
   }
 }
 
+if (typeof Node === "undefined") {
+  Object.defineProperty(globalThis, "Node", {
+    value: ProbeElement,
+    configurable: true
+  });
+}
+
 const vm: ThreadVmModel = {
   id: "vm-1",
   name: "probe-vm",
@@ -415,6 +422,22 @@ forwardSurfaceMouseDownToTerminal(
 );
 assert.equal(focusedPanelAtom.value, "terminal");
 assert.equal(forwardedFocusCount, 1);
+assert.equal(forwardedMouseDownCount, 1);
+let directFocusCount = 0;
+const terminalChild = new ProbeElement();
+terminalElement.appendChild(terminalChild);
+terminalChild.addEventListener("mousedown", (event) => {
+  forwardSurfaceMouseDownToTerminal(event as MouseEvent, {
+    element: terminalElement,
+    focus: () => {
+      directFocusCount += 1;
+    }
+  }, surface as unknown as HTMLElement);
+});
+terminalChild.dispatchEvent(
+  new MouseEvent("mousedown", { bubbles: true, clientX: 24, clientY: 48 })
+);
+assert.equal(directFocusCount, 1);
 assert.equal(forwardedMouseDownCount, 1);
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
