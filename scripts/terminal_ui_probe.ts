@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { terminalShortcutAction } from "../apps/web/src/features/terminal/keyboardShortcuts.js";
 import { parseOsc52 } from "../apps/web/src/features/terminal/osc52.js";
+import { Separator } from "../apps/web/src/components/ui/separator.js";
 import {
   Sheet,
   SheetContent,
@@ -187,6 +188,7 @@ assert.equal(typeof SheetContent, "function");
 assert.equal(typeof SheetHeader, "function");
 assert.equal(typeof SheetTitle, "function");
 assert.equal(typeof SheetDescription, "function");
+assert.equal(typeof Separator, "function");
 
 assert.equal(terminalShortcutAction({ key: "Enter", metaKey: true }), "attach");
 assert.equal(

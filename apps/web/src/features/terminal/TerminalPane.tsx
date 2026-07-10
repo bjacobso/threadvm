@@ -3,6 +3,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import type { ThreadVmModel } from "@threadvm/shared/domain";
 import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
 import {
   activeTerminalVmKey,
   clipboardNoticeAtom,
@@ -242,7 +243,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
   }, [attachTerminal, selected, sessionAtom]);
 
   return (
-    <section className="grid size-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-terminal-background">
+    <section className="grid size-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] bg-terminal-background">
       <TerminalToolbar
         selected={selected}
         session={session}
@@ -255,6 +256,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
           }
         }}
       />
+      <Separator />
       <div ref={elementRef} className="terminal-surface" />
     </section>
   );

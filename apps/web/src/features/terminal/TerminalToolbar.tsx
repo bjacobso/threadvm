@@ -67,7 +67,7 @@ export function TerminalToolbar({
   }, [session.attach]);
 
   return (
-    <div className="flex h-14 items-center justify-between gap-3 border-b bg-background px-3">
+    <div className="flex h-14 items-center justify-between gap-3 bg-background px-3">
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
           <strong className="truncate text-sm">
