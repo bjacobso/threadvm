@@ -270,7 +270,7 @@ Implemented:
 - exe.dev VM reflection through raw `ssh exe.dev ls`.
 - Vite/React/xterm web UI with ThreadVM sidebar, inspector, quick switcher, and attach button.
 - shadcn/Tailwind 4 UI tokens with JetBrains Mono across app chrome and terminal.
-- Effect Atom client state for inventory, project config, reconciliation, selection, terminal status, and clipboard notices.
+- Effect Atom client state for inventory, project config, reconciliation, selected ThreadVM, per-VM terminal status, and clipboard notices.
 - SSE reconciliation stream for live ThreadVM inventory snapshots.
 - New ThreadVM form backed by `POST /api/threadvms`.
 - Project registry editor backed by `PUT /api/projects/:id` and `DELETE /api/projects/:id`.

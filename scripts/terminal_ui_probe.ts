@@ -8,15 +8,18 @@ import {
 } from "../apps/web/src/features/threadvms/threadVmNavigation.js";
 import {
   activeTerminalVmKey,
+  clipboardNoticeAtom,
   createThreadVmActionAtom,
   createThreadVmAtom,
   devLogActionAtom,
   devLogAtom,
   provisioningStreamAtom,
   provisioningStreamStateAtom,
+  selectedThreadVmAtom,
   selectedVmKey,
   threadVmsAtom,
-  terminalSessionAtomFamily
+  terminalSessionAtomFamily,
+  terminalStatusAtomFamily
 } from "../apps/web/src/state/atoms.js";
 import { threadVmApi } from "../apps/web/src/state/apiClient.js";
 import type {
@@ -216,10 +219,18 @@ const createResponse = await createThreadVmActionAtom.run({
 assert.equal(createResponse.threadVm.startingPrompt, "check auth logs");
 assert.equal(createResponse.threadVm.pinned, true);
 assert.equal(createThreadVmAtom.value.status, "succeeded");
+assert.equal(selectedThreadVmAtom.value?.id, "created-vm");
 assert.equal(storage.get(selectedVmKey), "created-vm");
+
+clipboardNoticeAtom.set({
+  status: "copied",
+  message: "Copied 5 chars"
+});
+assert.equal(clipboardNoticeAtom.value?.message, "Copied 5 chars");
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
+assert.equal(terminalStatusAtomFamily(vm.id).value, "attached");
 assert.equal(storage.get(activeTerminalVmKey), vm.id);
 assert.equal(MockEventSource.instances.length, 1);
 assert.equal(MockEventSource.instances[0]?.url, attachResponse.streamUrl);
@@ -245,12 +256,14 @@ source.message(JSON.stringify("hello from vm"));
 assert.equal(viewOutput.at(-1), "hello from vm");
 source.emit("exit");
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "exited");
+assert.equal(terminalStatusAtomFamily(vm.id).value, "exited");
 assert.equal(source.closed, true);
 assert.equal(storage.get(activeTerminalVmKey), undefined);
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 terminalSessionActionAtom.cleanup(vm.id, true);
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "detached");
+assert.equal(terminalStatusAtomFamily(vm.id).value, "detached");
 assert.deepEqual(fetchCalls.at(-1), {
   url: attachResponse.closeUrl,
   init: { method: "DELETE" }

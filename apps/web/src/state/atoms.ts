@@ -1,5 +1,5 @@
 import { AtomRef } from "effect/unstable/reactivity";
-import { useMemo, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import type {
   CreateThreadVmRequestModel,
   ProjectModel,
@@ -113,6 +113,7 @@ export const terminalUiAtom = AtomRef.make<TerminalUiState>({
   clipboardNotice: undefined,
   focusedPanel: "terminal"
 });
+export const clipboardNoticeAtom = terminalUiAtom.prop("clipboardNotice");
 export const createThreadVmAtom = AtomRef.make<CreateThreadVmState>({
   status: "idle",
   message: undefined,
@@ -147,6 +148,26 @@ const emptyTerminalSessionAtom = AtomRef.make<TerminalSessionState>({
 
 const terminalSessionAtoms = new Map<string, AtomRef.AtomRef<TerminalSessionState>>();
 
+const readonlyRef = <A>(
+  key: string,
+  subscribeToSources: (notify: () => void) => () => void,
+  getValue: () => A
+) =>
+  ({
+    key,
+    get value() {
+      return getValue();
+    },
+    subscribe: (listener: (value: A) => void) =>
+      subscribeToSources(() => listener(getValue())),
+    map: <B>(f: (value: A) => B) =>
+      readonlyRef(
+        `${key}:map`,
+        subscribeToSources,
+        () => f(getValue())
+      )
+  }) as unknown as AtomRef.ReadonlyRef<A>;
+
 export const terminalSessionAtomFamily = (threadVmId: string | undefined) => {
   if (threadVmId === undefined) {
     return emptyTerminalSessionAtom;
@@ -163,6 +184,25 @@ export const terminalSessionAtomFamily = (threadVmId: string | undefined) => {
   return created;
 };
 
+export const terminalStatusAtomFamily = (threadVmId: string | undefined) =>
+  terminalSessionAtomFamily(threadVmId).map((session) => session.status);
+
+export const selectedThreadVmAtom = readonlyRef(
+  "selectedThreadVm",
+  (notify) => {
+    const unsubscribeThreadVms = threadVmsAtom.subscribe(notify);
+    const unsubscribeSelectedId = selectedThreadVmIdAtom.subscribe(notify);
+    return () => {
+      unsubscribeThreadVms();
+      unsubscribeSelectedId();
+    };
+  },
+  () =>
+    threadVmsAtom.value.find(
+      (threadVm) => threadVm.id === selectedThreadVmIdAtom.value
+    )
+);
+
 export const useAtomRef = <A,>(ref: AtomRef.ReadonlyRef<A>): A =>
   useSyncExternalStore(
     (listener) => ref.subscribe(listener),
@@ -171,13 +211,7 @@ export const useAtomRef = <A,>(ref: AtomRef.ReadonlyRef<A>): A =>
   );
 
 export const useSelectedThreadVm = () => {
-  const threadVms = useAtomRef(threadVmsAtom);
-  const selectedId = useAtomRef(selectedThreadVmIdAtom);
-
-  return useMemo(
-    () => threadVms.find((threadVm) => threadVm.id === selectedId),
-    [selectedId, threadVms]
-  );
+  return useAtomRef(selectedThreadVmAtom);
 };
 
 export const setSelectedThreadVmId = (threadVmId: string | undefined) => {

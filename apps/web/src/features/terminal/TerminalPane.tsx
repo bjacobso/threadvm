@@ -5,8 +5,8 @@ import type { ThreadVmModel } from "@threadvm/shared/domain";
 import { toast } from "sonner";
 import {
   activeTerminalVmKey,
+  clipboardNoticeAtom,
   terminalSessionAtomFamily,
-  terminalUiAtom,
   useAtomRef
 } from "@/state/atoms";
 import { terminalShortcutAction } from "./keyboardShortcuts";
@@ -42,7 +42,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     [selected?.id]
   );
   const session = useAtomRef(sessionAtom);
-  const terminalUi = useAtomRef(terminalUiAtom);
+  const clipboardNotice = useAtomRef(clipboardNoticeAtom);
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -50,23 +50,17 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
         throw new Error("Clipboard API is unavailable");
       }
       await navigator.clipboard.writeText(text);
-      terminalUiAtom.update((current) => ({
-        ...current,
-        clipboardNotice: {
-          status: "copied",
-          message: `Copied ${text.length.toLocaleString()} chars`
-        }
-      }));
+      clipboardNoticeAtom.set({
+        status: "copied",
+        message: `Copied ${text.length.toLocaleString()} chars`
+      });
       toast.success("Copied terminal selection to clipboard");
     } catch {
-      terminalUiAtom.update((current) => ({
-        ...current,
-        clipboardNotice: {
-          status: "pending",
-          message: "Browser blocked terminal clipboard copy",
-          text
-        }
-      }));
+      clipboardNoticeAtom.set({
+        status: "pending",
+        message: "Browser blocked terminal clipboard copy",
+        text
+      });
       toast.warning("Terminal requested clipboard access");
     }
   }, []);
@@ -80,13 +74,10 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
         }
         void copyToClipboard(text);
       } catch {
-        terminalUiAtom.update((current) => ({
-          ...current,
-          clipboardNotice: {
-            status: "failed",
-            message: "Terminal clipboard payload could not be decoded"
-          }
-        }));
+        clipboardNoticeAtom.set({
+          status: "failed",
+          message: "Terminal clipboard payload could not be decoded"
+        });
         toast.error("Terminal clipboard payload could not be decoded");
       }
       return true;
@@ -255,10 +246,10 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       <TerminalToolbar
         selected={selected}
         session={session}
-        clipboardNotice={terminalUi.clipboardNotice}
+        clipboardNotice={clipboardNotice}
         onAttach={(restart) => void attachTerminal(restart)}
         onCopyPendingClipboard={() => {
-          const notice = terminalUiAtom.value.clipboardNotice;
+          const notice = clipboardNoticeAtom.value;
           if (notice?.status === "pending") {
             void copyToClipboard(notice.text);
           }
