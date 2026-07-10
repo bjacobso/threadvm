@@ -1,4 +1,5 @@
 import { Context, Effect, Layer } from "effect";
+import { posix } from "node:path";
 import {
   CreateThreadVmRequest,
   CreateThreadVmResponse,
@@ -11,6 +12,7 @@ import {
 import { ConfigError, ConfigService } from "./ConfigService.js";
 import { ExeDevError, ExeDevService } from "./ExeDevService.js";
 import { LocalStore } from "./LocalStore.js";
+import { SshError, SshService } from "./SshService.js";
 
 export class WorkspaceError {
   readonly _tag = "WorkspaceError";
@@ -45,12 +47,39 @@ export class WorkspaceService extends Context.Service<
 const toWorkspaceError = (message: string) => (cause: unknown) =>
   new WorkspaceError(message, cause);
 
+const shellQuote = (input: string) => `'${input.replace(/'/g, `'\\''`)}'`;
+
+const commandFailureMessage = (cause: unknown) => {
+  const nested = cause instanceof WorkspaceError ? cause.cause : cause;
+  const commandError = nested instanceof SshError ? nested.cause : nested;
+
+  if (
+    commandError instanceof Object &&
+    "stderr" in commandError &&
+    typeof commandError.stderr === "string" &&
+    commandError.stderr.trim().length > 0
+  ) {
+    return commandError.stderr.trim();
+  }
+
+  if (nested instanceof SshError) {
+    return nested.message;
+  }
+
+  if (cause instanceof WorkspaceError) {
+    return cause.message;
+  }
+
+  return cause instanceof Error ? cause.message : String(cause);
+};
+
 export const WorkspaceServiceLive = Layer.effect(
   WorkspaceService,
   Effect.gen(function* () {
     const config = yield* ConfigService;
     const exe = yield* ExeDevService;
     const store = yield* LocalStore;
+    const ssh = yield* SshService;
 
     const previewPortsForProject = (threadVm: ThreadVm, project: Project) =>
       project.dev.ports.map(
@@ -70,6 +99,13 @@ export const WorkspaceServiceLive = Layer.effect(
         ? threadVm
         : new ThreadVm({
             ...threadVm,
+            state:
+              (threadVm.state === "running" ||
+                threadVm.state === "creating" ||
+                threadVm.state === "unknown") &&
+              metadata.state
+                ? metadata.state
+                : threadVm.state,
             project: metadata.project,
             slug: metadata.slug,
             summary: metadata.summary,
@@ -83,21 +119,180 @@ export const WorkspaceServiceLive = Layer.effect(
       project: Project,
       slug: string,
       summary: string,
-      branch: string
+      branch: string,
+      state: ThreadVm["state"]
     ) => {
       const now = Date.now();
+      const workspaceMetadataDir = posix.join(project.workdir, ".harness");
       return new ThreadVmMetadata({
         id: threadVm.id,
+        state,
         project: project.id,
         slug,
         summary,
         repo: project.repo,
         branch,
         ports: previewPortsForProject(threadVm, project),
+        metadataPath: posix.join(workspaceMetadataDir, "threadvm.json"),
+        devPidPath: `/tmp/threadvm/${threadVm.id}/dev.pid`,
+        devLogPath: `/tmp/threadvm/${threadVm.id}/dev.log`,
         createdAt: now,
         updatedAt: now
       });
     };
+
+    const updateMetadata = (
+      current: ThreadVmMetadata,
+      patch: Partial<ThreadVmMetadata>
+    ) =>
+      new ThreadVmMetadata({
+        ...current,
+        ...patch,
+        updatedAt: Date.now()
+      });
+
+    const remoteWorkdir = (project: Project, cwd: string | undefined) =>
+      cwd ? posix.join(project.workdir, cwd) : project.workdir;
+
+    const runRemote = (
+      threadVm: ThreadVm,
+      script: string,
+      timeoutMs = 120_000
+    ) =>
+      ssh
+        .exec(threadVm.host, script, { timeoutMs })
+        .pipe(
+          Effect.mapError(toWorkspaceError(`SSH command failed on ${threadVm.name}`))
+        );
+
+    const writeRemoteMetadata = (
+      threadVm: ThreadVm,
+      project: Project,
+      metadata: ThreadVmMetadata
+    ) => {
+      const metadataPath =
+        metadata.metadataPath ??
+        posix.join(project.workdir, ".harness", "threadvm.json");
+      const json = JSON.stringify(
+        {
+          id: metadata.id,
+          state: metadata.state,
+          project: metadata.project,
+          slug: metadata.slug,
+          summary: metadata.summary,
+          repo: metadata.repo,
+          branch: metadata.branch,
+          ports: metadata.ports,
+          devPidPath: metadata.devPidPath,
+          devLogPath: metadata.devLogPath,
+          lastProvisioningError: metadata.lastProvisioningError,
+          createdAt: metadata.createdAt,
+          updatedAt: metadata.updatedAt
+        },
+        null,
+        2
+      );
+
+      return runRemote(
+        threadVm,
+        [
+          "set -euo pipefail",
+          `mkdir -p ${shellQuote(posix.dirname(metadataPath))}`,
+          `cat > ${shellQuote(metadataPath)} <<'THREADVM_METADATA'`,
+          json,
+          "THREADVM_METADATA"
+        ].join("\n")
+      );
+    };
+
+    const prepareRepo = (threadVm: ThreadVm, project: Project, branch: string) =>
+      runRemote(
+        threadVm,
+        [
+          "set -euo pipefail",
+          `if [ ! -d ${shellQuote(posix.join(project.workdir, ".git"))} ]; then`,
+          `  rm -rf ${shellQuote(project.workdir)}`,
+          `  mkdir -p "$(dirname ${shellQuote(project.workdir)})"`,
+          `  git clone ${shellQuote(project.repo)} ${shellQuote(project.workdir)}`,
+          "fi",
+          `git -C ${shellQuote(project.workdir)} fetch origin ${shellQuote(project.defaultBranch)}`,
+          `if git -C ${shellQuote(project.workdir)} show-ref --verify --quiet ${shellQuote(`refs/heads/${branch}`)}; then`,
+          `  git -C ${shellQuote(project.workdir)} checkout ${shellQuote(branch)}`,
+          "else",
+          `  git -C ${shellQuote(project.workdir)} checkout -B ${shellQuote(branch)} ${shellQuote(`origin/${project.defaultBranch}`)}`,
+          "fi"
+        ].join("\n"),
+        300_000
+      );
+
+    const runBootstrap = (threadVm: ThreadVm, project: Project) =>
+      Effect.forEach(
+        project.bootstrap,
+        (bootstrapCommand) =>
+          runRemote(
+            threadVm,
+            [
+              "set -euo pipefail",
+              `cd ${shellQuote(project.workdir)}`,
+              bootstrapCommand
+            ].join("\n"),
+            600_000
+          ),
+        { discard: true }
+      );
+
+    const startDevServer = (
+      threadVm: ThreadVm,
+      project: Project,
+      metadata: ThreadVmMetadata
+    ) => {
+      const devDir = remoteWorkdir(project, project.dev.cwd);
+      const pidPath = metadata.devPidPath ?? `/tmp/threadvm/${threadVm.id}/dev.pid`;
+      const logPath = metadata.devLogPath ?? `/tmp/threadvm/${threadVm.id}/dev.log`;
+
+      return runRemote(
+        threadVm,
+        [
+          "set -euo pipefail",
+          `mkdir -p ${shellQuote(posix.dirname(pidPath))}`,
+          `cd ${shellQuote(devDir)}`,
+          `if [ -s ${shellQuote(pidPath)} ] && kill -0 "$(cat ${shellQuote(pidPath)})" >/dev/null 2>&1; then`,
+          "  exit 0",
+          "fi",
+          `nohup bash -lc ${shellQuote(project.dev.command)} > ${shellQuote(logPath)} 2>&1 < /dev/null &`,
+          `echo $! > ${shellQuote(pidPath)}`
+        ].join("\n")
+      );
+    };
+
+    const provisionThreadVm = (
+      threadVm: ThreadVm,
+      project: Project,
+      metadata: ThreadVmMetadata
+    ) =>
+      Effect.gen(function* () {
+        if (!metadata.branch) {
+          return metadata;
+        }
+        const bootstrapping = updateMetadata(metadata, {
+          state: "bootstrapping",
+          lastProvisioningError: undefined
+        });
+        yield* rememberThreadVm(bootstrapping);
+
+        yield* prepareRepo(threadVm, project, metadata.branch);
+        yield* writeRemoteMetadata(threadVm, project, bootstrapping);
+        yield* runBootstrap(threadVm, project);
+        yield* startDevServer(threadVm, project, bootstrapping);
+
+        const ready = updateMetadata(bootstrapping, {
+          state: "ready",
+          lastProvisioningError: undefined
+        });
+        yield* rememberThreadVm(ready);
+        yield* writeRemoteMetadata(threadVm, project, ready);
+        return ready;
+      });
 
     const listThreadVms = Effect.gen(function* () {
       const [vms, metadata] = yield* Effect.all(
@@ -167,20 +362,41 @@ export const WorkspaceServiceLive = Layer.effect(
           project,
           slug,
           request.summary,
-          branch
+          branch,
+          "creating"
         );
         yield* rememberThreadVm(metadata);
+        const bootstrapping = updateMetadata(metadata, {
+          state: "bootstrapping",
+          lastProvisioningError: undefined
+        });
+        yield* rememberThreadVm(bootstrapping);
+        yield* provisionThreadVm(threadVm, project, metadata).pipe(
+          Effect.catch((cause) =>
+            Effect.gen(function* () {
+              const failed = updateMetadata(bootstrapping, {
+                state: "failed",
+                lastProvisioningError: commandFailureMessage(cause)
+              });
+              yield* rememberThreadVm(failed);
+              yield* writeRemoteMetadata(threadVm, project, failed).pipe(
+                Effect.catch(() => Effect.void)
+              );
+            })
+          ),
+          Effect.forkDetach
+        );
 
         return new CreateThreadVmResponse({
           threadVm: enrichThreadVm(
             new ThreadVm({
               ...threadVm,
-              state: "creating"
+              state: "bootstrapping"
             }),
-            metadata
+            bootstrapping
           ),
           message:
-            "VM create/clone was requested. Repo bootstrap, dev server startup, and optional Herdr setup are the next implementation steps."
+            "VM was created. Repo bootstrap and dev command startup are running in the background."
         });
       });
 

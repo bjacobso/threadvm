@@ -36,6 +36,19 @@ export class Port extends Schema.Class<Port>("Port")({
   url: Schema.String
 }) {}
 
+export const ThreadVmState = Schema.Literals([
+  "discovering",
+  "creating",
+  "bootstrapping",
+  "ready",
+  "running",
+  "blocked",
+  "stopped",
+  "failed",
+  "destroying",
+  "unknown"
+]);
+
 export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({
   id: Schema.String,
   name: Schema.String,
@@ -45,18 +58,7 @@ export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({
   summary: Schema.optional(Schema.String),
   repo: Schema.optional(Schema.String),
   branch: Schema.optional(Schema.String),
-  state: Schema.Literals([
-    "discovering",
-    "creating",
-    "bootstrapping",
-    "ready",
-    "running",
-    "blocked",
-    "stopped",
-    "failed",
-    "destroying",
-    "unknown"
-  ]),
+  state: ThreadVmState,
   source: Schema.Literals(["exe", "cache", "mock"]),
   ports: Schema.Array(Port),
   raw: Schema.optional(Schema.String)
@@ -99,12 +101,17 @@ export class ThreadVmMetadata extends Schema.Class<ThreadVmMetadata>(
   "ThreadVmMetadata"
 )({
   id: Schema.String,
+  state: Schema.optional(ThreadVmState),
   project: Schema.optional(Schema.String),
   slug: Schema.optional(Schema.String),
   summary: Schema.optional(Schema.String),
   repo: Schema.optional(Schema.String),
   branch: Schema.optional(Schema.String),
   ports: Schema.Array(Port),
+  metadataPath: Schema.optional(Schema.String),
+  devPidPath: Schema.optional(Schema.String),
+  devLogPath: Schema.optional(Schema.String),
+  lastProvisioningError: Schema.optional(Schema.String),
   createdAt: Schema.Number,
   updatedAt: Schema.Number
 }) {}

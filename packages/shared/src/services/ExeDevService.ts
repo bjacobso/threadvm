@@ -124,7 +124,7 @@ export const ExeDevServiceLive = Layer.effect(
       new ThreadVm({
         id: name,
         name,
-        host: name,
+        host: `${name}.exe.xyz`,
         state: "creating",
         source: "exe",
         ports: []

@@ -39,6 +39,11 @@
       "types": "./dist/services/LocalStore.d.ts",
       "import": "./dist/services/LocalStore.js"
     },
+    "./services/SshService": {
+      "development": "./src/services/SshService.ts",
+      "types": "./dist/services/SshService.d.ts",
+      "import": "./dist/services/SshService.js"
+    },
     "./services/TerminalBridge": {
       "development": "./src/services/TerminalBridge.ts",
       "types": "./dist/services/TerminalBridge.d.ts",
