@@ -9,98 +9,90 @@ import type {
   ThreadVmReconciliationEventModel,
   ThreadVmModel
 } from "@threadvm/shared/domain";
+import { ThreadVmApi } from "@threadvm/shared/api";
 import {
-  CreateThreadVmResponse,
-  Project,
-  ProjectRegistryResponse,
-  TerminalAttachResponse,
-  ThreadVm,
-  ThreadVmLifecycleResponse,
   ThreadVmProvisioningEvent,
   ThreadVmReconciliationEvent
 } from "@threadvm/shared/domain";
-import { Schema } from "effect";
+import { FetchHttpClient } from "effect/unstable/http";
+import { HttpApiClient } from "effect/unstable/httpapi";
+import { Effect, Schema } from "effect";
 
-const decodeProjects = Schema.decodeUnknownPromise(Schema.Array(Project));
-const decodeProjectRegistry = Schema.decodeUnknownPromise(ProjectRegistryResponse);
-const decodeThreadVms = Schema.decodeUnknownPromise(Schema.Array(ThreadVm));
-const decodeCreateThreadVm =
-  Schema.decodeUnknownPromise(CreateThreadVmResponse);
-const decodeThreadVmLifecycle =
-  Schema.decodeUnknownPromise(ThreadVmLifecycleResponse);
 const decodeThreadVmReconciliationEvent = Schema.decodeUnknownPromise(
   ThreadVmReconciliationEvent
 );
 const decodeThreadVmProvisioningEvent = Schema.decodeUnknownPromise(
   ThreadVmProvisioningEvent
 );
-const decodeTerminalAttach = Schema.decodeUnknownPromise(TerminalAttachResponse);
 
-const apiJson = async (
-  input: RequestInfo | URL,
-  init?: RequestInit
-): Promise<unknown> => {
-  const response = await fetch(input, {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...init?.headers
-    }
-  });
+const baseUrl =
+  typeof window === "undefined"
+    ? "http://127.0.0.1:3333"
+    : window.location.origin;
 
-  if (!response.ok) {
-    throw new Error(await response.text());
+const clientPromise = Effect.runPromise(
+  HttpApiClient.make(ThreadVmApi, { baseUrl }).pipe(
+    Effect.provide(FetchHttpClient.layer)
+  )
+);
+
+const formatApiError = (error: unknown): Error => {
+  if (error instanceof Error) {
+    return error;
   }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  return new Error(JSON.stringify(error));
+};
 
-  return await response.json();
+const runApiEffect = async <A>(
+  effect: Effect.Effect<A, unknown, never>
+): Promise<A> => {
+  try {
+    return await Effect.runPromise(effect);
+  } catch (error) {
+    throw formatApiError(error);
+  }
 };
 
 export const threadVmApi = {
   listProjects: async (): Promise<ReadonlyArray<ProjectModel>> =>
-    await decodeProjects(await apiJson("/api/projects")),
+    await runApiEffect((await clientPromise).projects.list()),
   saveProject: async (
     project: ProjectModel
   ): Promise<ProjectRegistryResponseModel> =>
-    await decodeProjectRegistry(
-      await apiJson(`/api/projects/${encodeURIComponent(project.id)}`, {
-        method: "PUT",
-        body: JSON.stringify(project)
+    await runApiEffect(
+      (await clientPromise).projects.save({
+        params: { id: project.id },
+        payload: project
       })
     ),
   removeProject: async (
     projectId: string
   ): Promise<ProjectRegistryResponseModel> =>
-    await decodeProjectRegistry(
-      await apiJson(`/api/projects/${encodeURIComponent(projectId)}`, {
-        method: "DELETE"
-      })
+    await runApiEffect(
+      (await clientPromise).projects.remove({ params: { id: projectId } })
     ),
   listThreadVms: async (): Promise<ReadonlyArray<ThreadVmModel>> =>
-    await decodeThreadVms(await apiJson("/api/threadvms")),
+    await runApiEffect((await clientPromise).threadvms.list()),
   createThreadVm: async (
     request: CreateThreadVmRequestModel
   ): Promise<CreateThreadVmResponseModel> =>
-    await decodeCreateThreadVm(
-      await apiJson("/api/threadvms", {
-        method: "POST",
-        body: JSON.stringify(request)
-      })
+    await runApiEffect(
+      (await clientPromise).threadvms.create({ payload: request })
     ),
   stopThreadVm: async (
     threadVmId: string
   ): Promise<ThreadVmLifecycleResponseModel> =>
-    await decodeThreadVmLifecycle(
-      await apiJson(`/api/threadvms/${encodeURIComponent(threadVmId)}/stop`, {
-        method: "POST"
-      })
+    await runApiEffect(
+      (await clientPromise).threadvms.stop({ params: { id: threadVmId } })
     ),
   removeThreadVm: async (
     threadVmId: string
   ): Promise<ThreadVmLifecycleResponseModel> =>
-    await decodeThreadVmLifecycle(
-      await apiJson(`/api/threadvms/${encodeURIComponent(threadVmId)}`, {
-        method: "DELETE"
-      })
+    await runApiEffect(
+      (await clientPromise).threadvms.remove({ params: { id: threadVmId } })
     ),
   decodeReconciliationEvent: async (
     data: string
@@ -114,10 +106,9 @@ export const threadVmApi = {
     threadVmId: string,
     restart = false
   ): Promise<TerminalAttachResponseModel> =>
-    await decodeTerminalAttach(
-      await apiJson("/api/terminal/attach", {
-        method: "POST",
-        body: JSON.stringify({ threadVmId, restart })
+    await runApiEffect(
+      (await clientPromise).terminal.attach({
+        payload: { threadVmId, restart }
       })
     )
 };
