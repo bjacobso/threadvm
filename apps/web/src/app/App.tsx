@@ -14,6 +14,7 @@ import { ThreadVmCommandPalette } from "@/features/threadvms/ThreadVmCommandPale
 import { ThreadVmList } from "@/features/threadvms/ThreadVmList";
 import {
   loadProjectConfigAtom,
+  provisioningStreamAtom,
   reconciliationStreamAtom,
   refreshThreadVmsAtom,
   useSelectedThreadVm
@@ -32,6 +33,12 @@ export function App() {
 
     return () => stopReconciliationStream();
   }, []);
+
+  useEffect(() => {
+    const stopProvisioningStream = provisioningStreamAtom.start(selected?.id);
+
+    return () => stopProvisioningStream();
+  }, [selected?.id]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

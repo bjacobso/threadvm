@@ -44,6 +44,14 @@ export interface ReconciliationState {
   readonly error: string | undefined;
 }
 
+export interface ProvisioningStreamState {
+  readonly status: "idle" | "streaming" | "failed";
+  readonly threadVmId: string | undefined;
+  readonly lastStartedAt: number | undefined;
+  readonly lastObservedAt: number | undefined;
+  readonly error: string | undefined;
+}
+
 export interface CreateThreadVmState {
   readonly status: "idle" | "creating" | "succeeded" | "failed";
   readonly message: string | undefined;
@@ -81,6 +89,13 @@ export const reconciliationAtom = AtomRef.make<ReconciliationState>({
   status: "idle",
   lastStartedAt: undefined,
   lastFinishedAt: undefined,
+  error: undefined
+});
+export const provisioningStreamStateAtom = AtomRef.make<ProvisioningStreamState>({
+  status: "idle",
+  threadVmId: undefined,
+  lastStartedAt: undefined,
+  lastObservedAt: undefined,
   error: undefined
 });
 export const selectedThreadVmIdAtom = AtomRef.make<string | undefined>(
@@ -165,6 +180,18 @@ const setThreadVmsFromServer = (nextThreadVms: ReadonlyArray<ThreadVmModel>) => 
       ? preferred
       : nextThreadVms[0]?.id
   );
+};
+
+const upsertThreadVmFromServer = (nextThreadVm: ThreadVmModel) => {
+  threadVmsAtom.update((current) => {
+    const existing = current.find((threadVm) => threadVm.id === nextThreadVm.id);
+    if (!existing) {
+      return [nextThreadVm, ...current];
+    }
+    return current.map((threadVm) =>
+      threadVm.id === nextThreadVm.id ? nextThreadVm : threadVm
+    );
+  });
 };
 
 export const loadProjectConfigAtom = {
@@ -318,6 +345,116 @@ export const reconciliationStreamAtom = {
   },
   stop: () => {
     reconciliationStreamCleanup?.();
+  }
+} as const;
+
+let provisioningStreamCleanup: (() => void) | undefined;
+
+export const provisioningStreamAtom = {
+  start: (threadVmId: string | undefined) => {
+    provisioningStreamCleanup?.();
+
+    if (!threadVmId) {
+      provisioningStreamStateAtom.set({
+        status: "idle",
+        threadVmId: undefined,
+        lastStartedAt: undefined,
+        lastObservedAt: undefined,
+        error: undefined
+      });
+      return () => {};
+    }
+
+    const startedAt = Date.now();
+    let closed = false;
+    const source = new EventSource(
+      `/rpc/threadvms/${encodeURIComponent(threadVmId)}/provisioning`
+    );
+    provisioningStreamStateAtom.set({
+      status: "streaming",
+      threadVmId,
+      lastStartedAt: startedAt,
+      lastObservedAt: undefined,
+      error: undefined
+    });
+
+    source.addEventListener("provisioning", (event) => {
+      void threadVmApi
+        .decodeProvisioningEvent(event.data)
+        .then((snapshot) => {
+          if (closed) {
+            return;
+          }
+          upsertThreadVmFromServer(snapshot.threadVm);
+          provisioningStreamStateAtom.set({
+            status: "streaming",
+            threadVmId,
+            lastStartedAt: startedAt,
+            lastObservedAt: snapshot.observedAt,
+            error: undefined
+          });
+        })
+        .catch((cause) => {
+          if (closed) {
+            return;
+          }
+          provisioningStreamStateAtom.set({
+            status: "failed",
+            threadVmId,
+            lastStartedAt: startedAt,
+            lastObservedAt: Date.now(),
+            error: cause instanceof Error ? cause.message : String(cause)
+          });
+        });
+    });
+
+    source.addEventListener("provisioning-error", (event) => {
+      if (closed) {
+        return;
+      }
+      provisioningStreamStateAtom.set({
+        status: "failed",
+        threadVmId,
+        lastStartedAt: startedAt,
+        lastObservedAt: Date.now(),
+        error: "data" in event ? String(event.data) : "provisioning failed"
+      });
+    });
+
+    source.onerror = () => {
+      if (closed) {
+        return;
+      }
+      provisioningStreamStateAtom.set({
+        status: "failed",
+        threadVmId,
+        lastStartedAt: startedAt,
+        lastObservedAt: Date.now(),
+        error: "Provisioning stream disconnected"
+      });
+      source.close();
+      provisioningStreamCleanup = undefined;
+    };
+
+    provisioningStreamCleanup = () => {
+      closed = true;
+      source.close();
+      if (provisioningStreamCleanup) {
+        provisioningStreamCleanup = undefined;
+      }
+    };
+
+    return provisioningStreamCleanup;
+  },
+  stop: () => {
+    provisioningStreamCleanup?.();
+    provisioningStreamStateAtom.set({
+      status: "idle",
+      threadVmId: undefined,
+      lastStartedAt: undefined,
+      lastObservedAt: undefined,
+      error: undefined
+    });
   }
 } as const;
 

@@ -3,10 +3,16 @@ import { parseOsc52 } from "../apps/web/src/features/terminal/osc52.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
 import {
   activeTerminalVmKey,
+  provisioningStreamAtom,
+  provisioningStreamStateAtom,
+  threadVmsAtom,
   terminalSessionAtomFamily
 } from "../apps/web/src/state/atoms.js";
 import { threadVmApi } from "../apps/web/src/state/apiClient.js";
-import type { TerminalAttachResponseModel, ThreadVmModel } from "@threadvm/shared/domain";
+import type {
+  TerminalAttachResponseModel,
+  ThreadVmModel
+} from "@threadvm/shared/domain";
 
 interface FetchCall {
   readonly url: string;
@@ -48,14 +54,20 @@ class MockEventSource {
   onerror: (() => void) | undefined;
   onmessage: ((event: MessageEvent<string>) => void) | undefined;
   onopen: (() => void) | undefined;
-  readonly listeners = new Map<string, Array<() => void>>();
+  readonly listeners = new Map<
+    string,
+    Array<(event: MessageEvent<string>) => void>
+  >();
   closed = false;
 
   constructor(readonly url: string) {
     MockEventSource.instances.push(this);
   }
 
-  addEventListener(event: string, listener: () => void) {
+  addEventListener(
+    event: string,
+    listener: (event: MessageEvent<string>) => void
+  ) {
     const listeners = this.listeners.get(event) ?? [];
     listeners.push(listener);
     this.listeners.set(event, listeners);
@@ -65,9 +77,9 @@ class MockEventSource {
     this.closed = true;
   }
 
-  emit(event: string) {
+  emit(event: string, data = "") {
     for (const listener of this.listeners.get(event) ?? []) {
-      listener();
+      listener({ data } as MessageEvent<string>);
     }
   }
 
@@ -167,5 +179,38 @@ assert.deepEqual(fetchCalls.at(-1), {
   url: attachResponse.closeUrl,
   init: { method: "DELETE" }
 });
+
+threadVmsAtom.set([vm]);
+const stopProvisioning = provisioningStreamAtom.start(vm.id);
+const provisioningSource = MockEventSource.instances.at(-1)!;
+assert.equal(provisioningSource.url, `/rpc/threadvms/${vm.id}/provisioning`);
+provisioningSource.emit(
+  "provisioning",
+  JSON.stringify({
+    threadVm: {
+      ...vm,
+      state: "bootstrapping",
+      provisioningSteps: [
+        {
+          id: "prepare-repo",
+          label: "Prepare repo",
+          status: "running",
+          startedAt: Date.now()
+        }
+      ]
+    },
+    observedAt: 123
+  })
+);
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.equal(threadVmsAtom.value[0]?.state, "bootstrapping");
+assert.equal(
+  threadVmsAtom.value[0]?.provisioningSteps?.[0]?.id,
+  "prepare-repo"
+);
+assert.equal(provisioningStreamStateAtom.value.status, "streaming");
+assert.equal(provisioningStreamStateAtom.value.lastObservedAt, 123);
+stopProvisioning();
+assert.equal(provisioningSource.closed, true);
 
 console.log("terminal ui probe ok");

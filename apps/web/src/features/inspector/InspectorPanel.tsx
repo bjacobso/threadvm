@@ -1,14 +1,24 @@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { useSelectedThreadVm } from "@/state/atoms";
+import {
+  provisioningStreamStateAtom,
+  useAtomRef,
+  useSelectedThreadVm
+} from "@/state/atoms";
 import { ThreadVmStateBadge } from "../threadvms/ThreadVmStateBadge";
 import { LifecycleActions } from "./LifecycleActions";
 import { MetadataTable } from "./MetadataTable";
 import { PortLinks } from "./PortLinks";
 
+const formatObservedAt = (observedAt: number | undefined) =>
+  observedAt === undefined ? "pending" : new Date(observedAt).toLocaleTimeString();
+
 export function InspectorPanel() {
   const selected = useSelectedThreadVm();
+  const provisioningStream = useAtomRef(provisioningStreamStateAtom);
+  const streamMatchesSelection =
+    selected !== undefined && provisioningStream.threadVmId === selected.id;
 
   return (
     <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-l bg-sidebar text-sidebar-foreground">
@@ -23,6 +33,17 @@ export function InspectorPanel() {
               <div className="flex flex-wrap items-center gap-2">
                 <ThreadVmStateBadge state={selected.state} />
                 <Badge variant="outline">{selected.source}</Badge>
+                {streamMatchesSelection ? (
+                  <Badge
+                    variant={
+                      provisioningStream.status === "failed"
+                        ? "destructive"
+                        : "secondary"
+                    }
+                  >
+                    provisioning {provisioningStream.status}
+                  </Badge>
+                ) : null}
               </div>
               <MetadataTable
                 rows={[
@@ -35,6 +56,20 @@ export function InspectorPanel() {
                   ["Metadata", selected.metadataPath ?? "unknown"],
                   ["Dev log", selected.devLogPath ?? "unknown"],
                   ["Dev pid", selected.devPidPath ?? "unknown"],
+                  [
+                    "Stream",
+                    streamMatchesSelection ? (
+                      provisioningStream.error ? (
+                        <span className="text-destructive">
+                          {provisioningStream.error}
+                        </span>
+                      ) : (
+                        formatObservedAt(provisioningStream.lastObservedAt)
+                      )
+                    ) : (
+                      "idle"
+                    )
+                  ],
                   [
                     "Provisioning",
                     selected.lastProvisioningError ? (
