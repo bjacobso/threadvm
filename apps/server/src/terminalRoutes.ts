@@ -5,6 +5,7 @@ import {
 } from "effect/unstable/http";
 import { Socket } from "effect/unstable/socket";
 import { Effect, Fiber, Layer, Queue, Result, Schema, Stream } from "effect";
+import { randomUUID } from "node:crypto";
 import {
   TerminalClientMessage,
   TerminalErrorMessage,
@@ -87,6 +88,7 @@ const terminalSocketRoute = HttpRouter.add(
       );
     }
     const socketRequest = socketRequestResult.success;
+    const attachmentId = randomUUID();
 
     const socket = yield* request.upgrade;
     const writer = yield* socket.writer;
@@ -94,6 +96,10 @@ const terminalSocketRoute = HttpRouter.add(
       writer(JSON.stringify(message));
     const close = (code: number, reason: string) =>
       writer(new Socket.CloseEvent(code, reason));
+
+    yield* Effect.log("Terminal WebSocket opened").pipe(
+      Effect.annotateLogs({ threadVmId, attachmentId })
+    );
 
     let attachment: TerminalAttachment | undefined;
     const clientMessages = yield* Queue.bounded<string>(256);
@@ -113,12 +119,18 @@ const terminalSocketRoute = HttpRouter.add(
         switch (message.type) {
           case "input":
             if (!attachment) {
+              yield* Effect.logWarning(
+                "Terminal input rejected before attachment was ready"
+              ).pipe(Effect.annotateLogs({ threadVmId, attachmentId }));
               return;
             }
             yield* attachment.write(message.data);
             break;
           case "resize":
             if (!attachment) {
+              yield* Effect.logWarning(
+                "Terminal resize rejected before attachment was ready"
+              ).pipe(Effect.annotateLogs({ threadVmId, attachmentId }));
               return;
             }
             yield* attachment.resize(message.cols, message.rows);
@@ -152,7 +164,10 @@ const terminalSocketRoute = HttpRouter.add(
       );
     const inputLoop = socket.runString((raw) => {
       if (!Queue.offerUnsafe(clientMessages, raw)) {
-        return close(1013, "terminal-input-overflow");
+        return Effect.logWarning("Terminal input queue overflowed").pipe(
+          Effect.annotateLogs({ threadVmId, attachmentId }),
+          Effect.andThen(close(1013, "terminal-input-overflow"))
+        );
       }
     });
     const inputFiber = yield* Effect.forkScoped(inputLoop);
@@ -171,7 +186,7 @@ const terminalSocketRoute = HttpRouter.add(
     const openedResult = yield* Effect.result(
       Effect.gen(function* () {
         const vm = yield* workspaces.getThreadVm(socketRequest.threadVmId);
-        return yield* bridge.open(vm, socketRequest);
+        return yield* bridge.open(vm, { ...socketRequest, attachmentId });
       })
     );
     if (Result.isFailure(openedResult)) {
@@ -199,6 +214,14 @@ const terminalSocketRoute = HttpRouter.add(
     yield* send(
       new TerminalStatusMessage({ type: "status", status: "attached" })
     );
+    yield* Effect.log("Terminal client reached ready state").pipe(
+      Effect.annotateLogs({
+        threadVmId,
+        attachmentId,
+        sessionName: openedAttachment.sessionName,
+        reused: openedAttachment.reused
+      })
+    );
 
     const outputLoop = Stream.runForEach(openedAttachment.output, (data) =>
       send(new TerminalOutputMessage({ type: "output", data }))
@@ -207,12 +230,16 @@ const terminalSocketRoute = HttpRouter.add(
 
     const processExit = openedAttachment.exited.pipe(
       Effect.flatMap((reason) =>
-        send(
-          new TerminalStatusMessage({
-            type: "status",
-            status: "disconnected"
-          })
-        ).pipe(
+        Effect.log("Terminal attachment PTY exited").pipe(
+          Effect.annotateLogs({ threadVmId, attachmentId, reason }),
+          Effect.andThen(
+            send(
+              new TerminalStatusMessage({
+                type: "status",
+                status: "disconnected"
+              })
+            )
+          ),
           Effect.andThen(
             close(
               1000,
@@ -222,12 +249,18 @@ const terminalSocketRoute = HttpRouter.add(
         )
       ),
       Effect.catch((cause) =>
-        send(
-          new TerminalErrorMessage({
-            type: "error",
-            message: errorMessage(cause)
-          })
-        ).pipe(Effect.andThen(close(1011, "terminal-failed")))
+        Effect.logWarning("Terminal attachment failed", cause).pipe(
+          Effect.annotateLogs({ threadVmId, attachmentId }),
+          Effect.andThen(
+            send(
+              new TerminalErrorMessage({
+                type: "error",
+                message: errorMessage(cause)
+              })
+            )
+          ),
+          Effect.andThen(close(1011, "terminal-failed"))
+        )
       )
     );
 
@@ -236,7 +269,7 @@ const terminalSocketRoute = HttpRouter.add(
       processExit
     );
 
-    yield* Effect.log("Terminal attachment closed").pipe(
+    yield* Effect.log("Terminal WebSocket closed").pipe(
       Effect.annotateLogs({
         threadVmId,
         attachmentId: openedAttachment.id

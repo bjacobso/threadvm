@@ -194,11 +194,14 @@ export class ThreadVmMetadataFile extends Schema.Class<ThreadVmMetadataFile>(
 const TerminalDimension = Schema.Int.check(
   Schema.isBetween({ minimum: 2, maximum: 1_000 })
 );
+const TerminalThreadVmId = Schema.String.check(
+  Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/)
+);
 
 export class TerminalSocketRequest extends Schema.Class<TerminalSocketRequest>(
   "TerminalSocketRequest"
 )({
-  threadVmId: Schema.String,
+  threadVmId: TerminalThreadVmId,
   cols: TerminalDimension,
   rows: TerminalDimension,
   restart: Schema.Boolean

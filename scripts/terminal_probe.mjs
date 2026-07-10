@@ -1,14 +1,24 @@
 import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import net from "node:net";
-import { Effect } from "effect";
+import { Effect, Layer, Result } from "effect";
+import { ThreadVm } from "../packages/shared/dist/domain/schema.js";
 import {
   CommandService,
   CommandServiceLive
 } from "../packages/shared/dist/services/CommandService.js";
+import {
+  RemoteTerminalSessionLive,
+  terminalSessionName
+} from "../packages/shared/dist/services/RemoteTerminalSession.js";
+import { SshServiceLive } from "../packages/shared/dist/services/SshService.js";
+import {
+  TerminalBridge,
+  TerminalBridgeLive
+} from "../packages/shared/dist/services/TerminalBridge.js";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -152,7 +162,79 @@ const verifyCommandInterruption = async (tempDir) => {
   }
 };
 
+const verifyOutputBackpressure = async (terminalCommandFile) => {
+  const threadVmId = `terminal-overflow-${process.pid}-${Date.now()}`;
+  const sessionName = terminalSessionName(threadVmId);
+  const previousCommand = process.env.THREADVM_TERMINAL_COMMAND;
+  const previousLocalTmux = process.env.THREADVM_TERMINAL_LOCAL_TMUX;
+  process.env.THREADVM_TERMINAL_LOCAL_TMUX = "1";
+  process.env.THREADVM_TERMINAL_COMMAND =
+    `exec tmux new-session -A -s \"$THREADVM_SESSION_NAME\" ${JSON.stringify(terminalCommandFile)}`;
+
+  const sshLayer = SshServiceLive.pipe(Layer.provide(CommandServiceLive));
+  const remoteLayer = RemoteTerminalSessionLive.pipe(Layer.provide(sshLayer));
+  const bridgeLayer = TerminalBridgeLive.pipe(Layer.provide(remoteLayer));
+  const program = Effect.scoped(
+    Effect.gen(function* () {
+      const bridge = yield* TerminalBridge;
+      const attachment = yield* bridge.open(
+        new ThreadVm({
+          id: threadVmId,
+          name: threadVmId,
+          host: `${threadVmId}.exe.xyz`,
+          state: "running",
+          source: "mock",
+          ports: []
+        }),
+        {
+          attachmentId: `attachment-${threadVmId}`,
+          cols: 100,
+          rows: 30
+        }
+      );
+      yield* attachment.write("__flood__\n");
+      const exit = yield* Effect.result(
+        attachment.exited.pipe(Effect.timeout("10 seconds"))
+      );
+      if (
+        Result.isSuccess(exit) ||
+        !String(exit.failure.message).includes("output queue overflowed")
+      ) {
+        throw new Error(
+          `terminal output backpressure did not fail visibly: ${JSON.stringify(exit)}`
+        );
+      }
+    })
+  ).pipe(Effect.provide(bridgeLayer));
+
+  try {
+    await Effect.runPromise(program);
+  } finally {
+    spawn("tmux", ["kill-session", "-t", sessionName], { stdio: "ignore" });
+    if (previousCommand === undefined) {
+      delete process.env.THREADVM_TERMINAL_COMMAND;
+    } else {
+      process.env.THREADVM_TERMINAL_COMMAND = previousCommand;
+    }
+    if (previousLocalTmux === undefined) {
+      delete process.env.THREADVM_TERMINAL_LOCAL_TMUX;
+    } else {
+      process.env.THREADVM_TERMINAL_LOCAL_TMUX = previousLocalTmux;
+    }
+  }
+};
+
 const main = async () => {
+  const firstCollisionName = terminalSessionName("project/feature");
+  const secondCollisionName = terminalSessionName("project-feature");
+  if (
+    firstCollisionName === secondCollisionName ||
+    !/^threadvm-[a-z0-9-]+-[a-f0-9]{10}$/.test(firstCollisionName) ||
+    !/^threadvm-[a-z0-9-]+-[a-f0-9]{10}$/.test(secondCollisionName)
+  ) {
+    throw new Error("terminal session names are not safe and collision-resistant");
+  }
+
   const port = await findPort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const tempDir = await mkdtemp(join(tmpdir(), "threadvm-terminal-probe-"));
@@ -196,6 +278,10 @@ const main = async () => {
       "#!/bin/sh",
       "printf '\\033[?1000h\\033[?1006h'",
       "while IFS= read -r line; do",
+      "  if [ \"$line\" = \"__flood__\" ]; then",
+      "    yes x | head -c 33554432",
+      "    continue",
+      "  fi",
       "  if [ \"$line\" = \"__size__\" ]; then",
       "    stty size",
       "  else",
@@ -207,33 +293,47 @@ const main = async () => {
   );
   await chmod(terminalCommandFile, 0o755);
   await verifyCommandInterruption(tempDir);
-
-  const server = spawn("node", ["apps/server/dist/main.js"], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      THREADVM_PORT: String(port),
-      THREADVM_PROJECTS_FILE: projectsFile,
-      THREADVM_STORE_FILE: storeFile,
-      THREADVM_EXEDEV_MOCK: "1",
-      THREADVM_EXEDEV_MOCK_ID: threadVmId,
-      THREADVM_EXEDEV_MOCK_NAME: threadVmId,
-      THREADVM_EXEDEV_MOCK_HOST: `${threadVmId}.exe.xyz`,
-      THREADVM_SSH_MOCK: "1",
-      THREADVM_SSH_MOCK_STDOUT: "THREADVM_LOG_FULL\nmock dev log\n",
-      THREADVM_TERMINAL_LOCAL_TMUX: "1",
-      THREADVM_TERMINAL_COMMAND: `exec tmux new-session -A -s \"$THREADVM_SESSION_NAME\" ${JSON.stringify(terminalCommandFile)}`
-    },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
+  await verifyOutputBackpressure(terminalCommandFile);
 
   let serverOutput = "";
-  server.stdout.on("data", (chunk) => {
-    serverOutput += chunk.toString("utf8");
-  });
-  server.stderr.on("data", (chunk) => {
-    serverOutput += chunk.toString("utf8");
-  });
+  const serverEnv = {
+    ...process.env,
+    THREADVM_PORT: String(port),
+    THREADVM_PROJECTS_FILE: projectsFile,
+    THREADVM_STORE_FILE: storeFile,
+    THREADVM_EXEDEV_MOCK: "1",
+    THREADVM_EXEDEV_MOCK_ID: threadVmId,
+    THREADVM_EXEDEV_MOCK_NAME: threadVmId,
+    THREADVM_EXEDEV_MOCK_HOST: `${threadVmId}.exe.xyz`,
+    THREADVM_SSH_MOCK: "1",
+    THREADVM_SSH_MOCK_STDOUT: "THREADVM_LOG_FULL\nmock dev log\n",
+    THREADVM_TERMINAL_LOCAL_TMUX: "1",
+    THREADVM_TERMINAL_COMMAND: `exec tmux new-session -A -s \"$THREADVM_SESSION_NAME\" ${JSON.stringify(terminalCommandFile)}`
+  };
+  const startServer = () => {
+    const process = spawn("node", ["apps/server/dist/main.js"], {
+      cwd: repoRoot,
+      env: serverEnv,
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+    process.stdout.on("data", (chunk) => {
+      serverOutput += chunk.toString("utf8");
+    });
+    process.stderr.on("data", (chunk) => {
+      serverOutput += chunk.toString("utf8");
+    });
+    return process;
+  };
+  const stopServer = (process) =>
+    new Promise((resolve) => {
+      if (process.exitCode !== null || process.signalCode !== null) {
+        resolve();
+        return;
+      }
+      process.once("exit", resolve);
+      process.kill("SIGTERM");
+    });
+  let server = startServer();
 
   let remoteSessionName;
   try {
@@ -293,6 +393,14 @@ const main = async () => {
         `invalid terminal dimensions returned ${invalidDimensions.status}`
       );
     }
+    const invalidThreadVmId = await fetch(
+      `${baseUrl}/rpc/terminal/%20/socket?cols=100&rows=30`
+    );
+    if (invalidThreadVmId.status !== 400) {
+      throw new Error(
+        `invalid ThreadVM ID returned ${invalidThreadVmId.status}`
+      );
+    }
 
     const socketUrl = `ws://127.0.0.1:${port}/rpc/terminal/${threadVm.id}/socket?cols=100&rows=30`;
     const first = new TerminalSocketClient(socketUrl);
@@ -316,6 +424,8 @@ const main = async () => {
       (client) => client.output.includes("probe:ping"),
       "first terminal input"
     );
+    first.send({ type: "resize", cols: 99, rows: 29 });
+    first.send({ type: "resize", cols: 120, rows: 40 });
     first.send({ type: "resize", cols: 101, rows: 31 });
     await new Promise((resolve) => setTimeout(resolve, 250));
     first.send({ type: "input", data: "__size__\n" });
@@ -380,6 +490,53 @@ const main = async () => {
       await cycled.close();
     }
 
+    const beforeBackendRestart = new TerminalSocketClient(socketUrl);
+    await beforeBackendRestart.waitUntil(
+      (client) => client.messages.some((message) => message.type === "ready"),
+      "terminal ready before backend restart"
+    );
+    beforeBackendRestart.send({
+      type: "input",
+      data: "before-server-restart\n"
+    });
+    await beforeBackendRestart.waitUntil(
+      (client) => client.output.includes("probe:before-server-restart"),
+      "terminal input before backend restart"
+    );
+    await stopServer(server);
+    await beforeBackendRestart.closed;
+
+    server = startServer();
+    await waitFor(
+      async () => {
+        const response = await fetch(`${baseUrl}/api/threadvms`);
+        return response.ok;
+      },
+      "server restart"
+    );
+    const afterBackendRestart = new TerminalSocketClient(socketUrl);
+    const backendRestartReady = await afterBackendRestart.waitUntil(
+      (client) => client.messages.find((message) => message.type === "ready"),
+      "terminal ready after backend restart"
+    );
+    if (
+      backendRestartReady.reused !== true ||
+      backendRestartReady.sessionName !== remoteSessionName
+    ) {
+      throw new Error(
+        `backend restart did not recover the remote tmux session: ${JSON.stringify(backendRestartReady)}`
+      );
+    }
+    afterBackendRestart.send({
+      type: "input",
+      data: "after-server-restart\n"
+    });
+    await afterBackendRestart.waitUntil(
+      (client) => client.output.includes("probe:after-server-restart"),
+      "terminal input after backend restart"
+    );
+    await afterBackendRestart.close();
+
     const replaced = new TerminalSocketClient(socketUrl);
     await replaced.waitUntil(
       (client) => client.messages.some((message) => message.type === "ready"),
@@ -432,6 +589,46 @@ const main = async () => {
     }
     await restarted.close();
 
+    await waitFor(
+      () => {
+        const processTable = spawnSync("ps", ["-axo", "command="], {
+          encoding: "utf8"
+        }).stdout;
+        return !processTable
+          .split("\n")
+          .some(
+            (command) =>
+              command.includes(remoteSessionName) &&
+              !command.startsWith("tmux: server")
+          );
+      },
+      "local terminal attachment cleanup"
+    );
+
+    const lifecycleEvents = [
+      "Terminal WebSocket opened",
+      "Terminal attachment requested",
+      "Remote terminal session prepared",
+      "Terminal attachment PTY spawned",
+      "Terminal client reached ready state",
+      "Terminal attachment PTY exited",
+      "Terminal WebSocket closed",
+      "Terminal attachment cleanup completed"
+    ];
+    await waitFor(
+      () => lifecycleEvents.every((event) => serverOutput.includes(event)),
+      "terminal lifecycle logs"
+    );
+    for (const terminalInput of [
+      "replacement-active",
+      "before-server-restart",
+      "after-server-restart"
+    ]) {
+      if (serverOutput.includes(terminalInput)) {
+        throw new Error(`terminal input leaked into logs: ${terminalInput}`);
+      }
+    }
+
     console.log("terminal probe ok");
   } catch (error) {
     console.error(serverOutput);
@@ -442,8 +639,7 @@ const main = async () => {
         stdio: "ignore"
       });
     }
-    server.kill("SIGTERM");
-    await new Promise((resolve) => server.once("exit", resolve));
+    await stopServer(server);
     await rm(tempDir, { recursive: true, force: true });
   }
 };

@@ -40,10 +40,13 @@ pnpm probe:terminal
 ```
 
 That suite covers production builds, workspace boundaries, UI styling, shared
-protocol decoding, initial attach, ordered input and resize, ping/pong, invalid
-messages, queue limits, explicit restart, repeated reconnects, single-client
-replacement, process interruption, resource cleanup, disconnected-input
-rejection, xterm recreation, pointer forwarding, and OSC 52 parsing.
+protocol decoding, identifier and dimension validation, initial attach,
+ordered input and rapid resize, ping/pong, invalid messages, explicit restart,
+repeated reconnects, a real backend process restart, single-client
+replacement, forced output-queue overflow, process interruption, orphan-process
+checks, disconnected-input rejection, xterm replacement, exact pointer
+coordinates, selection-preserving pointer handling, per-VM input isolation, and
+OSC 52 parsing.
 
 The integration probe uses a real local `tmux` session and PTY. A separate
 exe.dev check against `drift-snow.exe.xyz` verified that an SSH attachment can
@@ -57,19 +60,25 @@ session creation race.
 | --- | --- |
 | Initial attach and typing | Terminal integration and UI probes |
 | Browser refresh / explicit reconnect | Fresh socket/xterm lifecycle probe; repeated tmux reattach probe |
-| Frontend HMR / backend restart | Stable-process topology plus durable remote tmux ownership |
+| Frontend HMR | Component cleanup/replacement lifecycle probe plus stable-process topology |
+| Backend restart | Live server process is terminated, restarted, and reattached to the same tmux session |
 | Temporary network loss | Disconnected input rejection probe |
 | Window and rapid resize | Ordered socket resize and remote `stty size` assertions |
 | Vim/TUI keyboard and mouse | PTY byte forwarding, native xterm pointer forwarding, and mouse-mode renegotiation assertions |
 | Text selection and OSC 52 | Existing xterm selection path retained; OSC 52 parser and clipboard callback probe |
-| Slow client | Bounded input/output queues and overflow close behavior |
-| Multiple ThreadVMs | Per-VM attachment identity and one-active-client replacement probe |
-| Cleanup | Socket close and interrupted-command orphan-process assertions |
+| Slow client | A deliberately unconsumed PTY flood overflows the bounded queue, fails visibly, and cleans up |
+| Multiple ThreadVMs | Distinct session-name hashes and concurrent per-VM browser input-routing assertions |
+| Cleanup | Socket close, process-table, and interrupted-command orphan-process assertions |
+
+Structured-log assertions cover socket open/close, attachment request, remote
+session preparation, PTY spawn/exit, ready state, and cleanup. The probe also
+asserts that representative terminal input never appears in server logs.
 
 ## Manual Browser Check
 
-The in-app browser automation bridge was unavailable during the final audit,
-so the last-mile checks for a real Vim/Herdr mouse target, browser clipboard
-permission feedback, refresh, and HMR should still be exercised manually at
-`http://127.0.0.1:5173`. The transport and lifecycle cases beneath those
-interactions are covered by the automated probes above.
+The browser-control bridge was unavailable during the final audit, so the
+last-mile checks for a real Vim/Herdr mouse target, browser clipboard permission
+feedback, full-page refresh, and a visible Vite HMR cycle should still be
+exercised manually at `http://127.0.0.1:5173`. The transport and lifecycle cases
+beneath those interactions are covered by the automated probes above; this
+section deliberately does not claim the unavailable GUI check passed.

@@ -9,7 +9,6 @@ import {
 } from "effect";
 import * as pty from "node-pty";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Writable } from "node:stream";
@@ -58,6 +57,7 @@ export class TerminalBridge extends Context.Service<
     readonly open: (
       vm: ThreadVm,
       options: {
+        readonly attachmentId: string;
         readonly cols: number;
         readonly rows: number;
         readonly restart?: boolean;
@@ -194,6 +194,16 @@ export const TerminalBridgeLive = Layer.effect(
 
     const open: TerminalBridge["Service"]["open"] = (vm, options) =>
       Effect.gen(function* () {
+        const id = options.attachmentId;
+        yield* Effect.log("Terminal attachment requested").pipe(
+          Effect.annotateLogs({
+            threadVmId: vm.id,
+            attachmentId: id,
+            cols: options.cols,
+            rows: options.rows,
+            restart: options.restart === true
+          })
+        );
         const prepared = yield* remoteSessions
           .prepare(vm, { restart: options.restart })
           .pipe(
@@ -205,13 +215,19 @@ export const TerminalBridgeLive = Layer.effect(
                 )
             )
           );
+        yield* Effect.log("Remote terminal session prepared").pipe(
+          Effect.annotateLogs({
+            threadVmId: vm.id,
+            attachmentId: id,
+            sessionName: prepared.sessionName,
+            reused: prepared.reused
+          })
+        );
         const outputQueue = yield* Queue.bounded<string>(outputQueueCapacity);
         const exited = yield* Deferred.make<
           "process-exited" | "replaced",
           TerminalBridgeError
         >();
-        const id = randomUUID();
-
         const resource = yield* Effect.acquireRelease(
           Effect.try({
             try: () => {
@@ -275,7 +291,29 @@ export const TerminalBridgeLive = Layer.effect(
               if (activeAttachments.get(vm.id)?.id === active.id) {
                 activeAttachments.delete(vm.id);
               }
-            }).pipe(Effect.andThen(Queue.shutdown(outputQueue)), Effect.asVoid)
+            }).pipe(
+              Effect.andThen(Queue.shutdown(outputQueue)),
+              Effect.andThen(
+                Effect.log("Terminal attachment cleanup completed").pipe(
+                  Effect.annotateLogs({
+                    threadVmId: vm.id,
+                    attachmentId: id,
+                    sessionName: prepared.sessionName
+                  })
+                )
+              ),
+              Effect.asVoid
+            )
+        );
+
+        yield* Effect.log("Terminal attachment PTY spawned").pipe(
+          Effect.annotateLogs({
+            threadVmId: vm.id,
+            attachmentId: id,
+            sessionName: prepared.sessionName,
+            cols: options.cols,
+            rows: options.rows
+          })
         );
 
         const attachment: TerminalAttachment = {

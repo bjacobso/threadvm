@@ -433,11 +433,17 @@ focusedPanelAtom.set("inspector");
 let forwardedFocusCount = 0;
 let forwardedMouseDownCount = 0;
 let forwardedMouseUpCount = 0;
+let forwardedMousePosition: { readonly x: number; readonly y: number } | undefined;
 const surface = new ProbeElement();
 const terminalElement = new ProbeElement();
 surface.appendChild(terminalElement);
-terminalElement.addEventListener("mousedown", () => {
+terminalElement.addEventListener("mousedown", (event) => {
   forwardedMouseDownCount += 1;
+  const mouseEvent = event as MouseEvent;
+  forwardedMousePosition = {
+    x: mouseEvent.clientX,
+    y: mouseEvent.clientY
+  };
 });
 terminalElement.addEventListener("mouseup", () => {
   forwardedMouseUpCount += 1;
@@ -455,6 +461,7 @@ forwardSurfaceMouseEventToTerminal(
 assert.equal(focusedPanelAtom.value, "terminal");
 assert.equal(forwardedFocusCount, 1);
 assert.equal(forwardedMouseDownCount, 1);
+assert.deepEqual(forwardedMousePosition, { x: 12, y: 34 });
 forwardSurfaceMouseEventToTerminal(
   new MouseEvent("mouseup", { bubbles: true, clientX: 12, clientY: 34 }),
   {
@@ -468,6 +475,7 @@ forwardSurfaceMouseEventToTerminal(
 assert.equal(forwardedFocusCount, 2);
 assert.equal(forwardedMouseUpCount, 1);
 let directFocusCount = 0;
+let directMouseDefaultPrevented = false;
 const terminalChild = new ProbeElement();
 terminalElement.appendChild(terminalChild);
 terminalChild.addEventListener("mousedown", (event) => {
@@ -481,11 +489,13 @@ terminalChild.addEventListener("mousedown", (event) => {
     },
     surface as unknown as HTMLElement
   );
+  directMouseDefaultPrevented = event.defaultPrevented;
 });
 terminalChild.dispatchEvent(
   new MouseEvent("mousedown", { bubbles: true, clientX: 24, clientY: 48 })
 );
 assert.equal(directFocusCount, 1);
+assert.equal(directMouseDefaultPrevented, false);
 assert.equal(forwardedMouseDownCount, 1);
 assert.equal(forwardedMouseUpCount, 1);
 
@@ -517,10 +527,14 @@ assert.equal(terminalStatusAtomFamily(vm.id).value, "attached");
 assert.equal(storage.get(activeTerminalVmKey), vm.id);
 
 terminalSessionActionAtom.sendInput(vm.id, "ls\n");
+terminalSessionActionAtom.sendInput(vm.id, "\u0003");
+terminalSessionActionAtom.sendInput(vm.id, "\u001b[A");
 terminalSessionActionAtom.resize(vm.id, { cols: 100, rows: 30 });
 terminalSessionActionAtom.resize(vm.id, { cols: 120, rows: 30 });
 assert.deepEqual(socket.sent.map((message) => JSON.parse(message)), [
   { type: "input", data: "ls\n" },
+  { type: "input", data: "\u0003" },
+  { type: "input", data: "\u001b[A" },
   { type: "resize", cols: 120, rows: 30 }
 ]);
 
@@ -529,7 +543,7 @@ assert.equal(viewOutput.at(-1), "hello from vm");
 socket.onerror?.();
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "disconnected");
 terminalSessionActionAtom.sendInput(vm.id, "hidden\n");
-assert.equal(socket.sent.length, 2);
+assert.equal(socket.sent.length, 4);
 
 const outputCountBeforeReconnect = viewOutput.length;
 terminalSessionActionAtom.attach({ threadVm: vm, view });
@@ -572,6 +586,55 @@ terminalSessionActionAtom.cleanup(vm.id, true);
 assert.equal(restartedSocket.readyState, 3);
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "detached");
 assert.equal(terminalStatusAtomFamily(vm.id).value, "detached");
+assert.equal(storage.get(activeTerminalVmKey), undefined);
+
+const secondVm: ThreadVmModel = {
+  ...vm,
+  id: "vm-2",
+  name: "probe-vm-two",
+  host: "probe-vm-two.exe.xyz"
+};
+const secondViewOutput: Array<string> = [];
+const secondView = {
+  replace: (message: string) => secondViewOutput.push(`[replace]${message}`),
+  write: (data: string) => secondViewOutput.push(data),
+  writeln: (data: string) => secondViewOutput.push(`${data}\n`),
+  getSize: () => ({ cols: 80, rows: 24 })
+};
+terminalSessionActionAtom.attach({ threadVm: vm, view });
+terminalSessionActionAtom.attach({ threadVm: secondVm, view: secondView });
+const firstVmSocket = MockWebSocket.instances.at(-2)!;
+const secondVmSocket = MockWebSocket.instances.at(-1)!;
+firstVmSocket.open();
+firstVmSocket.message({
+  type: "ready",
+  attachmentId: "attachment-vm-1",
+  sessionName: "threadvm-vm-1",
+  createdAt: Date.now(),
+  reused: true
+});
+firstVmSocket.message({ type: "status", status: "attached" });
+secondVmSocket.open();
+secondVmSocket.message({
+  type: "ready",
+  attachmentId: "attachment-vm-2",
+  sessionName: "threadvm-vm-2",
+  createdAt: Date.now(),
+  reused: false
+});
+secondVmSocket.message({ type: "status", status: "attached" });
+terminalSessionActionAtom.sendInput(vm.id, "first-vm-only\n");
+terminalSessionActionAtom.sendInput(secondVm.id, "second-vm-only\n");
+assert.deepEqual(firstVmSocket.sent.map((message) => JSON.parse(message)), [
+  { type: "input", data: "first-vm-only\n" }
+]);
+assert.deepEqual(secondVmSocket.sent.map((message) => JSON.parse(message)), [
+  { type: "input", data: "second-vm-only\n" }
+]);
+terminalSessionActionAtom.cleanup(vm.id, false);
+terminalSessionActionAtom.cleanup(secondVm.id, true);
+assert.equal(firstVmSocket.readyState, 3);
+assert.equal(secondVmSocket.readyState, 3);
 assert.equal(storage.get(activeTerminalVmKey), undefined);
 
 threadVmsAtom.set([vm]);
