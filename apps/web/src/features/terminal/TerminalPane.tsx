@@ -11,7 +11,10 @@ import {
 } from "./terminalAtoms";
 import { terminalShortcutAction } from "./keyboardShortcuts";
 import { parseOsc52 } from "./osc52";
-import { focusTerminalPane } from "./terminalFocus";
+import {
+  focusTerminalPane,
+  forwardSurfaceMouseEventToTerminal
+} from "./terminalFocus";
 import { TerminalToolbar } from "./TerminalToolbar";
 import { terminalSessionActionAtom } from "./terminalSessionActions";
 import { terminalFontStack, xtermTheme } from "./xtermTheme";
@@ -260,6 +263,20 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       <div
         ref={elementRef}
         className="terminal-surface"
+        onMouseDown={(event) =>
+          forwardSurfaceMouseEventToTerminal(
+            event.nativeEvent,
+            terminalRef.current,
+            elementRef.current
+          )
+        }
+        onMouseUp={(event) =>
+          forwardSurfaceMouseEventToTerminal(
+            event.nativeEvent,
+            terminalRef.current,
+            elementRef.current
+          )
+        }
         onPointerDownCapture={() => focusTerminalPane(terminalRef.current)}
       />
     </section>

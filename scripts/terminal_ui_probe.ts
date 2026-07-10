@@ -16,7 +16,10 @@ import {
   TabsTrigger
 } from "../apps/web/src/components/ui/tabs.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
-import { focusTerminalPane } from "../apps/web/src/features/terminal/terminalFocus.js";
+import {
+  focusTerminalPane,
+  forwardSurfaceMouseEventToTerminal
+} from "../apps/web/src/features/terminal/terminalFocus.js";
 import {
   nextThreadVmSelection,
   threadVmNavigationAction
@@ -173,6 +176,28 @@ if (typeof MouseEvent === "undefined") {
         this.shiftKey = init.shiftKey ?? false;
       }
     },
+    configurable: true
+  });
+}
+
+class ProbeElement extends EventTarget {
+  readonly children = new Set<ProbeElement>();
+
+  appendChild(child: ProbeElement) {
+    this.children.add(child);
+  }
+
+  contains(target: EventTarget | null): boolean {
+    return (
+      target === this ||
+      Array.from(this.children).some((child) => child.contains(target))
+    );
+  }
+}
+
+if (typeof Node === "undefined") {
+  Object.defineProperty(globalThis, "Node", {
+    value: ProbeElement,
     configurable: true
   });
 }
@@ -376,6 +401,65 @@ focusTerminalPane({
 });
 assert.equal(focusedPanelAtom.value, "terminal");
 assert.equal(focusCount, 1);
+focusedPanelAtom.set("inspector");
+let forwardedFocusCount = 0;
+let forwardedMouseDownCount = 0;
+let forwardedMouseUpCount = 0;
+const surface = new ProbeElement();
+const terminalElement = new ProbeElement();
+surface.appendChild(terminalElement);
+terminalElement.addEventListener("mousedown", () => {
+  forwardedMouseDownCount += 1;
+});
+terminalElement.addEventListener("mouseup", () => {
+  forwardedMouseUpCount += 1;
+});
+forwardSurfaceMouseEventToTerminal(
+  new MouseEvent("mousedown", { bubbles: true, clientX: 12, clientY: 34 }),
+  {
+    element: terminalElement,
+    focus: () => {
+      forwardedFocusCount += 1;
+    }
+  },
+  surface as unknown as HTMLElement
+);
+assert.equal(focusedPanelAtom.value, "terminal");
+assert.equal(forwardedFocusCount, 1);
+assert.equal(forwardedMouseDownCount, 1);
+forwardSurfaceMouseEventToTerminal(
+  new MouseEvent("mouseup", { bubbles: true, clientX: 12, clientY: 34 }),
+  {
+    element: terminalElement,
+    focus: () => {
+      forwardedFocusCount += 1;
+    }
+  },
+  surface as unknown as HTMLElement
+);
+assert.equal(forwardedFocusCount, 2);
+assert.equal(forwardedMouseUpCount, 1);
+let directFocusCount = 0;
+const terminalChild = new ProbeElement();
+terminalElement.appendChild(terminalChild);
+terminalChild.addEventListener("mousedown", (event) => {
+  forwardSurfaceMouseEventToTerminal(
+    event as MouseEvent,
+    {
+      element: terminalElement,
+      focus: () => {
+        directFocusCount += 1;
+      }
+    },
+    surface as unknown as HTMLElement
+  );
+});
+terminalChild.dispatchEvent(
+  new MouseEvent("mousedown", { bubbles: true, clientX: 24, clientY: 48 })
+);
+assert.equal(directFocusCount, 1);
+assert.equal(forwardedMouseDownCount, 1);
+assert.equal(forwardedMouseUpCount, 1);
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
