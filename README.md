@@ -274,7 +274,7 @@ Implemented:
 - SSE reconciliation stream for live ThreadVM inventory snapshots.
 - New ThreadVM form backed by `POST /api/threadvms`.
 - Project registry editor backed by `PUT /api/projects/:id` and `DELETE /api/projects/:id`.
-- Local metadata cache for created ThreadVMs, including project, branch, summary, repo, and preview-port hints.
+- Local metadata cache for created ThreadVMs, including project, branch, summary, starting prompt, pinned state, repo, and preview-port hints.
 - exe.dev tags and comments for ThreadVM-managed VMs, with rich metadata mirrored into VM-side JSON.
 - Background SSH provisioning after create/clone: repo clone/fetch, branch checkout, configured bootstrap commands, VM-side metadata write, dev command startup, configured port probing before `ready`, durable step-level progress, and command output excerpts.
 - VM-side metadata recovery from configured project workdirs, with recovered metadata written back into the local cache.

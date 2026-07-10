@@ -53,6 +53,8 @@ const threadVmStateTags = [
   "unknown"
 ].map((state) => `threadvm-state-${state}`);
 
+const threadVmMutableTags = [...threadVmStateTags, "threadvm-pinned"];
+
 export class WorkspaceService extends Context.Service<
   WorkspaceService,
   {
@@ -194,6 +196,7 @@ export const WorkspaceServiceLive = Layer.effect(
     const tagsForMetadata = (metadata: ThreadVmMetadata) => [
       "threadvm",
       "threadvm-managed",
+      ...(metadata.pinned ? ["threadvm-pinned"] : []),
       ...(metadata.project ? [`threadvm-project-${tagify(metadata.project)}`] : []),
       ...(metadata.slug ? [`threadvm-slug-${tagify(metadata.slug)}`] : []),
       ...(metadata.state ? [`threadvm-state-${tagify(metadata.state)}`] : []),
@@ -202,7 +205,7 @@ export const WorkspaceServiceLive = Layer.effect(
 
     const writeExeMetadata = (threadVm: ThreadVm, metadata: ThreadVmMetadata) =>
       exe
-        .untagVm(threadVm.id, threadVmStateTags)
+        .untagVm(threadVm.id, threadVmMutableTags)
         .pipe(Effect.catch(() => Effect.void))
         .pipe(Effect.andThen(exe.tagVm(threadVm.id, tagsForMetadata(metadata))))
         .pipe(
@@ -234,6 +237,8 @@ export const WorkspaceServiceLive = Layer.effect(
             project: metadata.project,
             slug: metadata.slug,
             summary: metadata.summary,
+            startingPrompt: metadata.startingPrompt,
+            pinned: metadata.pinned,
             repo: metadata.repo,
             branch: metadata.branch,
             ports: metadata.ports.length > 0 ? metadata.ports : threadVm.ports,
@@ -251,6 +256,8 @@ export const WorkspaceServiceLive = Layer.effect(
       project: Project,
       slug: string,
       summary: string,
+      startingPrompt: string | undefined,
+      pinned: boolean | undefined,
       branch: string,
       state: ThreadVm["state"]
     ) => {
@@ -262,6 +269,8 @@ export const WorkspaceServiceLive = Layer.effect(
         project: project.id,
         slug,
         summary,
+        startingPrompt,
+        pinned,
         repo: project.repo,
         branch,
         ports: previewPortsForProject(threadVm, project),
@@ -313,6 +322,8 @@ export const WorkspaceServiceLive = Layer.effect(
           project: metadata.project,
           slug: metadata.slug,
           summary: metadata.summary,
+          startingPrompt: metadata.startingPrompt,
+          pinned: metadata.pinned,
           repo: metadata.repo,
           branch: metadata.branch,
           ports: metadata.ports,
@@ -797,6 +808,8 @@ export const WorkspaceServiceLive = Layer.effect(
           project,
           slug,
           request.summary,
+          request.startingPrompt,
+          request.pinned,
           branch,
           "creating"
         );

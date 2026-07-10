@@ -8,10 +8,13 @@ import {
 } from "../apps/web/src/features/threadvms/threadVmNavigation.js";
 import {
   activeTerminalVmKey,
+  createThreadVmActionAtom,
+  createThreadVmAtom,
   devLogActionAtom,
   devLogAtom,
   provisioningStreamAtom,
   provisioningStreamStateAtom,
+  selectedVmKey,
   threadVmsAtom,
   terminalSessionAtomFamily
 } from "../apps/web/src/state/atoms.js";
@@ -183,6 +186,37 @@ threadVmApi.readDevLog = async (threadVmId) => {
     observedAt: 456
   };
 };
+threadVmApi.createThreadVm = async (request) => {
+  assert.deepEqual(request, {
+    project: "onboarded",
+    summary: "investigate callback",
+    startingPrompt: "check auth logs",
+    pinned: true
+  });
+  return {
+    threadVm: {
+      ...vm,
+      id: "created-vm",
+      name: "onboarded-investigate-callback",
+      project: "onboarded",
+      summary: request.summary,
+      startingPrompt: request.startingPrompt,
+      pinned: request.pinned
+    },
+    message: "created"
+  };
+};
+
+const createResponse = await createThreadVmActionAtom.run({
+  project: "onboarded",
+  summary: "investigate callback",
+  startingPrompt: "check auth logs",
+  pinned: true
+});
+assert.equal(createResponse.threadVm.startingPrompt, "check auth logs");
+assert.equal(createResponse.threadVm.pinned, true);
+assert.equal(createThreadVmAtom.value.status, "succeeded");
+assert.equal(storage.get(selectedVmKey), "created-vm");
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");

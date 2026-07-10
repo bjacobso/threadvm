@@ -74,6 +74,8 @@ const main = async () => {
           "terminal-probe": {
             id: "terminal-probe",
             state: "running",
+            startingPrompt: "inspect terminal behavior",
+            pinned: true,
             ports: [],
             devLogPath: "/tmp/threadvm/terminal-probe/dev.log",
             createdAt: Date.now(),
@@ -132,6 +134,12 @@ const main = async () => {
     const threadVm = threadVms.find((vm) => vm.id === "terminal-probe");
     if (!threadVm) {
       throw new Error(`mock terminal-probe VM missing: ${JSON.stringify(threadVms)}`);
+    }
+    if (
+      threadVm.startingPrompt !== "inspect terminal behavior" ||
+      threadVm.pinned !== true
+    ) {
+      throw new Error(`intent metadata was not preserved: ${JSON.stringify(threadVm)}`);
     }
 
     const devLog = await apiJson(baseUrl, `/api/threadvms/${threadVm.id}/dev-log`);

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -28,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   createThreadVmActionAtom,
@@ -58,6 +60,7 @@ export function NewThreadVmDialog({
   const [baseDevbox, setBaseDevbox] = useState("");
   const [image, setImage] = useState("");
   const [startingPrompt, setStartingPrompt] = useState("");
+  const [pinned, setPinned] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   const project = useMemo(
@@ -100,7 +103,8 @@ export function NewThreadVmDialog({
         ...(trimOrUndefined(image) ? { image: trimOrUndefined(image) } : {}),
         ...(trimOrUndefined(startingPrompt)
           ? { startingPrompt: trimOrUndefined(startingPrompt) }
-          : {})
+          : {}),
+        ...(pinned ? { pinned } : {})
       });
       toast.success(`Created ${response.threadVm.name}`);
       onOpenChange(false);
@@ -242,6 +246,21 @@ export function NewThreadVmDialog({
                 onChange={(event) => setStartingPrompt(event.target.value)}
                 placeholder="optional context for the first agent session"
                 className="min-h-24"
+                disabled={creating}
+              />
+            </Field>
+
+            <Field orientation="horizontal" data-disabled={creating || undefined}>
+              <FieldContent>
+                <FieldLabel htmlFor="threadvm-pinned">Pinned</FieldLabel>
+                <FieldDescription>
+                  Keep this thread visible while you explore the idea.
+                </FieldDescription>
+              </FieldContent>
+              <Switch
+                id="threadvm-pinned"
+                checked={pinned}
+                onCheckedChange={setPinned}
                 disabled={creating}
               />
             </Field>

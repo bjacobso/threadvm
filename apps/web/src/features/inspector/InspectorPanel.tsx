@@ -59,8 +59,19 @@ export function InspectorPanel() {
                 rows={[
                   ["Host", selected.host],
                   ["Project", selected.project ?? "unknown"],
+                  ["Pinned", selected.pinned ? "yes" : "no"],
                   ["Branch", selected.branch ?? "unknown"],
                   ["Source", selected.source],
+                  [
+                    "Prompt",
+                    selected.startingPrompt ? (
+                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
+                        {selected.startingPrompt}
+                      </pre>
+                    ) : (
+                      "none"
+                    )
+                  ],
                   ["Tags", selected.tags?.length ? selected.tags.join(", ") : "none"],
                   ["Ports", <PortLinks ports={selected.ports} />],
                   ["Metadata", selected.metadataPath ?? "unknown"],

@@ -1,4 +1,5 @@
 import type { ThreadVmModel } from "@threadvm/shared/domain";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ThreadVmStateBadge } from "./ThreadVmStateBadge";
@@ -34,6 +35,7 @@ export function ThreadVmRow({ threadVm, selected, onSelect }: ThreadVmRowProps) 
           </span>
         </span>
         <span className="flex flex-col items-end gap-1">
+          {threadVm.pinned ? <Badge variant="outline">pinned</Badge> : null}
           <ThreadVmStateBadge state={threadVm.state} />
           <span className="max-w-24 truncate text-[0.68rem] text-muted-foreground">
             {portHint}
