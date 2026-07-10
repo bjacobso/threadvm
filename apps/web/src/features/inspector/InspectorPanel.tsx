@@ -31,6 +31,19 @@ export function InspectorPanel() {
                   ["Branch", selected.branch ?? "unknown"],
                   ["Source", selected.source],
                   ["Ports", <PortLinks ports={selected.ports} />],
+                  ["Metadata", selected.metadataPath ?? "unknown"],
+                  ["Dev log", selected.devLogPath ?? "unknown"],
+                  ["Dev pid", selected.devPidPath ?? "unknown"],
+                  [
+                    "Provisioning",
+                    selected.lastProvisioningError ? (
+                      <span className="text-destructive">
+                        {selected.lastProvisioningError}
+                      </span>
+                    ) : (
+                      "ok"
+                    )
+                  ],
                   [
                     "Raw",
                     <span className="whitespace-pre-wrap">{selected.raw ?? "none"}</span>

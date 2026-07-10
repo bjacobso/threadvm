@@ -1,9 +1,16 @@
 import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
-import { Effect, Layer, Schedule, Stream } from "effect";
-import { ThreadVmReconciliationEvent } from "@threadvm/shared/domain";
+import { Effect, Layer, Schedule, Schema, Stream } from "effect";
+import {
+  ThreadVmProvisioningEvent,
+  ThreadVmReconciliationEvent
+} from "@threadvm/shared/domain";
 import { WorkspaceService } from "@threadvm/shared/services/WorkspaceService";
 
 const encoder = new TextEncoder();
+
+const IdParams = Schema.Struct({
+  id: Schema.String
+});
 
 const encodeSse = (event: string, data: unknown) =>
   encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
@@ -52,4 +59,45 @@ const reconciliationStreamRoute = HttpRouter.add(
   })
 );
 
-export const ReconciliationRoutesLive = Layer.mergeAll(reconciliationStreamRoute);
+const provisioningStreamRoute = HttpRouter.add(
+  "GET",
+  "/rpc/threadvms/:id/provisioning",
+  Effect.gen(function* () {
+    const { id } = yield* HttpRouter.schemaPathParams(IdParams);
+    const workspaces = yield* WorkspaceService;
+    const snapshot = workspaces.getThreadVm(id).pipe(
+      Effect.map(
+        (threadVm) =>
+          new ThreadVmProvisioningEvent({
+            threadVm,
+            observedAt: Date.now()
+          })
+      ),
+      Effect.map((event) => encodeSse("provisioning", event)),
+      Effect.catch((error) =>
+        Effect.succeed(encodeSse("provisioning-error", errorMessage(error)))
+      )
+    );
+
+    const snapshots = Stream.fromEffectSchedule(
+      snapshot,
+      Schedule.spaced("2 seconds")
+    );
+    const heartbeat = Stream.make(encoder.encode(": heartbeat\n\n")).pipe(
+      Stream.repeat(Schedule.spaced("15 seconds"))
+    );
+
+    return HttpServerResponse.stream(snapshots.pipe(Stream.merge(heartbeat)), {
+      headers: {
+        "cache-control": "no-cache",
+        connection: "keep-alive"
+      },
+      contentType: "text/event-stream"
+    });
+  })
+);
+
+export const ReconciliationRoutesLive = Layer.mergeAll(
+  reconciliationStreamRoute,
+  provisioningStreamRoute
+);

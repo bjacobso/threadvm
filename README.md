@@ -4,7 +4,7 @@ ThreadVM is a local web app for spinning up one isolated development VM per codi
 
 Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want persistent panes or agent sessions.
 
-Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, reconciliation stream, local ThreadVM metadata cache, SSH provisioning, and basic stop/remove lifecycle actions are implemented. Workspace creation now requests the VM create/clone operation, then starts repo bootstrap and the configured dev command in a background Effect fiber.
+Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, reconciliation/provisioning streams, local ThreadVM metadata cache, SSH provisioning, and basic stop/remove lifecycle actions are implemented. Workspace creation now requests the VM create/clone operation, then starts repo bootstrap and the configured dev command in a background Effect fiber.
 
 ## What It Does
 
@@ -243,6 +243,7 @@ ThreadVmRpc.createAndBootstrap
 ThreadVmRpc.reconcile
 TerminalRpc.attach
 TerminalRpc.resize
+GET /rpc/threadvms/:id/provisioning
 ```
 
 ## MVP Order
@@ -271,7 +272,8 @@ Implemented:
 - SSE reconciliation stream for live ThreadVM inventory snapshots.
 - New ThreadVM form backed by `POST /api/threadvms`.
 - Local metadata cache for created ThreadVMs, including project, branch, summary, repo, and preview-port hints.
-- Background SSH provisioning after create/clone: repo clone/fetch, branch checkout, configured bootstrap commands, VM-side metadata write, and dev command startup.
+- Background SSH provisioning after create/clone: repo clone/fetch, branch checkout, configured bootstrap commands, VM-side metadata write, dev command startup, and configured port probing before `ready`.
+- Per-VM provisioning SSE stream at `/rpc/threadvms/:id/provisioning`.
 - Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.
 - Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.
 - Example project config in `examples/projects.yaml`.
@@ -280,8 +282,8 @@ Next:
 
 - Write exe.dev metadata/tags for created ThreadVMs.
 - Recover richer metadata from `/work/.harness/threadvm.json`.
-- Add provisioning progress streams.
-- Probe configured ports and mark readiness from observed services, not only command startup.
+- Add detailed step logs to provisioning progress streams.
+- Reconcile VM-side metadata back into the local cache.
 - Add optional Herdr install/start/layout automation after the plain VM terminal path is solid.
 
 See [PLAN.md](./PLAN.md) for the broader product and architecture plan.

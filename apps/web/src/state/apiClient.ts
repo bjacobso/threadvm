@@ -4,6 +4,7 @@ import type {
   ProjectModel,
   TerminalAttachResponseModel,
   ThreadVmLifecycleResponseModel,
+  ThreadVmProvisioningEventModel,
   ThreadVmReconciliationEventModel,
   ThreadVmModel
 } from "@threadvm/shared/domain";
@@ -13,6 +14,7 @@ import {
   TerminalAttachResponse,
   ThreadVm,
   ThreadVmLifecycleResponse,
+  ThreadVmProvisioningEvent,
   ThreadVmReconciliationEvent
 } from "@threadvm/shared/domain";
 import { Schema } from "effect";
@@ -25,6 +27,9 @@ const decodeThreadVmLifecycle =
   Schema.decodeUnknownPromise(ThreadVmLifecycleResponse);
 const decodeThreadVmReconciliationEvent = Schema.decodeUnknownPromise(
   ThreadVmReconciliationEvent
+);
+const decodeThreadVmProvisioningEvent = Schema.decodeUnknownPromise(
+  ThreadVmProvisioningEvent
 );
 const decodeTerminalAttach = Schema.decodeUnknownPromise(TerminalAttachResponse);
 
@@ -81,6 +86,10 @@ export const threadVmApi = {
     data: string
   ): Promise<ThreadVmReconciliationEventModel> =>
     await decodeThreadVmReconciliationEvent(JSON.parse(data)),
+  decodeProvisioningEvent: async (
+    data: string
+  ): Promise<ThreadVmProvisioningEventModel> =>
+    await decodeThreadVmProvisioningEvent(JSON.parse(data)),
   attachTerminal: async (
     threadVmId: string,
     restart = false

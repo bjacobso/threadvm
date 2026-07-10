@@ -61,6 +61,12 @@ export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({
   state: ThreadVmState,
   source: Schema.Literals(["exe", "cache", "mock"]),
   ports: Schema.Array(Port),
+  metadataPath: Schema.optional(Schema.String),
+  devPidPath: Schema.optional(Schema.String),
+  devLogPath: Schema.optional(Schema.String),
+  lastProvisioningError: Schema.optional(Schema.String),
+  createdAt: Schema.optional(Schema.Number),
+  updatedAt: Schema.optional(Schema.Number),
   raw: Schema.optional(Schema.String)
 }) {}
 
@@ -94,6 +100,13 @@ export class ThreadVmReconciliationEvent extends Schema.Class<ThreadVmReconcilia
   "ThreadVmReconciliationEvent"
 )({
   threadVms: Schema.Array(ThreadVm),
+  observedAt: Schema.Number
+}) {}
+
+export class ThreadVmProvisioningEvent extends Schema.Class<ThreadVmProvisioningEvent>(
+  "ThreadVmProvisioningEvent"
+)({
+  threadVm: ThreadVm,
   observedAt: Schema.Number
 }) {}
 
@@ -170,6 +183,7 @@ export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;
 export type ThreadVmLifecycleResponseModel = typeof ThreadVmLifecycleResponse.Type;
 export type ThreadVmReconciliationEventModel =
   typeof ThreadVmReconciliationEvent.Type;
+export type ThreadVmProvisioningEventModel = typeof ThreadVmProvisioningEvent.Type;
 export type ThreadVmMetadataModel = typeof ThreadVmMetadata.Type;
 export type ThreadVmMetadataFileModel = typeof ThreadVmMetadataFile.Type;
 export type TerminalAttachResponseModel = typeof TerminalAttachResponse.Type;

@@ -111,7 +111,13 @@ export const WorkspaceServiceLive = Layer.effect(
             summary: metadata.summary,
             repo: metadata.repo,
             branch: metadata.branch,
-            ports: metadata.ports.length > 0 ? metadata.ports : threadVm.ports
+            ports: metadata.ports.length > 0 ? metadata.ports : threadVm.ports,
+            metadataPath: metadata.metadataPath,
+            devPidPath: metadata.devPidPath,
+            devLogPath: metadata.devLogPath,
+            lastProvisioningError: metadata.lastProvisioningError,
+            createdAt: metadata.createdAt,
+            updatedAt: metadata.updatedAt
           });
 
     const metadataFromThreadVm = (
@@ -265,6 +271,38 @@ export const WorkspaceServiceLive = Layer.effect(
       );
     };
 
+    const probeConfiguredPorts = (threadVm: ThreadVm, project: Project) => {
+      if (project.dev.ports.length === 0) {
+        return Effect.void;
+      }
+
+      const ports = project.dev.ports.map(String).join(" ");
+      return runRemote(
+        threadVm,
+        [
+          "set -euo pipefail",
+          `ports=${shellQuote(ports)}`,
+          "deadline=$((SECONDS + 60))",
+          "while [ $SECONDS -lt $deadline ]; do",
+          "  missing=0",
+          "  for port in $ports; do",
+          "    if ! timeout 1 bash -lc \"</dev/tcp/127.0.0.1/$port\" >/dev/null 2>&1; then",
+          "      missing=1",
+          "      break",
+          "    fi",
+          "  done",
+          "  if [ \"$missing\" -eq 0 ]; then",
+          "    exit 0",
+          "  fi",
+          "  sleep 2",
+          "done",
+          "echo \"Configured dev ports did not become ready: $ports\" >&2",
+          "exit 1"
+        ].join("\n"),
+        75_000
+      );
+    };
+
     const provisionThreadVm = (
       threadVm: ThreadVm,
       project: Project,
@@ -284,6 +322,7 @@ export const WorkspaceServiceLive = Layer.effect(
         yield* writeRemoteMetadata(threadVm, project, bootstrapping);
         yield* runBootstrap(threadVm, project);
         yield* startDevServer(threadVm, project, bootstrapping);
+        yield* probeConfiguredPorts(threadVm, project);
 
         const ready = updateMetadata(bootstrapping, {
           state: "ready",
