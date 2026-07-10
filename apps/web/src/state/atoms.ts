@@ -51,6 +51,13 @@ export interface CreateThreadVmState {
   readonly createdThreadVmId: string | undefined;
 }
 
+export interface ProjectRegistryMutationState {
+  readonly status: "idle" | "saving" | "removing" | "succeeded" | "failed";
+  readonly projectId: string | undefined;
+  readonly message: string | undefined;
+  readonly error: string | undefined;
+}
+
 export interface ThreadVmLifecycleState {
   readonly status: "idle" | "running" | "succeeded" | "failed";
   readonly action: "stop" | "remove" | undefined;
@@ -89,6 +96,13 @@ export const createThreadVmAtom = AtomRef.make<CreateThreadVmState>({
   error: undefined,
   createdThreadVmId: undefined
 });
+export const projectRegistryMutationAtom =
+  AtomRef.make<ProjectRegistryMutationState>({
+    status: "idle",
+    projectId: undefined,
+    message: undefined,
+    error: undefined
+  });
 export const threadVmLifecycleAtom = AtomRef.make<ThreadVmLifecycleState>({
   status: "idle",
   action: undefined,
@@ -349,6 +363,81 @@ export const createThreadVmActionAtom = {
       message: undefined,
       error: undefined,
       createdThreadVmId: undefined
+    });
+  }
+} as const;
+
+export const projectRegistryActionAtom = {
+  save: async (project: ProjectModel) => {
+    projectRegistryMutationAtom.set({
+      status: "saving",
+      projectId: project.id,
+      message: undefined,
+      error: undefined
+    });
+    try {
+      const response = await threadVmApi.saveProject(project);
+      projectConfigAtom.set({
+        projects: response.projects,
+        loading: false,
+        error: undefined
+      });
+      projectRegistryMutationAtom.set({
+        status: "succeeded",
+        projectId: project.id,
+        message: response.message,
+        error: undefined
+      });
+      return response;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      projectRegistryMutationAtom.set({
+        status: "failed",
+        projectId: project.id,
+        message: undefined,
+        error: message
+      });
+      throw cause;
+    }
+  },
+  remove: async (projectId: string) => {
+    projectRegistryMutationAtom.set({
+      status: "removing",
+      projectId,
+      message: undefined,
+      error: undefined
+    });
+    try {
+      const response = await threadVmApi.removeProject(projectId);
+      projectConfigAtom.set({
+        projects: response.projects,
+        loading: false,
+        error: undefined
+      });
+      projectRegistryMutationAtom.set({
+        status: "succeeded",
+        projectId,
+        message: response.message,
+        error: undefined
+      });
+      return response;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      projectRegistryMutationAtom.set({
+        status: "failed",
+        projectId,
+        message: undefined,
+        error: message
+      });
+      throw cause;
+    }
+  },
+  reset: () => {
+    projectRegistryMutationAtom.set({
+      status: "idle",
+      projectId: undefined,
+      message: undefined,
+      error: undefined
     });
   }
 } as const;

@@ -11,6 +11,7 @@ import {
   CreateThreadVmRequest,
   CreateThreadVmResponse,
   Project,
+  ProjectRegistryResponse,
   TerminalAttachRequest,
   TerminalAttachResponse,
   ThreadVm,
@@ -36,6 +37,21 @@ const ProjectsGroup = HttpApiGroup.make("projects")
   .add(
     HttpApiEndpoint.get("list", "/projects", {
       success: Schema.Array(Project),
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.put("save", "/projects/:id", {
+      params: IdParams,
+      payload: Project,
+      success: ProjectRegistryResponse,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.delete("remove", "/projects/:id", {
+      params: IdParams,
+      success: ProjectRegistryResponse,
       error: ApiErrorResponse
     })
   )

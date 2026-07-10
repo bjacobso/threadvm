@@ -4,7 +4,7 @@ ThreadVM is a local web app for spinning up one isolated development VM per codi
 
 Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want persistent panes or agent sessions.
 
-Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, reconciliation/provisioning streams, local ThreadVM metadata cache, SSH provisioning, and basic stop/remove lifecycle actions are implemented. Workspace creation now requests the VM create/clone operation, then starts repo bootstrap and the configured dev command in a background Effect fiber.
+Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, project registry editor, reconciliation/provisioning streams, local ThreadVM metadata cache, SSH provisioning, and basic stop/remove lifecycle actions are implemented. Workspace creation now requests the VM create/clone operation, then starts repo bootstrap and the configured dev command in a background Effect fiber.
 
 ## What It Does
 
@@ -226,6 +226,8 @@ Resource APIs:
 
 ```text
 GET    /api/projects
+PUT    /api/projects/:id
+DELETE /api/projects/:id
 GET    /api/threadvms
 GET    /api/threadvms/:id
 POST   /api/threadvms

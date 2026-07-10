@@ -1,4 +1,9 @@
-import { PlusIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
+import {
+  FolderCogIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  SearchIcon
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -22,11 +27,13 @@ import { ThreadVmRow } from "./ThreadVmRow";
 interface ThreadVmListProps {
   readonly onOpenQuickSwitch: () => void;
   readonly onOpenNewThreadVm: () => void;
+  readonly onOpenProjectRegistry: () => void;
 }
 
 export function ThreadVmList({
   onOpenQuickSwitch,
-  onOpenNewThreadVm
+  onOpenNewThreadVm,
+  onOpenProjectRegistry
 }: ThreadVmListProps) {
   const threadVms = useAtomRef(threadVmsAtom);
   const selectedId = useAtomRef(selectedThreadVmIdAtom);
@@ -56,6 +63,20 @@ export function ThreadVmList({
               </Button>
             </TooltipTrigger>
             <TooltipContent>Create ThreadVM</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={onOpenProjectRegistry}
+                aria-label="Open project registry"
+              >
+                <FolderCogIcon data-icon="inline-start" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Open project registry</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>

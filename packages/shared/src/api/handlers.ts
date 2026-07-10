@@ -1,6 +1,6 @@
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 import { Effect, Layer } from "effect";
-import { ApiError } from "../domain/schema.js";
+import { ApiError, ProjectRegistryResponse } from "../domain/schema.js";
 import { ConfigService } from "../services/ConfigService.js";
 import { TerminalBridge } from "../services/TerminalBridge.js";
 import { WorkspaceService } from "../services/WorkspaceService.js";
@@ -16,14 +16,40 @@ export const ProjectsApiLive = HttpApiBuilder.group(
   ThreadVmApi,
   "projects",
   (handlers) =>
-    handlers.handle("list", () =>
-      Effect.gen(function* () {
-        const config = yield* ConfigService;
-        return yield* config.listProjects.pipe(
-          Effect.mapError(toApiError("Failed to load projects"))
-        );
-      })
-    )
+    handlers
+      .handle("list", () =>
+        Effect.gen(function* () {
+          const config = yield* ConfigService;
+          return yield* config.listProjects.pipe(
+            Effect.mapError(toApiError("Failed to load projects"))
+          );
+        })
+      )
+      .handle("save", ({ params: { id }, payload }) =>
+        Effect.gen(function* () {
+          const config = yield* ConfigService;
+          const projects = yield* config.saveProject(id, payload).pipe(
+            Effect.mapError(toApiError(`Failed to save project ${id}`))
+          );
+          return new ProjectRegistryResponse({
+            projects,
+            project: payload,
+            message: `Saved project ${id}`
+          });
+        })
+      )
+      .handle("remove", ({ params: { id } }) =>
+        Effect.gen(function* () {
+          const config = yield* ConfigService;
+          const projects = yield* config.deleteProject(id).pipe(
+            Effect.mapError(toApiError(`Failed to remove project ${id}`))
+          );
+          return new ProjectRegistryResponse({
+            projects,
+            message: `Removed project ${id}`
+          });
+        })
+      )
 );
 
 export const ThreadVmsApiLive = HttpApiBuilder.group(

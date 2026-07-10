@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/resizable";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InspectorPanel } from "@/features/inspector/InspectorPanel";
+import { ProjectRegistryDialog } from "@/features/projects/ProjectRegistryDialog";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { NewThreadVmDialog } from "@/features/threadvms/NewThreadVmDialog";
 import { ThreadVmCommandPalette } from "@/features/threadvms/ThreadVmCommandPalette";
@@ -22,6 +23,7 @@ export function App() {
   const selected = useSelectedThreadVm();
   const [commandOpen, setCommandOpen] = useState(false);
   const [newThreadVmOpen, setNewThreadVmOpen] = useState(false);
+  const [projectRegistryOpen, setProjectRegistryOpen] = useState(false);
 
   useEffect(() => {
     void loadProjectConfigAtom.run();
@@ -52,6 +54,7 @@ export function App() {
             <ThreadVmList
               onOpenQuickSwitch={() => setCommandOpen(true)}
               onOpenNewThreadVm={() => setNewThreadVmOpen(true)}
+              onOpenProjectRegistry={() => setProjectRegistryOpen(true)}
             />
           </ResizablePanel>
           <ResizableHandle />
@@ -68,6 +71,10 @@ export function App() {
       <NewThreadVmDialog
         open={newThreadVmOpen}
         onOpenChange={setNewThreadVmOpen}
+      />
+      <ProjectRegistryDialog
+        open={projectRegistryOpen}
+        onOpenChange={setProjectRegistryOpen}
       />
       <Toaster richColors position="bottom-right" />
     </TooltipProvider>

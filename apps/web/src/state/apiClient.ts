@@ -2,6 +2,7 @@ import type {
   CreateThreadVmRequestModel,
   CreateThreadVmResponseModel,
   ProjectModel,
+  ProjectRegistryResponseModel,
   TerminalAttachResponseModel,
   ThreadVmLifecycleResponseModel,
   ThreadVmProvisioningEventModel,
@@ -11,6 +12,7 @@ import type {
 import {
   CreateThreadVmResponse,
   Project,
+  ProjectRegistryResponse,
   TerminalAttachResponse,
   ThreadVm,
   ThreadVmLifecycleResponse,
@@ -20,6 +22,7 @@ import {
 import { Schema } from "effect";
 
 const decodeProjects = Schema.decodeUnknownPromise(Schema.Array(Project));
+const decodeProjectRegistry = Schema.decodeUnknownPromise(ProjectRegistryResponse);
 const decodeThreadVms = Schema.decodeUnknownPromise(Schema.Array(ThreadVm));
 const decodeCreateThreadVm =
   Schema.decodeUnknownPromise(CreateThreadVmResponse);
@@ -55,6 +58,23 @@ const apiJson = async (
 export const threadVmApi = {
   listProjects: async (): Promise<ReadonlyArray<ProjectModel>> =>
     await decodeProjects(await apiJson("/api/projects")),
+  saveProject: async (
+    project: ProjectModel
+  ): Promise<ProjectRegistryResponseModel> =>
+    await decodeProjectRegistry(
+      await apiJson(`/api/projects/${encodeURIComponent(project.id)}`, {
+        method: "PUT",
+        body: JSON.stringify(project)
+      })
+    ),
+  removeProject: async (
+    projectId: string
+  ): Promise<ProjectRegistryResponseModel> =>
+    await decodeProjectRegistry(
+      await apiJson(`/api/projects/${encodeURIComponent(projectId)}`, {
+        method: "DELETE"
+      })
+    ),
   listThreadVms: async (): Promise<ReadonlyArray<ThreadVmModel>> =>
     await decodeThreadVms(await apiJson("/api/threadvms")),
   createThreadVm: async (

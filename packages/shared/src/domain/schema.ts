@@ -103,6 +103,14 @@ export class CreateThreadVmResponse extends Schema.Class<CreateThreadVmResponse>
   message: Schema.String
 }) {}
 
+export class ProjectRegistryResponse extends Schema.Class<ProjectRegistryResponse>(
+  "ProjectRegistryResponse"
+)({
+  projects: Schema.Array(Project),
+  project: Schema.optional(Project),
+  message: Schema.String
+}) {}
+
 export class ThreadVmLifecycleResponse extends Schema.Class<ThreadVmLifecycleResponse>(
   "ThreadVmLifecycleResponse"
 )({
@@ -192,6 +200,7 @@ export class ApiError extends Schema.TaggedErrorClass<ApiError>()(
 ) {}
 
 export type ProjectModel = typeof Project.Type;
+export type ProjectRegistryResponseModel = typeof ProjectRegistryResponse.Type;
 export type ProvisioningStepModel = typeof ProvisioningStep.Type;
 export type ThreadVmModel = typeof ThreadVm.Type;
 export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
