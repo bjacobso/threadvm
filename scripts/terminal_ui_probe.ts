@@ -6,6 +6,7 @@ import {
   nextThreadVmSelection,
   threadVmNavigationAction
 } from "../apps/web/src/features/threadvms/threadVmNavigation.js";
+import { xtermTheme } from "../apps/web/src/features/terminal/xtermTheme.js";
 import {
   firstPreviewUrl,
   threadVmHostClipboardText
@@ -161,6 +162,9 @@ assert.equal(parseOsc52("c;aGVsbG8="), "hello");
 assert.equal(parseOsc52("c; aG Vs bG8 "), "hello");
 assert.equal(parseOsc52("x;aGVsbG8="), undefined);
 assert.equal(parseOsc52("c;?"), undefined);
+assert.equal(xtermTheme.background, "var(--terminal-background)");
+assert.equal(xtermTheme.foreground, "var(--terminal-foreground)");
+assert.equal(xtermTheme.selectionBackground, "var(--terminal-selection)");
 
 assert.equal(terminalShortcutAction({ key: "Enter", metaKey: true }), "attach");
 assert.equal(
