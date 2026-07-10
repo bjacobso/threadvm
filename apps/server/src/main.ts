@@ -5,7 +5,7 @@ import { Effect, Layer } from "effect";
 import { createServer } from "node:http";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { join } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { ThreadVmApi } from "@threadvm/shared/api";
 import { ThreadVmApiHandlersLive } from "@threadvm/shared/api/handlers";
 import { CommandServiceLive } from "@threadvm/shared/services/CommandService";
@@ -20,6 +20,57 @@ import { TerminalRoutesLive } from "./terminalRoutes.js";
 
 const port = Number(process.env.THREADVM_PORT ?? "3333");
 const distClient = fileURLToPath(new URL("../../web/dist", import.meta.url));
+const indexPath = join(distClient, "index.html");
+const devFallbackHtml =
+  "<!doctype html><title>ThreadVM</title><body><h1>ThreadVM API</h1><p>Run <code>pnpm dev</code> and open the Vite client at <code>http://127.0.0.1:5173</code>.</p><p>API docs are at <a href=\"/docs\">/docs</a>.</p></body>";
+const reservedBrowserPrefixes = ["/api", "/rpc", "/docs", "/assets"] as const;
+
+const notFound = HttpServerResponse.text("Not found", { status: 404 });
+const notFoundEffect = Effect.succeed(notFound);
+
+const indexResponse = () =>
+  existsSync(indexPath)
+    ? HttpServerResponse.file(indexPath)
+    : Effect.succeed(HttpServerResponse.html(devFallbackHtml));
+
+const requestPath = (url: string) => {
+  try {
+    return new URL(url, "http://threadvm.local").pathname;
+  } catch {
+    return "/";
+  }
+};
+
+const assetResponse = (url: string) => {
+  const pathname = requestPath(url);
+  const staticPath = resolve(distClient, pathname.replace(/^\//, ""));
+  const relativePath = relative(distClient, staticPath);
+  const escaped =
+    relativePath === ".." ||
+    relativePath.startsWith(`..${sep}`) ||
+    resolve(relativePath) === relativePath;
+
+  if (escaped) {
+    return notFoundEffect;
+  }
+
+  return HttpServerResponse.file(staticPath).pipe(
+    Effect.catch(() => notFoundEffect)
+  );
+};
+
+const spaFallbackResponse = (url: string) => {
+  const pathname = requestPath(url);
+  if (
+    reservedBrowserPrefixes.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+    )
+  ) {
+    return notFoundEffect;
+  }
+
+  return indexResponse();
+};
 
 const ApiRoutesLive = HttpApiBuilder.layer(ThreadVmApi, {
   openapiPath: "/docs/openapi.json"
@@ -30,27 +81,13 @@ const DocsRouteLive = HttpApiScalar.layer(ThreadVmApi, {
 });
 
 const StaticRoutesLive = Layer.mergeAll(
-  HttpRouter.add(
-    "GET",
-    "/",
-    existsSync(join(distClient, "index.html"))
-      ? HttpServerResponse.file(join(distClient, "index.html"))
-      : HttpServerResponse.html(
-          "<!doctype html><title>ThreadVM</title><body><h1>ThreadVM API</h1><p>Run <code>npm run dev</code> and open the Vite client at <code>http://127.0.0.1:5173</code>.</p><p>API docs are at <a href=\"/docs\">/docs</a>.</p></body>"
-        )
-  ),
+  HttpRouter.add("GET", "/", indexResponse()),
   HttpRouter.add(
     "GET",
     "/assets/*",
-    (request) =>
-      HttpServerResponse.file(
-        join(distClient, request.url.replace(/^\//, ""))
-      ).pipe(
-        Effect.catch(() =>
-          Effect.succeed(HttpServerResponse.text("Not found", { status: 404 }))
-        )
-      )
-  )
+    (request) => assetResponse(request.url)
+  ),
+  HttpRouter.add("GET", "*", (request) => spaFallbackResponse(request.url))
 );
 
 const ExeDevServiceComposed = ExeDevServiceLive.pipe(

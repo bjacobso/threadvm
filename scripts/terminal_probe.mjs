@@ -120,6 +120,14 @@ const main = async () => {
       "server startup"
     );
 
+    for (const path of ["/", "/threadvms/terminal-probe"]) {
+      const response = await fetch(`${baseUrl}${path}`);
+      const html = await response.text();
+      if (!response.ok || !html.includes("root")) {
+        throw new Error(`static app fallback failed for ${path}: ${response.status}`);
+      }
+    }
+
     const threadVms = await apiJson(baseUrl, "/api/threadvms");
     const threadVm = threadVms.find((vm) => vm.id === "terminal-probe");
     if (!threadVm) {
