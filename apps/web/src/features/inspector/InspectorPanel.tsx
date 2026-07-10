@@ -30,6 +30,7 @@ export function InspectorPanel() {
                   ["Project", selected.project ?? "unknown"],
                   ["Branch", selected.branch ?? "unknown"],
                   ["Source", selected.source],
+                  ["Tags", selected.tags?.length ? selected.tags.join(", ") : "none"],
                   ["Ports", <PortLinks ports={selected.ports} />],
                   ["Metadata", selected.metadataPath ?? "unknown"],
                   ["Dev log", selected.devLogPath ?? "unknown"],

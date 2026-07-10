@@ -21,6 +21,18 @@ export class ExeDevService extends Context.Service<
       name: string,
       image: string
     ) => Effect.Effect<ThreadVm, ExeDevError>;
+    readonly tagVm: (
+      id: string,
+      tags: ReadonlyArray<string>
+    ) => Effect.Effect<void, ExeDevError>;
+    readonly untagVm: (
+      id: string,
+      tags: ReadonlyArray<string>
+    ) => Effect.Effect<void, ExeDevError>;
+    readonly commentVm: (
+      id: string,
+      comment: string
+    ) => Effect.Effect<void, ExeDevError>;
     readonly stopVm: (id: string) => Effect.Effect<void, ExeDevError>;
     readonly removeVm: (id: string) => Effect.Effect<void, ExeDevError>;
   }
@@ -59,6 +71,9 @@ const parseVmLine = (line: string): ThreadVm | undefined => {
         "bootstrapping"
       ].includes(part.toLowerCase())
     ) ?? "unknown";
+  const tags = parts
+    .filter((part) => part.startsWith("#") && part.length > 1)
+    .map((part) => part.slice(1));
 
   return new ThreadVm({
     id: name,
@@ -66,6 +81,7 @@ const parseVmLine = (line: string): ThreadVm | undefined => {
     host,
     state: stateToken.toLowerCase() as ThreadVm["state"],
     source: "exe",
+    tags,
     ports: [],
     raw: line
   });
@@ -137,6 +153,16 @@ export const ExeDevServiceLive = Layer.effect(
         runExe(["cp", base, name]).pipe(Effect.as(syntheticVm(name))),
       createVm: (name, image) =>
         runExe(["new", name, "--image", image]).pipe(Effect.as(syntheticVm(name))),
+      tagVm: (id, tags) =>
+        tags.length === 0
+          ? Effect.void
+          : runExe(["tag", id, ...tags]).pipe(Effect.asVoid),
+      untagVm: (id, tags) =>
+        tags.length === 0
+          ? Effect.void
+          : runExe(["tag", "-d", id, ...tags]).pipe(Effect.asVoid),
+      commentVm: (id, comment) =>
+        runExe(["comment", id, comment]).pipe(Effect.asVoid),
       stopVm: (id) => runExe(["stop", id]).pipe(Effect.asVoid),
       removeVm: (id) => runExe(["rm", id]).pipe(Effect.asVoid)
     } as const;

@@ -71,6 +71,7 @@ export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({
   branch: Schema.optional(Schema.String),
   state: ThreadVmState,
   source: Schema.Literals(["exe", "cache", "mock"]),
+  tags: Schema.optional(Schema.Array(Schema.String)),
   ports: Schema.Array(Port),
   metadataPath: Schema.optional(Schema.String),
   devPidPath: Schema.optional(Schema.String),

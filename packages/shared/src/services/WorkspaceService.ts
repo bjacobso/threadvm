@@ -28,6 +28,29 @@ const slugify = (input: string) =>
     .replace(/^-|-$/g, "")
     .slice(0, 48) || "thread";
 
+const tagify = (input: string) =>
+  input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48) || "unknown";
+
+const shortComment = (input: string) =>
+  input.replace(/\s+/g, " ").trim().slice(0, 120);
+
+const threadVmStateTags = [
+  "discovering",
+  "creating",
+  "bootstrapping",
+  "ready",
+  "running",
+  "blocked",
+  "stopped",
+  "failed",
+  "destroying",
+  "unknown"
+].map((state) => `threadvm-state-${state}`);
+
 export class WorkspaceService extends Context.Service<
   WorkspaceService,
   {
@@ -92,6 +115,31 @@ export const WorkspaceServiceLive = Layer.effect(
             url: `https://${threadVm.host}:${port}`
           })
       );
+
+    const tagsForMetadata = (metadata: ThreadVmMetadata) => [
+      "threadvm",
+      "threadvm-managed",
+      ...(metadata.project ? [`threadvm-project-${tagify(metadata.project)}`] : []),
+      ...(metadata.slug ? [`threadvm-slug-${tagify(metadata.slug)}`] : []),
+      ...(metadata.state ? [`threadvm-state-${tagify(metadata.state)}`] : []),
+      ...(metadata.branch ? [`threadvm-branch-${tagify(metadata.branch)}`] : [])
+    ];
+
+    const writeExeMetadata = (threadVm: ThreadVm, metadata: ThreadVmMetadata) =>
+      exe
+        .untagVm(threadVm.id, threadVmStateTags)
+        .pipe(Effect.catch(() => Effect.void))
+        .pipe(Effect.andThen(exe.tagVm(threadVm.id, tagsForMetadata(metadata))))
+        .pipe(
+          Effect.andThen(
+            metadata.summary
+              ? exe.commentVm(threadVm.id, shortComment(metadata.summary))
+              : Effect.void
+          ),
+          Effect.mapError(
+            toWorkspaceError(`Failed to write exe.dev metadata for ${threadVm.name}`)
+          )
+        );
 
     const enrichThreadVm = (
       threadVm: ThreadVm,
@@ -348,6 +396,9 @@ export const WorkspaceServiceLive = Layer.effect(
       metadata: ThreadVmMetadata
     ) =>
       rememberThreadVm(metadata).pipe(
+        Effect.andThen(
+          writeExeMetadata(threadVm, metadata).pipe(Effect.catch(() => Effect.void))
+        ),
         Effect.andThen(
           writeRemoteMetadata(threadVm, project, metadata).pipe(
             Effect.catch(() => Effect.void)
@@ -619,11 +670,17 @@ export const WorkspaceServiceLive = Layer.effect(
           "creating"
         );
         yield* rememberThreadVm(metadata);
+        yield* writeExeMetadata(threadVm, metadata).pipe(
+          Effect.catch(() => Effect.void)
+        );
         const bootstrapping = updateMetadata(metadata, {
           state: "bootstrapping",
           lastProvisioningError: undefined
         });
         yield* rememberThreadVm(bootstrapping);
+        yield* writeExeMetadata(threadVm, bootstrapping).pipe(
+          Effect.catch(() => Effect.void)
+        );
         yield* provisionThreadVm(threadVm, project, metadata).pipe(
           Effect.catch((cause) =>
             Effect.gen(function* () {
