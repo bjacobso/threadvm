@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "@/components/ui/tabs";
+import {
   devLogActionAtom,
   devLogAtom,
   portStatusActionAtom,
@@ -62,167 +68,180 @@ export function InspectorPanel() {
                   </Badge>
                 ) : null}
               </div>
-              <MetadataTable
-                rows={[
-                  ["Host", selected.host],
-                  ["Project", selected.project ?? "unknown"],
-                  ["Pinned", selected.pinned ? "yes" : "no"],
-                  ["Branch", selected.branch ?? "unknown"],
-                  ["Source", selected.source],
-                  [
-                    "Prompt",
-                    selected.startingPrompt ? (
-                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
-                        {selected.startingPrompt}
-                      </pre>
-                    ) : (
-                      "none"
-                    )
-                  ],
-                  ["Tags", selected.tags?.length ? selected.tags.join(", ") : "none"],
-                  [
-                    "Ports",
-                    <PortLinks
-                      ports={selected.ports}
-                      statuses={
-                        portStatusMatchesSelection
-                          ? portStatus.response?.ports
-                          : undefined
-                      }
-                    />
-                  ],
-                  ["Metadata", selected.metadataPath ?? "unknown"],
-                  ["Dev log", selected.devLogPath ?? "unknown"],
-                  ["Dev pid", selected.devPidPath ?? "unknown"],
-                  [
-                    "Stream",
-                    streamMatchesSelection ? (
-                      provisioningStream.error ? (
-                        <span className="text-destructive">
-                          {provisioningStream.error}
+              <Tabs defaultValue="overview" className="min-w-0">
+                <TabsList variant="line" className="w-full justify-start">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="ports">Ports</TabsTrigger>
+                  <TabsTrigger value="logs">Logs</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview" className="flex flex-col gap-4">
+                  <MetadataTable
+                    rows={[
+                      ["Host", selected.host],
+                      ["Project", selected.project ?? "unknown"],
+                      ["Pinned", selected.pinned ? "yes" : "no"],
+                      ["Branch", selected.branch ?? "unknown"],
+                      ["Source", selected.source],
+                      [
+                        "Prompt",
+                        selected.startingPrompt ? (
+                          <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
+                            {selected.startingPrompt}
+                          </pre>
+                        ) : (
+                          "none"
+                        )
+                      ],
+                      [
+                        "Tags",
+                        selected.tags?.length ? selected.tags.join(", ") : "none"
+                      ],
+                      ["Metadata", selected.metadataPath ?? "unknown"],
+                      ["Dev log", selected.devLogPath ?? "unknown"],
+                      ["Dev pid", selected.devPidPath ?? "unknown"],
+                      [
+                        "Raw",
+                        <span className="whitespace-pre-wrap">
+                          {selected.raw ?? "none"}
                         </span>
-                      ) : (
-                        formatObservedAt(provisioningStream.lastObservedAt)
-                      )
-                    ) : (
-                      "idle"
-                    )
-                  ],
-                  [
-                    "Provisioning",
-                    selected.lastProvisioningError ? (
-                      <span className="text-destructive">
-                        {selected.lastProvisioningError}
-                      </span>
-                    ) : (
-                      "ok"
-                    )
-                  ],
-                  [
-                    "Steps",
-                    selected.provisioningSteps?.length ? (
-                      <ol className="flex flex-col gap-1">
-                        {selected.provisioningSteps.map((step) => (
-                          <li key={step.id} className="flex flex-col gap-0.5">
-                            <span>{step.label}</span>
-                            <span className="text-muted-foreground">
-                              {step.status}
-                              {step.message ? ` - ${step.message}` : ""}
-                            </span>
-                            {step.outputExcerpt ? (
-                              <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
-                                {step.outputExcerpt}
-                              </pre>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ol>
-                    ) : (
-                      "none"
-                    )
-                  ],
-                  [
-                    "Raw",
-                    <span className="whitespace-pre-wrap">{selected.raw ?? "none"}</span>
-                  ]
-                ]}
-              />
-              <Separator />
-              <LifecycleActions threadVm={selected} />
-              <Separator />
-              <section className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-semibold">Ports</h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={selected.ports.length === 0 || loadingPortStatus}
-                    onClick={() => void portStatusActionAtom.load(selected.id)}
-                  >
-                    <RefreshCwIcon data-icon="inline-start" />
-                    {loadingPortStatus ? "Checking..." : "Check"}
-                  </Button>
-                </div>
-                {portStatusMatchesSelection && portStatus.error ? (
-                  <Alert variant="destructive">
-                    <FileTextIcon />
-                    <AlertTitle>Port check unavailable</AlertTitle>
-                    <AlertDescription className="break-words">
-                      {portStatus.error}
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                {portStatusMatchesSelection && portStatus.response ? (
-                  <div className="flex flex-col gap-2 text-xs text-muted-foreground">
-                    <span>
+                      ]
+                    ]}
+                  />
+                  <Separator />
+                  <LifecycleActions threadVm={selected} />
+                </TabsContent>
+
+                <TabsContent value="ports" className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-xs font-semibold">Ports</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={selected.ports.length === 0 || loadingPortStatus}
+                      onClick={() => void portStatusActionAtom.load(selected.id)}
+                    >
+                      <RefreshCwIcon data-icon="inline-start" />
+                      {loadingPortStatus ? "Checking..." : "Check"}
+                    </Button>
+                  </div>
+                  <PortLinks
+                    ports={selected.ports}
+                    statuses={
+                      portStatusMatchesSelection
+                        ? portStatus.response?.ports
+                        : undefined
+                    }
+                  />
+                  {portStatusMatchesSelection && portStatus.error ? (
+                    <Alert variant="destructive">
+                      <FileTextIcon />
+                      <AlertTitle>Port check unavailable</AlertTitle>
+                      <AlertDescription className="break-words">
+                        {portStatus.error}
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                  {portStatusMatchesSelection && portStatus.response ? (
+                    <span className="text-xs text-muted-foreground">
                       observed {formatObservedAt(portStatus.response.observedAt)}
                     </span>
-                    <PortLinks
-                      ports={selected.ports}
-                      statuses={portStatus.response.ports}
-                    />
-                  </div>
-                ) : null}
-              </section>
-              <Separator />
-              <section className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-xs font-semibold">Dev Log</h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={!selected.devLogPath || loadingDevLog}
-                    onClick={() => void devLogActionAtom.load(selected.id)}
-                  >
-                    <RefreshCwIcon data-icon="inline-start" />
-                    {loadingDevLog ? "Loading..." : "Refresh"}
-                  </Button>
-                </div>
-                {devLogMatchesSelection && devLog.error ? (
-                  <Alert variant="destructive">
-                    <FileTextIcon />
-                    <AlertTitle>Dev log unavailable</AlertTitle>
-                    <AlertDescription className="break-words">
-                      {devLog.error}
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                {devLogMatchesSelection && devLog.response ? (
-                  <div className="flex flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <span>{devLog.response.path}</span>
-                      {devLog.response.truncated ? (
-                        <Badge variant="outline">tail 32kb</Badge>
-                      ) : null}
+                  ) : null}
+                </TabsContent>
+
+                <TabsContent value="logs" className="flex flex-col gap-4">
+                  <MetadataTable
+                    rows={[
+                      [
+                        "Stream",
+                        streamMatchesSelection ? (
+                          provisioningStream.error ? (
+                            <span className="text-destructive">
+                              {provisioningStream.error}
+                            </span>
+                          ) : (
+                            formatObservedAt(provisioningStream.lastObservedAt)
+                          )
+                        ) : (
+                          "idle"
+                        )
+                      ],
+                      [
+                        "Provisioning",
+                        selected.lastProvisioningError ? (
+                          <span className="text-destructive">
+                            {selected.lastProvisioningError}
+                          </span>
+                        ) : (
+                          "ok"
+                        )
+                      ],
+                      [
+                        "Steps",
+                        selected.provisioningSteps?.length ? (
+                          <ol className="flex flex-col gap-1">
+                            {selected.provisioningSteps.map((step) => (
+                              <li key={step.id} className="flex flex-col gap-0.5">
+                                <span>{step.label}</span>
+                                <span className="text-muted-foreground">
+                                  {step.status}
+                                  {step.message ? ` - ${step.message}` : ""}
+                                </span>
+                                {step.outputExcerpt ? (
+                                  <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
+                                    {step.outputExcerpt}
+                                  </pre>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ol>
+                        ) : (
+                          "none"
+                        )
+                      ]
+                    ]}
+                  />
+                  <Separator />
+                  <section className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <h3 className="text-xs font-semibold">Dev Log</h3>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!selected.devLogPath || loadingDevLog}
+                        onClick={() => void devLogActionAtom.load(selected.id)}
+                      >
+                        <RefreshCwIcon data-icon="inline-start" />
+                        {loadingDevLog ? "Loading..." : "Refresh"}
+                      </Button>
                     </div>
-                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
-                      {devLog.response.content || "Log is empty."}
-                    </pre>
-                  </div>
-                ) : null}
-              </section>
+                    {devLogMatchesSelection && devLog.error ? (
+                      <Alert variant="destructive">
+                        <FileTextIcon />
+                        <AlertTitle>Dev log unavailable</AlertTitle>
+                        <AlertDescription className="break-words">
+                          {devLog.error}
+                        </AlertDescription>
+                      </Alert>
+                    ) : null}
+                    {devLogMatchesSelection && devLog.response ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>{devLog.response.path}</span>
+                          {devLog.response.truncated ? (
+                            <Badge variant="outline">tail 32kb</Badge>
+                          ) : null}
+                        </div>
+                        <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
+                          {devLog.response.content || "Log is empty."}
+                        </pre>
+                      </div>
+                    ) : null}
+                  </section>
+                </TabsContent>
+              </Tabs>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">Select a ThreadVM.</p>

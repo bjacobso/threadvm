@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { terminalShortcutAction } from "../apps/web/src/features/terminal/keyboardShortcuts.js";
 import { parseOsc52 } from "../apps/web/src/features/terminal/osc52.js";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from "../apps/web/src/components/ui/tabs.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
 import {
   nextThreadVmSelection,
@@ -165,6 +171,10 @@ assert.equal(parseOsc52("c;?"), undefined);
 assert.equal(xtermTheme.background, "var(--terminal-background)");
 assert.equal(xtermTheme.foreground, "var(--terminal-foreground)");
 assert.equal(xtermTheme.selectionBackground, "var(--terminal-selection)");
+assert.equal(typeof Tabs, "function");
+assert.equal(typeof TabsList, "function");
+assert.equal(typeof TabsTrigger, "function");
+assert.equal(typeof TabsContent, "function");
 
 assert.equal(terminalShortcutAction({ key: "Enter", metaKey: true }), "attach");
 assert.equal(
