@@ -13,6 +13,7 @@ import { ConfigServiceLive } from "@threadvm/shared/services/ConfigService";
 import { ExeDevServiceLive } from "@threadvm/shared/services/ExeDevService";
 import { TerminalBridgeLive } from "@threadvm/shared/services/TerminalBridge";
 import { WorkspaceServiceLive } from "@threadvm/shared/services/WorkspaceService";
+import { ReconciliationRoutesLive } from "./reconciliationRoutes.js";
 import { TerminalRoutesLive } from "./terminalRoutes.js";
 
 const port = Number(process.env.THREADVM_PORT ?? "3333");
@@ -68,6 +69,7 @@ const AppServicesLive = Layer.mergeAll(
 const RoutesLive = Layer.mergeAll(
   ApiRoutesLive,
   DocsRouteLive,
+  ReconciliationRoutesLive,
   TerminalRoutesLive,
   StaticRoutesLive
 );

@@ -38,7 +38,7 @@ export interface ProjectConfigState {
 }
 
 export interface ReconciliationState {
-  readonly status: "idle" | "refreshing" | "succeeded" | "failed";
+  readonly status: "idle" | "streaming" | "refreshing" | "succeeded" | "failed";
   readonly lastStartedAt: number | undefined;
   readonly lastFinishedAt: number | undefined;
   readonly error: string | undefined;
@@ -142,6 +142,17 @@ export const setSelectedThreadVmId = (threadVmId: string | undefined) => {
   writeStored(selectedVmKey, threadVmId);
 };
 
+const setThreadVmsFromServer = (nextThreadVms: ReadonlyArray<ThreadVmModel>) => {
+  threadVmsAtom.set(nextThreadVms);
+  const selectedId = selectedThreadVmIdAtom.value;
+  const preferred = selectedId ?? nextThreadVms[0]?.id;
+  setSelectedThreadVmId(
+    nextThreadVms.some((threadVm) => threadVm.id === preferred)
+      ? preferred
+      : nextThreadVms[0]?.id
+  );
+};
+
 export const loadProjectConfigAtom = {
   run: async () => {
     projectConfigAtom.update((current) => ({
@@ -180,14 +191,7 @@ export const refreshThreadVmsAtom = {
 
     try {
       const nextThreadVms = await threadVmApi.listThreadVms();
-      threadVmsAtom.set(nextThreadVms);
-      const selectedId = selectedThreadVmIdAtom.value;
-      const preferred = selectedId ?? nextThreadVms[0]?.id;
-      setSelectedThreadVmId(
-        nextThreadVms.some((threadVm) => threadVm.id === preferred)
-          ? preferred
-          : nextThreadVms[0]?.id
-      );
+      setThreadVmsFromServer(nextThreadVms);
       reconciliationAtom.set({
         status: "succeeded",
         lastStartedAt: startedAt,
@@ -206,6 +210,100 @@ export const refreshThreadVmsAtom = {
     } finally {
       inventoryLoadingAtom.set(false);
     }
+  }
+} as const;
+
+let reconciliationStreamCleanup: (() => void) | undefined;
+
+export const reconciliationStreamAtom = {
+  start: () => {
+    reconciliationStreamCleanup?.();
+
+    const startedAt = Date.now();
+    let closed = false;
+    const source = new EventSource("/rpc/threadvms/reconcile");
+    reconciliationAtom.set({
+      status: "streaming",
+      lastStartedAt: startedAt,
+      lastFinishedAt: undefined,
+      error: undefined
+    });
+
+    source.addEventListener("snapshot", (event) => {
+      void threadVmApi
+        .decodeReconciliationEvent(event.data)
+        .then((snapshot) => {
+          if (closed) {
+            return;
+          }
+          inventoryLoadingAtom.set(false);
+          inventoryErrorAtom.set(undefined);
+          setThreadVmsFromServer(snapshot.threadVms);
+          reconciliationAtom.set({
+            status: "streaming",
+            lastStartedAt: startedAt,
+            lastFinishedAt: snapshot.observedAt,
+            error: undefined
+          });
+        })
+        .catch((cause) => {
+          if (closed) {
+            return;
+          }
+          const message = cause instanceof Error ? cause.message : String(cause);
+          inventoryErrorAtom.set(message);
+          reconciliationAtom.set({
+            status: "failed",
+            lastStartedAt: startedAt,
+            lastFinishedAt: Date.now(),
+            error: message
+          });
+        });
+    });
+
+    source.addEventListener("reconciliation-error", (event) => {
+      if (closed) {
+        return;
+      }
+      const message =
+        "data" in event ? String(event.data) : "reconciliation failed";
+      inventoryErrorAtom.set(message);
+      reconciliationAtom.set({
+        status: "failed",
+        lastStartedAt: startedAt,
+        lastFinishedAt: Date.now(),
+        error: message
+      });
+    });
+
+    source.onerror = () => {
+      if (closed) {
+        return;
+      }
+      const message = "Reconciliation stream disconnected";
+      inventoryErrorAtom.set(message);
+      reconciliationAtom.set({
+        status: "failed",
+        lastStartedAt: startedAt,
+        lastFinishedAt: Date.now(),
+        error: message
+      });
+      source.close();
+      reconciliationStreamCleanup = undefined;
+    };
+
+    reconciliationStreamCleanup = () => {
+      closed = true;
+      source.close();
+      if (reconciliationStreamCleanup) {
+        reconciliationStreamCleanup = undefined;
+      }
+    };
+
+    return reconciliationStreamCleanup;
+  },
+  stop: () => {
+    reconciliationStreamCleanup?.();
   }
 } as const;
 

@@ -4,7 +4,7 @@ ThreadVM is a local web app for spinning up one isolated development VM per codi
 
 Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want persistent panes or agent sessions.
 
-Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, and basic stop/remove lifecycle actions are implemented. Workspace creation currently requests the VM create/clone operation; full repo bootstrap and dev-server automation are next.
+Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, reconciliation stream, and basic stop/remove lifecycle actions are implemented. Workspace creation currently requests the VM create/clone operation; full repo bootstrap and dev-server automation are next.
 
 ## What It Does
 
@@ -238,6 +238,7 @@ GET    /api/threadvms/:id/ports
 Streaming/RPC workflows:
 
 ```text
+GET /rpc/threadvms/reconcile
 ThreadVmRpc.createAndBootstrap
 ThreadVmRpc.reconcile
 TerminalRpc.attach
@@ -267,6 +268,7 @@ Implemented:
 - Vite/React/xterm web UI with ThreadVM sidebar, inspector, quick switcher, and attach button.
 - shadcn/Tailwind 4 UI tokens with JetBrains Mono across app chrome and terminal.
 - Effect Atom client state for inventory, project config, reconciliation, selection, terminal status, and clipboard notices.
+- SSE reconciliation stream for live ThreadVM inventory snapshots.
 - New ThreadVM form backed by `POST /api/threadvms`.
 - Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.
 - Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.

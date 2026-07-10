@@ -13,6 +13,7 @@ import { ThreadVmCommandPalette } from "@/features/threadvms/ThreadVmCommandPale
 import { ThreadVmList } from "@/features/threadvms/ThreadVmList";
 import {
   loadProjectConfigAtom,
+  reconciliationStreamAtom,
   refreshThreadVmsAtom,
   useSelectedThreadVm
 } from "@/state/atoms";
@@ -25,6 +26,9 @@ export function App() {
   useEffect(() => {
     void loadProjectConfigAtom.run();
     void refreshThreadVmsAtom.run();
+    const stopReconciliationStream = reconciliationStreamAtom.start();
+
+    return () => stopReconciliationStream();
   }, []);
 
   useEffect(() => {
