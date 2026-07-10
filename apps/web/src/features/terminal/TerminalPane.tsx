@@ -34,6 +34,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     [selected?.id]
   );
   const session = useAtomRef(sessionAtom);
+  const terminalUi = useAtomRef(terminalUiAtom);
 
   const setSession = useCallback(
     (next: typeof session) => {
@@ -303,10 +304,16 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       <TerminalToolbar
         selected={selected}
         session={session}
+        clipboardNotice={terminalUi.clipboardNotice}
         onAttach={(restart) => void attachTerminal(restart)}
+        onCopyPendingClipboard={() => {
+          const notice = terminalUiAtom.value.clipboardNotice;
+          if (notice?.status === "pending") {
+            void copyToClipboard(notice.text);
+          }
+        }}
       />
       <div ref={elementRef} className="terminal-surface" />
     </section>
   );
 }
-
