@@ -84,6 +84,10 @@ The Effect Platform API server runs at:
 http://127.0.0.1:3333
 ```
 
+For temporary ports, set `THREADVM_WEB_PORT` and `THREADVM_PORT` before running
+`pnpm dev`. The Vite proxy follows `THREADVM_PORT`, so the browser keeps using
+same-origin `/api` and `/rpc` requests.
+
 Build and run the production bundle:
 
 ```sh
@@ -102,6 +106,7 @@ Useful checks:
 ```sh
 pnpm typecheck
 pnpm probe:boundaries
+pnpm probe:dev
 pnpm probe:web-style
 pnpm probe:terminal
 curl http://127.0.0.1:3333/api/threadvms

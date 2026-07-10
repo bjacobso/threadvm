@@ -19,10 +19,11 @@ import { ReconciliationRoutesLive } from "./reconciliationRoutes.js";
 import { TerminalRoutesLive } from "./terminalRoutes.js";
 
 const port = Number(process.env.THREADVM_PORT ?? "3333");
+const webPort = Number(process.env.THREADVM_WEB_PORT ?? "5173");
 const distClient = fileURLToPath(new URL("../../web/dist", import.meta.url));
 const indexPath = join(distClient, "index.html");
 const devFallbackHtml =
-  "<!doctype html><title>ThreadVM</title><body><h1>ThreadVM API</h1><p>Run <code>pnpm dev</code> and open the Vite client at <code>http://127.0.0.1:5173</code>.</p><p>API docs are at <a href=\"/docs\">/docs</a>.</p></body>";
+  `<!doctype html><title>ThreadVM</title><body><h1>ThreadVM API</h1><p>Run <code>pnpm dev</code> and open the Vite client at <code>http://127.0.0.1:${webPort}</code>.</p><p>API docs are at <a href="/docs">/docs</a>.</p></body>`;
 const reservedBrowserPrefixes = ["/api", "/rpc", "/docs", "/assets"] as const;
 
 const notFound = HttpServerResponse.text("Not found", { status: 404 });
