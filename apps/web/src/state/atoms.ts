@@ -3,7 +3,6 @@ import { useSyncExternalStore } from "react";
 import type {
   CreateThreadVmRequestModel,
   ProjectModel,
-  TerminalAttachResponseModel,
   ThreadVmDevLogResponseModel,
   ThreadVmPortsResponseModel,
   ThreadVmModel
@@ -25,7 +24,14 @@ export type ClipboardNotice =
 
 export interface TerminalSessionState {
   readonly status: TerminalStatus;
-  readonly attach: TerminalAttachResponseModel | undefined;
+  readonly connection:
+    | {
+        readonly attachmentId: string;
+        readonly sessionName: string;
+        readonly createdAt: number;
+        readonly reused: boolean;
+      }
+    | undefined;
 }
 
 export interface TerminalUiState {
@@ -158,7 +164,7 @@ export const portStatusAtom = AtomRef.make<PortStatusState>({
 
 const emptyTerminalSessionAtom = AtomRef.make<TerminalSessionState>({
   status: "detached",
-  attach: undefined
+  connection: undefined
 });
 
 const terminalSessionAtoms = new Map<string, AtomRef.AtomRef<TerminalSessionState>>();
@@ -193,7 +199,7 @@ export const terminalSessionAtomFamily = (threadVmId: string | undefined) => {
   }
   const created = AtomRef.make<TerminalSessionState>({
     status: "detached",
-    attach: undefined
+    connection: undefined
   });
   terminalSessionAtoms.set(threadVmId, created);
   return created;

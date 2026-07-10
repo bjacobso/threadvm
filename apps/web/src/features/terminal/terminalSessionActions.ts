@@ -1,9 +1,15 @@
 import type { ThreadVmModel } from "@threadvm/shared/domain";
 import {
+  TerminalInputMessage,
+  TerminalPingMessage,
+  TerminalResizeMessage,
+  TerminalServerMessage
+} from "@threadvm/shared/domain";
+import { Schema } from "effect";
+import {
   activeTerminalVmKey,
   terminalSessionAtomFamily
 } from "./terminalAtoms";
-import { threadVmApi } from "@/state/apiClient";
 import { writeStored } from "@/state/storage";
 
 interface TerminalSize {
@@ -12,8 +18,7 @@ interface TerminalSize {
 }
 
 interface TerminalSessionView {
-  readonly reset: () => void;
-  readonly restoreMouseModes: (modes: ReadonlyArray<number>) => void;
+  readonly replace: (message: string) => void;
   readonly write: (data: string) => void;
   readonly writeln: (data: string) => void;
   readonly getSize: () => TerminalSize | undefined;
@@ -25,106 +30,87 @@ interface AttachOptions {
   readonly view: TerminalSessionView;
 }
 
-const cleanupByThreadVm = new Map<string, (closeRemote?: boolean) => void>();
+interface ActiveTerminalSocket {
+  readonly socket: WebSocket;
+  readonly close: (forget?: boolean) => void;
+}
+
+const socketsByThreadVm = new Map<string, ActiveTerminalSocket>();
 const lastRemoteSizes = new Map<string, TerminalSize>();
-const outputCursorBySession = new Map<string, number>();
+const decodeServerMessage = Schema.decodeUnknownSync(TerminalServerMessage);
+const heartbeatIntervalMs = 15_000;
 
-const postJson = async (url: string, body: unknown) => {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body)
-  });
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
+const socketBaseUrl = () => {
+  const href =
+    typeof window !== "undefined" && window.location
+      ? window.location.href
+      : "http://127.0.0.1:3333/";
+  const url = new URL(href);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  return url;
 };
 
-const parseStreamData = (
-  data: string
-): { readonly data: string; readonly cursor?: number } => {
-  try {
-    const parsed = JSON.parse(data) as unknown;
-    if (typeof parsed === "string") {
-      return { data: parsed };
-    }
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      "data" in parsed &&
-      typeof parsed.data === "string"
-    ) {
-      return {
-        data: parsed.data,
-        cursor:
-          "cursor" in parsed && typeof parsed.cursor === "number"
-            ? parsed.cursor
-            : undefined
-      };
-    }
-  } catch {
-  }
-  return { data };
-};
-
-const streamUrlWithReplay = (
-  url: string,
-  replay: boolean,
-  since: number | undefined
+export const terminalSocketUrl = (
+  threadVmId: string,
+  size: TerminalSize,
+  restart: boolean
 ) => {
-  const params = new URLSearchParams();
-  if (replay) {
-    if (since !== undefined) {
-      params.set("since", String(since));
-    }
-  } else {
-    params.set("replay", "0");
+  const url = socketBaseUrl();
+  url.pathname = `/rpc/terminal/${encodeURIComponent(threadVmId)}/socket`;
+  url.search = "";
+  url.searchParams.set("cols", String(size.cols));
+  url.searchParams.set("rows", String(size.rows));
+  if (restart) {
+    url.searchParams.set("restart", "1");
   }
-  const query = params.toString();
-  return query ? `${url}${url.includes("?") ? "&" : "?"}${query}` : url;
+  return url.toString();
+};
+
+const parseServerMessage = (data: unknown) => {
+  const text = typeof data === "string" ? data : String(data);
+  return decodeServerMessage(JSON.parse(text) as unknown);
+};
+
+const send = (socket: WebSocket, message: unknown) => {
+  if (socket.readyState !== 1) {
+    return false;
+  }
+  socket.send(JSON.stringify(message));
+  return true;
 };
 
 export const terminalSessionActionAtom = {
-  cleanup: (threadVmId: string | undefined, closeRemote = false) => {
+  cleanup: (threadVmId: string | undefined, forget = false) => {
     if (!threadVmId) {
       return;
     }
 
-    cleanupByThreadVm.get(threadVmId)?.(closeRemote);
-    cleanupByThreadVm.delete(threadVmId);
+    socketsByThreadVm.get(threadVmId)?.close(forget);
+    socketsByThreadVm.delete(threadVmId);
     lastRemoteSizes.delete(threadVmId);
-    if (closeRemote) {
-      const attach = terminalSessionAtomFamily(threadVmId).value.attach;
-      if (attach) {
-        outputCursorBySession.delete(attach.sessionId);
-      }
-    }
     terminalSessionAtomFamily(threadVmId).set({
       status: "detached",
-      attach: undefined
+      connection: undefined
     });
 
-    if (closeRemote) {
+    if (forget) {
       writeStored(activeTerminalVmKey, undefined);
     }
   },
 
-  sendInput: async (threadVmId: string | undefined, data: string) => {
+  sendInput: (threadVmId: string | undefined, data: string) => {
     if (!threadVmId) {
       return;
     }
-
-    const attach = terminalSessionAtomFamily(threadVmId).value.attach;
-    const status = terminalSessionAtomFamily(threadVmId).value.status;
-    if (!attach || status !== "attached") {
+    const session = terminalSessionAtomFamily(threadVmId).value;
+    const active = socketsByThreadVm.get(threadVmId);
+    if (!active || session.status !== "attached") {
       return;
     }
-
-    await postJson(attach.inputUrl, { data });
+    send(active.socket, new TerminalInputMessage({ type: "input", data }));
   },
 
-  resize: async (
+  resize: (
     threadVmId: string | undefined,
     size: TerminalSize | undefined,
     force = false
@@ -132,9 +118,9 @@ export const terminalSessionActionAtom = {
     if (!threadVmId || !size) {
       return;
     }
-
-    const attach = terminalSessionAtomFamily(threadVmId).value.attach;
-    if (!attach) {
+    const session = terminalSessionAtomFamily(threadVmId).value;
+    const active = socketsByThreadVm.get(threadVmId);
+    if (!active || session.status !== "attached") {
       return;
     }
 
@@ -147,102 +133,131 @@ export const terminalSessionActionAtom = {
       return;
     }
 
-    lastRemoteSizes.set(threadVmId, size);
-    await postJson(attach.resizeUrl, size);
+    if (
+      send(
+        active.socket,
+        new TerminalResizeMessage({
+          type: "resize",
+          cols: size.cols,
+          rows: size.rows
+        })
+      )
+    ) {
+      lastRemoteSizes.set(threadVmId, size);
+    }
   },
 
-  attach: async ({ threadVm, restart = false, view }: AttachOptions) => {
+  attach: ({ threadVm, restart = false, view }: AttachOptions) => {
     const sessionAtom = terminalSessionAtomFamily(threadVm.id);
-    const previousAttach = sessionAtom.value.attach;
     terminalSessionActionAtom.cleanup(threadVm.id, false);
-    sessionAtom.set({ status: "connecting", attach: undefined });
+    view.replace(`${restart ? "Restarting" : "Attaching"} ${threadVm.name}...`);
+    const size = view.getSize() ?? { cols: 120, rows: 32 };
+    const socket = new WebSocket(terminalSocketUrl(threadVm.id, size, restart));
+    let closedByClient = false;
+    let ready = false;
+    let heartbeat: number | undefined;
 
-    try {
-      const attach = await threadVmApi.attachTerminal(threadVm.id, restart);
-      const preserveLocalTerminalState =
-        !restart &&
-        attach.reused &&
-        previousAttach?.sessionId === attach.sessionId;
-      const previousCursor = outputCursorBySession.get(attach.sessionId);
-      const canResumeFromCursor =
-        preserveLocalTerminalState && previousCursor !== undefined;
-      const shouldReplayStream = !attach.reused || canResumeFromCursor;
-      const shouldRequestRedraw = attach.reused && !canResumeFromCursor;
-      let closed = false;
-      const nextStatus = attach.status === "exited" ? "exited" : "attached";
+    sessionAtom.set({ status: "connecting", connection: undefined });
 
-      if (!preserveLocalTerminalState) {
-        outputCursorBySession.delete(attach.sessionId);
-        view.reset();
-        view.restoreMouseModes(attach.mouseModes);
-        view.writeln(`${restart ? "Restarting" : "Attaching"} ${threadVm.name}...`);
-      } else {
-        view.restoreMouseModes(attach.mouseModes);
+    const close = (forget = false) => {
+      if (closedByClient) {
+        return;
       }
-
-      sessionAtom.set({
-        attach,
-        status: nextStatus === "attached" ? "connecting" : nextStatus
-      });
-      writeStored(activeTerminalVmKey, threadVm.id);
-      await terminalSessionActionAtom.resize(threadVm.id, view.getSize(), true);
-
-      const source = new EventSource(
-        streamUrlWithReplay(
-          attach.streamUrl,
-          shouldReplayStream,
-          canResumeFromCursor ? previousCursor : undefined
-        )
-      );
-      source.onopen = () => {
-        if (!closed) {
-          sessionAtom.set({ attach, status: "attached" });
-          if (shouldRequestRedraw) {
-            void postJson(attach.inputUrl, { data: "\f" });
-          }
-        }
-      };
-      source.onmessage = (event) => {
-        const chunk = parseStreamData(event.data);
-        view.write(chunk.data);
-        if (chunk.cursor !== undefined) {
-          outputCursorBySession.set(attach.sessionId, chunk.cursor);
-        }
-      };
-      source.addEventListener("exit", () => {
-        if (closed) {
-          return;
-        }
-        view.writeln("\r\n[terminal exited]");
-        sessionAtom.set({ attach, status: "exited" });
+      closedByClient = true;
+      if (heartbeat !== undefined) {
+        window.clearInterval(heartbeat);
+      }
+      socket.close(1000, "browser-detached");
+      if (forget) {
         writeStored(activeTerminalVmKey, undefined);
-        source.close();
-        cleanupByThreadVm.delete(threadVm.id);
-        lastRemoteSizes.delete(threadVm.id);
-      });
-      source.onerror = () => {
-        if (closed) {
-          return;
-        }
-        view.writeln("\r\n[terminal stream disconnected]");
-        sessionAtom.set({ attach, status: "disconnected" });
-        source.close();
-        cleanupByThreadVm.delete(threadVm.id);
-        lastRemoteSizes.delete(threadVm.id);
-      };
+      }
+    };
 
-      cleanupByThreadVm.set(threadVm.id, (closeRemote = false) => {
-        closed = true;
-        source.close();
-        if (closeRemote) {
-          void fetch(attach.closeUrl, { method: "DELETE" });
+    socketsByThreadVm.set(threadVm.id, { socket, close });
+
+    socket.onopen = () => {
+      heartbeat = window.setInterval(() => {
+        send(
+          socket,
+          new TerminalPingMessage({ type: "ping", timestamp: Date.now() })
+        );
+      }, heartbeatIntervalMs);
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const message = parseServerMessage(event.data);
+        switch (message.type) {
+          case "ready":
+            ready = true;
+            sessionAtom.set({
+              status: "connecting",
+              connection: {
+                attachmentId: message.attachmentId,
+                sessionName: message.sessionName,
+                createdAt: message.createdAt,
+                reused: message.reused
+              }
+            });
+            lastRemoteSizes.set(threadVm.id, size);
+            writeStored(activeTerminalVmKey, threadVm.id);
+            break;
+          case "output":
+            view.write(message.data);
+            break;
+          case "status":
+            sessionAtom.set({
+              status: message.status,
+              connection: sessionAtom.value.connection
+            });
+            break;
+          case "error":
+            view.writeln(`\r\n[terminal error: ${message.message}]`);
+            sessionAtom.set({
+              status: "disconnected",
+              connection: sessionAtom.value.connection
+            });
+            break;
+          case "pong":
+            break;
         }
+      } catch (cause) {
+        view.writeln(
+          `\r\n[terminal protocol error: ${cause instanceof Error ? cause.message : String(cause)}]`
+        );
+        socket.close(1008, "invalid-server-message");
+      }
+    };
+
+    socket.onerror = () => {
+      if (closedByClient) {
+        return;
+      }
+      sessionAtom.set({
+        status: "disconnected",
+        connection: sessionAtom.value.connection
       });
-    } catch (cause) {
-      sessionAtom.set({ status: "disconnected", attach: undefined });
+    };
+
+    socket.onclose = (event) => {
+      if (heartbeat !== undefined) {
+        window.clearInterval(heartbeat);
+      }
+      if (socketsByThreadVm.get(threadVm.id)?.socket === socket) {
+        socketsByThreadVm.delete(threadVm.id);
+      }
+      lastRemoteSizes.delete(threadVm.id);
+      if (closedByClient) {
+        return;
+      }
+      const exited = event.reason === "terminal-exited";
+      sessionAtom.set({
+        status: exited ? "exited" : "disconnected",
+        connection: sessionAtom.value.connection
+      });
       view.writeln(
-        `\r\n[attach failed: ${cause instanceof Error ? cause.message : String(cause)}]`
+        `\r\n[terminal ${exited ? "exited" : ready ? "disconnected" : "attach failed"}]`
       );
-    }
+    };
   }
 } as const;

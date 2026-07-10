@@ -53,7 +53,14 @@ export const SshServiceLive = Layer.effect(
 
       const remoteCommand = `bash -lc ${shellQuote(script)}`;
       return command
-        .execFile("ssh", [host, remoteCommand], {
+        .execFile("ssh", [
+          "-o",
+          "StrictHostKeyChecking=accept-new",
+          "-o",
+          "BatchMode=yes",
+          host,
+          remoteCommand
+        ], {
           timeoutMs: options?.timeoutMs ?? 120_000
         })
         .pipe(Effect.mapError(toSshError(host, remoteCommand)));

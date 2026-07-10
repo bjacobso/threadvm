@@ -34,7 +34,7 @@ export class CommandService extends Context.Service<
 export const CommandServiceLive = Layer.succeed(CommandService, {
   execFile: (command, args, options) =>
     Effect.callback<CommandResult, CommandError>((resume) => {
-      execFile(
+      const child = execFile(
         command,
         [...args],
         {
@@ -71,5 +71,10 @@ export const CommandServiceLive = Layer.succeed(CommandService, {
           );
         }
       );
+      return Effect.sync(() => {
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill("SIGTERM");
+        }
+      });
     })
 });

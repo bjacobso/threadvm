@@ -34,22 +34,18 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
-const restoreTerminalMouseModes = (
-  terminal: Terminal | null,
-  modes: ReadonlyArray<number>
-) => {
-  if (!terminal || modes.length === 0) {
-    return;
-  }
-  terminal.write(modes.map((mode) => `\x1b[?${mode}h`).join(""));
-};
-
 export function TerminalPane({ selected }: TerminalPaneProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const resizeTimerRef = useRef<number | undefined>(undefined);
-  const autoAttachRef = useRef<string | undefined>(undefined);
+  const terminalDisposablesRef = useRef<
+    | {
+        readonly data: { readonly dispose: () => void };
+        readonly osc52: { readonly dispose: () => void };
+      }
+    | undefined
+  >(undefined);
   const selectedIdRef = useRef<string | undefined>(selected?.id);
   const sessionAtom = useMemo(
     () => terminalSessionAtomFamily(selected?.id),
@@ -111,6 +107,47 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     };
   }, []);
 
+  const disposeTerminal = useCallback(() => {
+    terminalDisposablesRef.current?.data.dispose();
+    terminalDisposablesRef.current?.osc52.dispose();
+    terminalDisposablesRef.current = undefined;
+    terminalRef.current?.dispose();
+    terminalRef.current = null;
+    fitRef.current = null;
+  }, []);
+
+  const replaceTerminal = useCallback(
+    (message: string) => {
+      const element = elementRef.current;
+      if (!element) {
+        return;
+      }
+
+      disposeTerminal();
+      element.replaceChildren();
+      const terminal = new Terminal({
+        cursorBlink: true,
+        fontFamily: terminalFontStack,
+        fontSize: 13,
+        theme: xtermTheme
+      });
+      const fit = new FitAddon();
+      terminal.loadAddon(fit);
+      terminal.open(element);
+      fit.fit();
+      const osc52 = terminal.parser.registerOscHandler(52, handleOsc52);
+      const data = terminal.onData((input) => {
+        terminalSessionActionAtom.sendInput(selectedIdRef.current, input);
+      });
+
+      terminalRef.current = terminal;
+      fitRef.current = fit;
+      terminalDisposablesRef.current = { data, osc52 };
+      terminal.writeln(message);
+    },
+    [disposeTerminal, handleOsc52]
+  );
+
   const fitAndSync = useCallback(() => {
     const fit = fitRef.current;
     const terminal = terminalRef.current;
@@ -120,7 +157,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
 
     fit.fit();
 
-    if (!sessionAtom.value.attach) {
+    if (!sessionAtom.value.connection) {
       return;
     }
 
@@ -142,24 +179,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       return;
     }
 
-    const terminal = new Terminal({
-      cursorBlink: true,
-      fontFamily: terminalFontStack,
-      fontSize: 13,
-      theme: xtermTheme
-    });
-    const fit = new FitAddon();
-    terminal.loadAddon(fit);
-    const osc52Disposable = terminal.parser.registerOscHandler(52, handleOsc52);
-    terminal.open(elementRef.current);
-    fit.fit();
-    terminal.writeln("Select a ThreadVM and attach a VM terminal.");
-
-    terminalRef.current = terminal;
-    fitRef.current = fit;
-    const dataDisposable = terminal.onData((data) => {
-      void terminalSessionActionAtom.sendInput(selectedIdRef.current, data);
-    });
+    replaceTerminal("Select a ThreadVM and attach a VM terminal.");
 
     const observer = new ResizeObserver(() => {
       window.requestAnimationFrame(fitAndSync);
@@ -176,13 +196,9 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       if (resizeTimerRef.current !== undefined) {
         window.clearTimeout(resizeTimerRef.current);
       }
-      dataDisposable.dispose();
-      osc52Disposable.dispose();
-      terminal.dispose();
-      terminalRef.current = null;
-      fitRef.current = null;
+      disposeTerminal();
     };
-  }, [fitAndSync, handleOsc52]);
+  }, [disposeTerminal, fitAndSync, replaceTerminal]);
 
   useEffect(() => {
     const previousId = selectedIdRef.current;
@@ -190,11 +206,12 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       terminalSessionActionAtom.cleanup(previousId, false);
     }
     selectedIdRef.current = selected?.id;
-    terminalRef.current?.reset();
     if (selected) {
-      terminalRef.current?.writeln(`Ready to attach ${selected.name}.`);
+      replaceTerminal(`Ready to attach ${selected.name}.`);
+    } else {
+      replaceTerminal("Select a ThreadVM and attach a VM terminal.");
     }
-  }, [selected?.id, selected?.name]);
+  }, [replaceTerminal, selected?.id, selected?.name]);
 
   const attachTerminal = useCallback(
     async (restart = false) => {
@@ -208,16 +225,14 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
         threadVm: selected,
         restart,
         view: {
-          reset: () => terminalRef.current?.reset(),
-          restoreMouseModes: (modes) =>
-            restoreTerminalMouseModes(terminalRef.current, modes),
+          replace: replaceTerminal,
           write: (data) => terminalRef.current?.write(data),
           writeln: (data) => terminalRef.current?.writeln(data),
           getSize: getTerminalSize
         }
       });
     },
-    [fitAndSync, getTerminalSize, selected]
+    [fitAndSync, getTerminalSize, replaceTerminal, selected]
   );
 
   useEffect(() => {
@@ -226,11 +241,10 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     }
 
     const activeVmId = window.localStorage.getItem(activeTerminalVmKey);
-    if (activeVmId !== selected.id || autoAttachRef.current === selected.id) {
+    if (activeVmId !== selected.id) {
       return;
     }
 
-    autoAttachRef.current = selected.id;
     void attachTerminal(false);
   }, [attachTerminal, selected, session.status]);
 

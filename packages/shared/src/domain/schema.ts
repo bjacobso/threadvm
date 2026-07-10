@@ -191,39 +191,92 @@ export class ThreadVmMetadataFile extends Schema.Class<ThreadVmMetadataFile>(
   threadVms: Schema.Record(Schema.String, ThreadVmMetadata)
 }) {}
 
-export class TerminalAttachRequest extends Schema.Class<TerminalAttachRequest>(
-  "TerminalAttachRequest"
+const TerminalDimension = Schema.Int.check(
+  Schema.isBetween({ minimum: 2, maximum: 1_000 })
+);
+
+export class TerminalSocketRequest extends Schema.Class<TerminalSocketRequest>(
+  "TerminalSocketRequest"
 )({
   threadVmId: Schema.String,
-  restart: Schema.optional(Schema.Boolean)
+  cols: TerminalDimension,
+  rows: TerminalDimension,
+  restart: Schema.Boolean
 }) {}
 
-export class TerminalAttachResponse extends Schema.Class<TerminalAttachResponse>(
-  "TerminalAttachResponse"
+export class TerminalInputMessage extends Schema.Class<TerminalInputMessage>(
+  "TerminalInputMessage"
 )({
-  sessionId: Schema.String,
-  streamUrl: Schema.String,
-  inputUrl: Schema.String,
-  resizeUrl: Schema.String,
-  closeUrl: Schema.String,
-  status: Schema.Literals(["running", "exited"]),
-  reused: Schema.Boolean,
-  mouseModes: Schema.Array(Schema.Number),
-  createdAt: Schema.Number
-}) {}
-
-export class TerminalInputRequest extends Schema.Class<TerminalInputRequest>(
-  "TerminalInputRequest"
-)({
+  type: Schema.Literals(["input"]),
   data: Schema.String
 }) {}
 
-export class TerminalResizeRequest extends Schema.Class<TerminalResizeRequest>(
-  "TerminalResizeRequest"
+export class TerminalResizeMessage extends Schema.Class<TerminalResizeMessage>(
+  "TerminalResizeMessage"
 )({
-  cols: Schema.Number,
-  rows: Schema.Number
+  type: Schema.Literals(["resize"]),
+  cols: TerminalDimension,
+  rows: TerminalDimension
 }) {}
+
+export class TerminalPingMessage extends Schema.Class<TerminalPingMessage>(
+  "TerminalPingMessage"
+)({
+  type: Schema.Literals(["ping"]),
+  timestamp: Schema.Number
+}) {}
+
+export const TerminalClientMessage = Schema.Union([
+  TerminalInputMessage,
+  TerminalResizeMessage,
+  TerminalPingMessage
+]);
+
+export class TerminalReadyMessage extends Schema.Class<TerminalReadyMessage>(
+  "TerminalReadyMessage"
+)({
+  type: Schema.Literals(["ready"]),
+  attachmentId: Schema.String,
+  sessionName: Schema.String,
+  createdAt: Schema.Number,
+  reused: Schema.Boolean
+}) {}
+
+export class TerminalOutputMessage extends Schema.Class<TerminalOutputMessage>(
+  "TerminalOutputMessage"
+)({
+  type: Schema.Literals(["output"]),
+  data: Schema.String
+}) {}
+
+export class TerminalStatusMessage extends Schema.Class<TerminalStatusMessage>(
+  "TerminalStatusMessage"
+)({
+  type: Schema.Literals(["status"]),
+  status: Schema.Literals(["connecting", "attached", "disconnected"])
+}) {}
+
+export class TerminalPongMessage extends Schema.Class<TerminalPongMessage>(
+  "TerminalPongMessage"
+)({
+  type: Schema.Literals(["pong"]),
+  timestamp: Schema.Number
+}) {}
+
+export class TerminalErrorMessage extends Schema.Class<TerminalErrorMessage>(
+  "TerminalErrorMessage"
+)({
+  type: Schema.Literals(["error"]),
+  message: Schema.String
+}) {}
+
+export const TerminalServerMessage = Schema.Union([
+  TerminalReadyMessage,
+  TerminalOutputMessage,
+  TerminalStatusMessage,
+  TerminalPongMessage,
+  TerminalErrorMessage
+]);
 
 export class ApiError extends Schema.TaggedErrorClass<ApiError>()(
   "ApiError",
@@ -248,4 +301,5 @@ export type ThreadVmReconciliationEventModel =
 export type ThreadVmProvisioningEventModel = typeof ThreadVmProvisioningEvent.Type;
 export type ThreadVmMetadataModel = typeof ThreadVmMetadata.Type;
 export type ThreadVmMetadataFileModel = typeof ThreadVmMetadataFile.Type;
-export type TerminalAttachResponseModel = typeof TerminalAttachResponse.Type;
+export type TerminalClientMessageModel = typeof TerminalClientMessage.Type;
+export type TerminalServerMessageModel = typeof TerminalServerMessage.Type;

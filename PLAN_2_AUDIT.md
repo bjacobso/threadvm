@@ -2,6 +2,11 @@
 
 Date: 2026-07-09
 
+> Terminal architecture note (2026-07-10): Plan 2's SSE output plus POST
+> input/resize bridge was replaced by the durable tmux and WebSocket design in
+> `PLAN_3.md`. The Plan 2 evidence below remains a record of that completed
+> phase; it is not a description of the current terminal transport.
+
 This audit checks `PLAN_2.md` against the current repository state. It is meant
 to keep completion claims concrete: each item below cites the file or command
 that proves the implementation.
@@ -35,8 +40,8 @@ The project is now a pnpm/Turborepo monorepo with:
 | Effect Platform local server stays | Proved | `apps/server/src/main.ts` uses `HttpRouter`, `HttpApiBuilder`, `NodeHttpServer` |
 | Typed `HttpApi` contract stays | Proved | `packages/shared/src/api/ThreadVmApi.ts`, `packages/shared/src/api/handlers.ts` |
 | exe.dev reflection through Effect services stays | Proved | `packages/shared/src/services/ExeDevService.ts`, `packages/shared/src/services/WorkspaceService.ts` |
-| Browser terminal backed by SSH/PTTY bridge stays | Proved | `packages/shared/src/services/TerminalBridge.ts`, `scripts/pty_bridge.py`, `apps/server/src/terminalRoutes.ts` |
-| Persistent per-VM terminal sessions, resize, reconnect, OSC 52 copy | Proved | `TerminalBridge.ts` has `sessionsByVm`; `terminalSessionActions.ts` handles attach/reuse/resize/cleanup; `TerminalPane.tsx` handles OSC 52; `scripts/terminal_ui_probe.ts`; `scripts/terminal_probe.mjs` |
+| Browser terminal backed by SSH/PTTY bridge stays | Superseded by Plan 3 | `TerminalBridge.ts` now creates a fresh scoped PTY per WebSocket; remote tmux owns persistence |
+| Persistent per-VM terminal sessions, resize, reconnect, OSC 52 copy | Superseded by Plan 3 | `RemoteTerminalSession.ts`, `terminalSessionActions.ts`, `TerminalPane.tsx`, `scripts/terminal_probe.mjs` |
 
 ## Product Direction
 
@@ -174,7 +179,7 @@ All ten near-term items in `PLAN_2.md` are complete:
 | --- | --- |
 | `packages/ui` now or later? | Later. shadcn components live in `apps/web/src/components/ui` until another app needs them, matching the plan's allowed path. |
 | One process in production? | `apps/server` serves `apps/web/dist` plus API routes, proven by `scripts/terminal_probe.mjs`. |
-| SSE plus POST input or `@effect/rpc`? | Keep SSE plus POST RPC-shaped endpoints for this phase. The route namespace is `/rpc/*`, and `@effect/rpc` can be revisited after state is stable. |
+| SSE plus POST input or `@effect/rpc`? | Historical Plan 2 decision. Plan 3 replaced terminal SSE/POST with one schema-validated Effect WebSocket while provisioning/reconciliation remain SSE. |
 | Vendor JetBrains Mono? | Use the package-provided `@fontsource-variable/jetbrains-mono`; Vite bundles font assets for offline production use. |
 | Default shadcn radius/tokens or tighter preset? | Use a tighter ThreadVM token preset in `styles.css` with `--terminal-*`, `--status-*`, and sidebar tokens. |
 

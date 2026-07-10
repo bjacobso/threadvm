@@ -2,7 +2,7 @@
 
 ThreadVM is a local web app for spinning up one isolated development VM per coding thread.
 
-Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want persistent panes or agent sessions.
+Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, remote tmux sessions for durable terminal state, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want its agent-oriented panes or workflows.
 
 Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, project registry editor, reconciliation/provisioning streams, local ThreadVM metadata cache, SSH provisioning, and basic stop/remove lifecycle actions are implemented. Workspace creation now requests the VM create/clone operation, then starts repo bootstrap and the configured dev command in a background Effect fiber.
 
@@ -72,6 +72,13 @@ Run the web app and local API server:
 pnpm dev
 ```
 
+For terminal work where the backend must remain fixed while Vite hot reloads
+the React UI, run:
+
+```sh
+pnpm dev:stable
+```
+
 The Vite client runs at:
 
 ```text
@@ -119,14 +126,16 @@ ThreadVM is web-first. The CLI exists to launch the local web server and provide
 
 ```text
 Browser UI
-  |
-  | HttpApi + RPC/streaming
+  | HttpApi resources
+  | one terminal WebSocket
   v
 Local ThreadVM server
-  |
-  | Effect services
+  | Effect services + fresh scoped SSH PTY
   v
-exe.dev + SSH + remote VM shell
+exe.dev ThreadVM
+  | persistent named tmux session
+  v
+remote shell / vim / agents / Herdr
 ```
 
 The codebase is a small pnpm/Turborepo workspace:
@@ -142,30 +151,42 @@ The backend is organized around Effect services:
 
 - `ExeDevService`: wraps raw `ssh exe.dev ...` commands and reflects VM metadata.
 - `SshService`: runs non-interactive commands inside a specific VM.
-- `TerminalBridge`: forwards browser terminal IO to the remote VM shell.
+- `RemoteTerminalSession`: provisions tmux and owns deterministic remote session naming and attach/restart commands.
+- `TerminalBridge`: owns one scoped local SSH PTY for each browser WebSocket attachment.
 - `HerdrService`: deferred optional integration for users who want managed Herdr sessions later.
 - `WorkspaceService`: coordinates creation, bootstrap, metadata, ports, and lifecycle actions.
 - `LocalStore`: stores cache, UI preferences, provisioning logs, and annotations.
 
-The public server API should be typed through Effect `HttpApi` for request/response resources and RPC-style streaming for terminal IO and long-running workflows.
+The public server API uses Effect `HttpApi` for request/response resources,
+shared Effect schemas over WebSocket for terminal IO, and SSE for
+reconciliation and provisioning workflows.
 
-## Terminal Bridge
+## Durable Terminal
 
 The browser does not SSH directly into a VM. The local server owns the connection.
 
-Initial flow:
+Connection flow:
 
-1. Browser requests terminal attach for a `ThreadVM`.
-2. Server resolves the VM from exe.dev metadata.
-3. Server starts a local PTY-backed bridge, such as:
+1. Browser creates a clean xterm instance and opens one WebSocket containing
+   its initial rows and columns.
+2. Server resolves the VM from exe.dev metadata and verifies the remote tmux
+   runtime.
+3. Server starts a fresh local PTY-backed SSH client which runs:
 
    ```sh
-   ssh <vm-host>
+   ssh -tt <vm-host> 'tmux attach-session -t <threadvm-session>'
    ```
 
-4. Server streams terminal output to the browser.
-5. Browser sends input and resize events back to the server.
-6. Disconnecting the browser closes only the local bridge.
+4. Output, input, resize, status, and heartbeat messages share that ordered
+   WebSocket lifecycle.
+5. Disconnecting disposes the browser xterm and local SSH PTY but leaves the
+   remote tmux session running.
+6. Reconnect creates a fresh PTY and xterm; tmux redraws its complete current
+   screen and renegotiates terminal modes.
+
+ThreadVM does not replay historical raw PTY bytes or reconstruct mouse modes.
+The remote tmux session owns durable terminal state, the WebSocket owns
+transport, and xterm owns only the current browser rendering.
 
 From that shell, the user can run `herdr`, `codex`, `claude`, a dev server, or any other VM-local tool. Later, ThreadVM can add optional managed Herdr sessions and pane layout automation.
 
@@ -251,8 +272,7 @@ Streaming/RPC workflows:
 GET /rpc/threadvms/reconcile
 ThreadVmRpc.createAndBootstrap
 ThreadVmRpc.reconcile
-TerminalRpc.attach
-TerminalRpc.resize
+GET /rpc/terminal/:threadVmId/socket?cols=<cols>&rows=<rows>
 GET /rpc/threadvms/:id/provisioning
 ```
 
@@ -273,7 +293,7 @@ This proves the core risk first: a browser can list exe.dev VMs and attach to a 
 Implemented:
 
 - Effect Platform server using `HttpLayerRouter`.
-- Typed `HttpApi` for projects, ThreadVMs, and terminal attach.
+- Typed `HttpApi` for projects and ThreadVM resources, plus a schema-validated Effect WebSocket terminal protocol.
 - Generated OpenAPI JSON at `/docs/openapi.json`.
 - exe.dev VM reflection through raw `ssh exe.dev ls`.
 - Vite/React/xterm web UI with ThreadVM sidebar, inspector, quick switcher, and attach button.
@@ -291,17 +311,19 @@ Implemented:
 - VM-side metadata recovery from configured project workdirs, with recovered metadata written back into the local cache.
 - Per-VM provisioning SSE stream at `/rpc/threadvms/:id/provisioning`.
 - Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.
-- Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.
+- Durable per-ThreadVM tmux sessions with a fresh scoped SSH PTY and one ordered WebSocket per browser attachment.
+- Bounded inbound and outbound terminal queues, typed protocol errors, origin checks, heartbeat messages, and deterministic cleanup.
 - Workspace boundary probe preventing circular app/server/shared imports: `pnpm probe:boundaries`.
 - Web style probe preventing raw color utility drift outside shadcn/Tailwind tokens: `pnpm probe:web-style`.
-- Scripted terminal probe for attach, reconnect reuse, resize, and close: `pnpm probe:terminal`.
+- Scripted terminal probe for attach, ordered input/resize, repeated tmux reconnect reuse, mouse-mode renegotiation, restart, and cleanup: `pnpm probe:terminal`.
 - Example project config in `examples/projects.yaml`.
 
 Next:
 
 - Add optional Herdr install/start/layout automation after the plain VM terminal path is solid.
 
-See [PLAN.md](./PLAN.md) for the broader product and architecture plan.
+See [PLAN.md](./PLAN.md) for the broader product plan and
+[PLAN_3.md](./PLAN_3.md) for the durable terminal architecture.
 
 ## License
 

@@ -39,6 +39,11 @@
       "types": "./dist/services/LocalStore.d.ts",
       "import": "./dist/services/LocalStore.js"
     },
+    "./services/RemoteTerminalSession": {
+      "development": "./src/services/RemoteTerminalSession.ts",
+      "types": "./dist/services/RemoteTerminalSession.d.ts",
+      "import": "./dist/services/RemoteTerminalSession.js"
+    },
     "./services/SshService": {
       "development": "./src/services/SshService.ts",
       "types": "./dist/services/SshService.d.ts",

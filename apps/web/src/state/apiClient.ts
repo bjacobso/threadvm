@@ -3,7 +3,6 @@ import type {
   CreateThreadVmResponseModel,
   ProjectModel,
   ProjectRegistryResponseModel,
-  TerminalAttachResponseModel,
   ThreadVmDevLogResponseModel,
   ThreadVmLifecycleResponseModel,
   ThreadVmPortsResponseModel,
@@ -15,7 +14,6 @@ import { ThreadVmApi } from "@threadvm/shared/api";
 import {
   CreateThreadVmRequest,
   Project,
-  TerminalAttachRequest,
   ThreadVmProvisioningEvent,
   ThreadVmReconciliationEvent
 } from "@threadvm/shared/domain";
@@ -65,11 +63,7 @@ export const apiPayloads = {
   project: (project: ProjectModel): Project => new Project(project),
   createThreadVmRequest: (
     request: CreateThreadVmRequestModel
-  ): CreateThreadVmRequest => new CreateThreadVmRequest(request),
-  terminalAttachRequest: (
-    threadVmId: string,
-    restart = false
-  ): TerminalAttachRequest => new TerminalAttachRequest({ threadVmId, restart })
+  ): CreateThreadVmRequest => new CreateThreadVmRequest(request)
 };
 
 export const threadVmApi = {
@@ -127,14 +121,5 @@ export const threadVmApi = {
   decodeProvisioningEvent: async (
     data: string
   ): Promise<ThreadVmProvisioningEventModel> =>
-    await decodeThreadVmProvisioningEvent(JSON.parse(data)),
-  attachTerminal: async (
-    threadVmId: string,
-    restart = false
-  ): Promise<TerminalAttachResponseModel> =>
-    await runApiEffect(
-      (await clientPromise).terminal.attach({
-        payload: apiPayloads.terminalAttachRequest(threadVmId, restart)
-      })
-    )
+    await decodeThreadVmProvisioningEvent(JSON.parse(data))
 };

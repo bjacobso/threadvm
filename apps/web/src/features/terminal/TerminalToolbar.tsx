@@ -112,27 +112,27 @@ export function TerminalToolbar({
 }: TerminalToolbarProps) {
   const [now, setNow] = useState(() => Date.now());
   const primaryLabel =
-    session.status === "disconnected" || session.attach
+    session.status === "disconnected" || session.connection
       ? "Reconnect"
       : "Attach Terminal";
   const pendingClipboard = clipboardNotice?.status === "pending";
   const selectedState = selected?.state ?? "unknown";
   const sessionAge = useMemo(
     () =>
-      session.attach
-        ? formatSessionAge(session.attach.createdAt, now)
+      session.connection
+        ? formatSessionAge(session.connection.createdAt, now)
         : undefined,
-    [now, session.attach]
+    [now, session.connection]
   );
 
   useEffect(() => {
-    if (!session.attach) {
+    if (!session.connection) {
       return;
     }
     setNow(Date.now());
     const timer = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(timer);
-  }, [session.attach]);
+  }, [session.connection]);
 
   return (
     <header className="flex min-h-0 flex-col border-b border-workbench-border bg-workbench-background text-workbench-foreground">

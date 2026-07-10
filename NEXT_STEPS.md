@@ -1,5 +1,11 @@
 # Next Steps
 
+> Historical note: the SSE/POST transport and persistent local PTY described
+> below were replaced by `PLAN_3.md`. The current terminal path uses one
+> WebSocket, a fresh scoped local SSH PTY per browser attachment, and a durable
+> remote tmux session. Treat this file only as renderer research; its transport
+> sections are no longer current.
+
 ## Goal
 
 Make the terminal path simpler and more faithful:
@@ -16,13 +22,12 @@ Browser terminal engine adapter
   | Ghostty Web experiment
   v
 Terminal transport
-  | current SSE output + POST input/resize first
-  | WebSocket or Effect RPC later if needed
+  | one schema-validated Effect WebSocket
   v
 Server TerminalBridge
-  | node-pty only
+  | fresh scoped PTY per browser attachment
   v
-ssh <vm-host>
+ssh -tt <vm-host> -> remote tmux session
 ```
 
 ## Current State
@@ -32,7 +37,7 @@ ssh <vm-host>
 - If `node-pty` throws, the bridge falls back to `python3 scripts/pty_bridge.py`.
 - Browser terminal lifecycle is embedded in `apps/web/src/client/main.tsx`.
 - The web UI directly depends on `@xterm/xterm` and `@xterm/addon-fit`.
-- Transport is currently SSE for output plus POST endpoints for input, resize, and close.
+- Transport is one bidirectional WebSocket for output, input, resize, status, and heartbeat messages.
 - OSC 52 clipboard forwarding is implemented through xterm parser hooks.
 
 ## Principles
@@ -192,11 +197,11 @@ Default-switch requirements:
 
 Do not switch defaults solely because Ghostty Web has a native Ghostty parser. The value must show up in ThreadVM's actual terminal workloads.
 
-## Later Transport Work
+## Historical Transport Notes
 
-The renderer migration does not require changing transport immediately. Keep SSE plus POST until it becomes a measurable problem.
+Plan 3 completed the transport migration independently of renderer research.
 
-Consider WebSocket or Effect RPC later if:
+The WebSocket migration addressed:
 
 - POST-per-input becomes too chatty for real workloads.
 - bidirectional lifecycle is awkward to reason about.
@@ -204,7 +209,8 @@ Consider WebSocket or Effect RPC later if:
 - terminal session cleanup remains fragile.
 - provisioning and terminal streams should share one RPC substrate.
 
-When changing transport, preserve the same browser terminal adapter contract so renderer work and transport work remain separate.
+Future renderer experiments should preserve the current WebSocket contract so
+renderer and transport concerns remain separate.
 
 ## First Implementation Slice
 

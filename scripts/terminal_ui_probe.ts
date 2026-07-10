@@ -57,7 +57,6 @@ import {
 } from "../apps/web/src/state/apiClient.js";
 import type {
   ProjectModel,
-  TerminalAttachResponseModel,
   ThreadVmModel
 } from "../packages/shared/src/domain/schema.js";
 
@@ -71,6 +70,9 @@ const fetchCalls: Array<FetchCall> = [];
 
 Object.defineProperty(globalThis, "window", {
   value: {
+    location: { href: "http://127.0.0.1:5173/" },
+    clearInterval,
+    setInterval,
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null,
       removeItem: (key: string) => {
@@ -141,6 +143,52 @@ class MockEventSource {
 
 Object.defineProperty(globalThis, "EventSource", {
   value: MockEventSource,
+  configurable: true
+});
+
+class MockWebSocket {
+  static instances: Array<MockWebSocket> = [];
+
+  readonly sent: Array<string> = [];
+  readyState = 0;
+  onclose: ((event: CloseEvent) => void) | null = null;
+  onerror: (() => void) | null = null;
+  onmessage: ((event: MessageEvent<string>) => void) | null = null;
+  onopen: (() => void) | null = null;
+
+  constructor(readonly url: string) {
+    MockWebSocket.instances.push(this);
+  }
+
+  send(data: string) {
+    this.sent.push(data);
+  }
+
+  close(code = 1000, reason = "") {
+    if (this.readyState === 3) {
+      return;
+    }
+    this.readyState = 3;
+    this.onclose?.({ code, reason } as CloseEvent);
+  }
+
+  open() {
+    this.readyState = 1;
+    this.onopen?.();
+  }
+
+  message(message: unknown) {
+    this.onmessage?.({ data: JSON.stringify(message) } as MessageEvent<string>);
+  }
+
+  serverClose(code = 1000, reason = "") {
+    this.readyState = 3;
+    this.onclose?.({ code, reason } as CloseEvent);
+  }
+}
+
+Object.defineProperty(globalThis, "WebSocket", {
+  value: MockWebSocket,
   configurable: true
 });
 
@@ -217,24 +265,6 @@ const vm: ThreadVmModel = {
   ]
 };
 
-const attachResponse: TerminalAttachResponseModel = {
-  sessionId: "session-1",
-  streamUrl: "/rpc/terminal/session-1/stream",
-  inputUrl: "/rpc/terminal/session-1/input",
-  resizeUrl: "/rpc/terminal/session-1/resize",
-  closeUrl: "/rpc/terminal/session-1",
-  status: "running",
-  reused: false,
-  mouseModes: [],
-  createdAt: Date.now()
-};
-
-const reusedAttachResponse: TerminalAttachResponseModel = {
-  ...attachResponse,
-  reused: true,
-  mouseModes: [1000, 1006]
-};
-
 const project: ProjectModel = {
   id: "onboarded",
   repo: "git@github.com:example/onboarded.git",
@@ -256,13 +286,9 @@ const project: ProjectModel = {
 };
 
 const viewOutput: Array<string> = [];
-const restoredMouseModes: Array<ReadonlyArray<number>> = [];
 const view = {
-  reset: () => {
-    viewOutput.push("[reset]");
-  },
-  restoreMouseModes: (modes: ReadonlyArray<number>) => {
-    restoredMouseModes.push(modes);
+  replace: (message: string) => {
+    viewOutput.push(`[replace]${message}`);
   },
   write: (data: string) => {
     viewOutput.push(data);
@@ -297,14 +323,10 @@ const createPayload = apiPayloads.createThreadVmRequest({
   startingPrompt: "check auth logs",
   pinned: true
 });
-const attachPayload = apiPayloads.terminalAttachRequest(vm.id, false);
 assert.notEqual(Object.getPrototypeOf(projectPayload), Object.prototype);
 assert.notEqual(Object.getPrototypeOf(createPayload), Object.prototype);
-assert.notEqual(Object.getPrototypeOf(attachPayload), Object.prototype);
 assert.equal(projectPayload.id, "onboarded");
 assert.equal(createPayload.project, "onboarded");
-assert.equal(attachPayload.threadVmId, vm.id);
-assert.equal(attachPayload.restart, false);
 
 assert.equal(terminalShortcutAction({ key: "Enter", metaKey: true }), "attach");
 assert.equal(
@@ -331,11 +353,6 @@ assert.equal(nextThreadVmSelection(["a", "b", "c"], "b", "first"), "a");
 assert.equal(nextThreadVmSelection(["a", "b", "c"], "b", "last"), "c");
 assert.equal(nextThreadVmSelection([], undefined, "next"), undefined);
 
-threadVmApi.attachTerminal = async (threadVmId, restart) => {
-  assert.equal(threadVmId, vm.id);
-  assert.equal(restart, false);
-  return attachResponse;
-};
 threadVmApi.readDevLog = async (threadVmId) => {
   assert.equal(threadVmId, vm.id);
   return {
@@ -472,118 +489,90 @@ assert.equal(directFocusCount, 1);
 assert.equal(forwardedMouseDownCount, 1);
 assert.equal(forwardedMouseUpCount, 1);
 
-await terminalSessionActionAtom.attach({ threadVm: vm, view });
+terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "connecting");
-assert.equal(storage.get(activeTerminalVmKey), vm.id);
-assert.equal(MockEventSource.instances.length, 1);
-assert.equal(MockEventSource.instances[0]?.url, attachResponse.streamUrl);
-assert.deepEqual(viewOutput.slice(-2), [
-  "[reset]",
-  `Attaching ${vm.name}...\n`
-]);
-assert.deepEqual(restoredMouseModes.at(-1), []);
-assert.deepEqual(
-  fetchCalls.map((call) => [call.url, call.init?.method]),
-  [[attachResponse.resizeUrl, "POST"]]
+assert.equal(storage.get(activeTerminalVmKey), undefined);
+assert.equal(MockWebSocket.instances.length, 1);
+const socket = MockWebSocket.instances[0]!;
+assert.equal(
+  socket.url,
+  `ws://127.0.0.1:5173/rpc/terminal/${vm.id}/socket?cols=100&rows=30`
 );
-await terminalSessionActionAtom.sendInput(vm.id, "preopen\n");
-assert.deepEqual(
-  fetchCalls.map((call) => [call.url, call.init?.method]),
-  [[attachResponse.resizeUrl, "POST"]]
-);
+assert.equal(viewOutput.at(-1), `[replace]Attaching ${vm.name}...`);
+terminalSessionActionAtom.sendInput(vm.id, "preopen\n");
+assert.deepEqual(socket.sent, []);
 
-const source = MockEventSource.instances[0]!;
-source.open();
+socket.open();
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "connecting");
+socket.message({
+  type: "ready",
+  attachmentId: "attachment-1",
+  sessionName: "threadvm-vm-1",
+  createdAt: Date.now(),
+  reused: false
+});
+socket.message({ type: "status", status: "attached" });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
 assert.equal(terminalStatusAtomFamily(vm.id).value, "attached");
+assert.equal(storage.get(activeTerminalVmKey), vm.id);
 
-await terminalSessionActionAtom.sendInput(vm.id, "ls\n");
-await terminalSessionActionAtom.resize(vm.id, { cols: 100, rows: 30 });
-await terminalSessionActionAtom.resize(vm.id, { cols: 120, rows: 30 });
-assert.deepEqual(
-  fetchCalls.map((call) => [call.url, call.init?.method]),
-  [
-    [attachResponse.resizeUrl, "POST"],
-    [attachResponse.inputUrl, "POST"],
-    [attachResponse.resizeUrl, "POST"]
-  ]
-);
+terminalSessionActionAtom.sendInput(vm.id, "ls\n");
+terminalSessionActionAtom.resize(vm.id, { cols: 100, rows: 30 });
+terminalSessionActionAtom.resize(vm.id, { cols: 120, rows: 30 });
+assert.deepEqual(socket.sent.map((message) => JSON.parse(message)), [
+  { type: "input", data: "ls\n" },
+  { type: "resize", cols: 120, rows: 30 }
+]);
 
-source.message(JSON.stringify({ data: "hello from vm", cursor: 13 }));
+socket.message({ type: "output", data: "hello from vm" });
 assert.equal(viewOutput.at(-1), "hello from vm");
-source.onerror?.();
+socket.onerror?.();
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "disconnected");
-assert.equal(source.closed, true);
-await terminalSessionActionAtom.sendInput(vm.id, "hidden\n");
-assert.deepEqual(
-  fetchCalls.map((call) => [call.url, call.init?.method]),
-  [
-    [attachResponse.resizeUrl, "POST"],
-    [attachResponse.inputUrl, "POST"],
-    [attachResponse.resizeUrl, "POST"]
-  ]
-);
-threadVmApi.attachTerminal = async (threadVmId, restart) => {
-  assert.equal(threadVmId, vm.id);
-  assert.equal(restart, false);
-  return reusedAttachResponse;
-};
-const outputCountBeforeReconnect = viewOutput.length;
-await terminalSessionActionAtom.attach({ threadVm: vm, view });
-assert.equal(MockEventSource.instances.at(-1)?.url, `${attachResponse.streamUrl}?since=13`);
-assert.equal(viewOutput.length, outputCountBeforeReconnect);
-assert.deepEqual(restoredMouseModes.at(-1), [1000, 1006]);
-assert.equal(terminalSessionAtomFamily(vm.id).value.status, "connecting");
+terminalSessionActionAtom.sendInput(vm.id, "hidden\n");
+assert.equal(socket.sent.length, 2);
 
-const reconnectedSource = MockEventSource.instances.at(-1)!;
-reconnectedSource.open();
-assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
-reconnectedSource.message(
-  JSON.stringify({ data: "after reconnect", cursor: 28 })
+const outputCountBeforeReconnect = viewOutput.length;
+terminalSessionActionAtom.attach({ threadVm: vm, view });
+assert.equal(socket.readyState, 3);
+assert.equal(MockWebSocket.instances.length, 2);
+const reconnectedSocket = MockWebSocket.instances[1]!;
+assert.equal(
+  reconnectedSocket.url,
+  `ws://127.0.0.1:5173/rpc/terminal/${vm.id}/socket?cols=100&rows=30`
 );
+assert.equal(viewOutput.length, outputCountBeforeReconnect + 1);
+assert.equal(viewOutput.at(-1), `[replace]Attaching ${vm.name}...`);
+reconnectedSocket.open();
+reconnectedSocket.message({
+  type: "ready",
+  attachmentId: "attachment-2",
+  sessionName: "threadvm-vm-1",
+  createdAt: Date.now(),
+  reused: true
+});
+reconnectedSocket.message({ type: "status", status: "attached" });
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
+assert.equal(
+  terminalSessionAtomFamily(vm.id).value.connection?.reused,
+  true
+);
+reconnectedSocket.message({ type: "output", data: "after reconnect" });
 assert.equal(viewOutput.at(-1), "after reconnect");
-threadVmApi.attachTerminal = async (threadVmId, restart) => {
-  assert.equal(threadVmId, vm.id);
-  assert.equal(restart, false);
-  return attachResponse;
-};
-reconnectedSource.emit("exit");
+reconnectedSocket.serverClose(1000, "terminal-exited");
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "exited");
 assert.equal(terminalStatusAtomFamily(vm.id).value, "exited");
-assert.equal(reconnectedSource.closed, true);
-assert.equal(storage.get(activeTerminalVmKey), undefined);
 
-await terminalSessionActionAtom.attach({ threadVm: vm, view });
+terminalSessionActionAtom.attach({ threadVm: vm, restart: true, view });
+const restartedSocket = MockWebSocket.instances.at(-1)!;
+assert.equal(
+  restartedSocket.url,
+  `ws://127.0.0.1:5173/rpc/terminal/${vm.id}/socket?cols=100&rows=30&restart=1`
+);
 terminalSessionActionAtom.cleanup(vm.id, true);
+assert.equal(restartedSocket.readyState, 3);
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "detached");
 assert.equal(terminalStatusAtomFamily(vm.id).value, "detached");
-assert.deepEqual(fetchCalls.at(-1), {
-  url: attachResponse.closeUrl,
-  init: { method: "DELETE" }
-});
-
-threadVmApi.attachTerminal = async (threadVmId, restart) => {
-  assert.equal(threadVmId, vm.id);
-  assert.equal(restart, false);
-  return reusedAttachResponse;
-};
-await terminalSessionActionAtom.attach({ threadVm: vm, view });
-const coldReconnectSource = MockEventSource.instances.at(-1)!;
-assert.equal(coldReconnectSource.url, `${attachResponse.streamUrl}?replay=0`);
-assert.deepEqual(restoredMouseModes.at(-1), [1000, 1006]);
-assert.equal(terminalSessionAtomFamily(vm.id).value.status, "connecting");
-coldReconnectSource.open();
-assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
-await new Promise((resolve) => setTimeout(resolve, 0));
-assert.deepEqual(fetchCalls.at(-1), {
-  url: attachResponse.inputUrl,
-  init: {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ data: "\f" })
-  }
-});
-terminalSessionActionAtom.cleanup(vm.id, true);
+assert.equal(storage.get(activeTerminalVmKey), undefined);
 
 threadVmsAtom.set([vm]);
 const stopProvisioning = provisioningStreamAtom.start(vm.id);

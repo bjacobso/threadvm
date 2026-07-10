@@ -51,7 +51,8 @@ Backend:
 - Effect 4 beta
 - Effect Platform Node HTTP server
 - Effect `HttpApi` for typed JSON APIs
-- custom SSE routes for terminal, reconciliation, and provisioning streams
+- a schema-validated Effect WebSocket route for terminal IO
+- custom SSE routes for reconciliation and provisioning streams
 - `node-pty` primary PTY implementation
 - Python `scripts/pty_bridge.py` fallback if `node-pty` spawn fails
 - raw `ssh exe.dev ...` for exe.dev operations
@@ -83,6 +84,7 @@ Mocks and overrides:
 - `THREADVM_EXEDEV_MOCK_ID`, `THREADVM_EXEDEV_MOCK_NAME`, `THREADVM_EXEDEV_MOCK_HOST` customize the mock VM.
 - `THREADVM_SSH_MOCK=1` returns synthetic SSH command output.
 - `THREADVM_TERMINAL_COMMAND` overrides the terminal command launched by `TerminalBridge`.
+- `THREADVM_TERMINAL_LOCAL_TMUX=1` enables local tmux session detection for terminal probes and local adapters.
 
 ## Domain Model
 
@@ -95,8 +97,9 @@ Core objects:
 - `Port`
 - `ProvisioningStep`
 - `ThreadVmMetadata`
-- `TerminalAttachRequest`
-- `TerminalAttachResponse`
+- `TerminalSocketRequest`
+- `TerminalClientMessage` input/resize/ping union
+- `TerminalServerMessage` ready/output/status/pong/error union
 - typed response objects for create, lifecycle, dev log, ports, reconciliation, provisioning, and project registry mutations
 
 ThreadVM states:
@@ -130,19 +133,14 @@ GET    /api/threadvms/:id/ports
 POST   /api/threadvms
 POST   /api/threadvms/:id/stop
 DELETE /api/threadvms/:id
-
-POST   /api/terminal/attach
 ```
 
-SSE/RPC-shaped routes:
+Streaming routes:
 
 ```text
 GET    /rpc/threadvms/reconcile
 GET    /rpc/threadvms/:id/provisioning
-GET    /rpc/terminal/:sessionId/stream
-POST   /rpc/terminal/:sessionId/input
-POST   /rpc/terminal/:sessionId/resize
-DELETE /rpc/terminal/:sessionId
+GET    /rpc/terminal/:threadVmId/socket?cols=<cols>&rows=<rows>[&restart=1] (WebSocket)
 ```
 
 Docs:
@@ -200,16 +198,25 @@ Production server also serves `apps/web/dist` as an SPA when present.
 - returns create immediately while provisioning continues in a detached Effect fiber
 - reads dev log tail, checks port reachability, stops VMs, and removes VMs
 
+`RemoteTerminalSession`
+
+- derives a deterministic, collision-resistant tmux session name from the VM id
+- provisions tmux during ThreadVM bootstrap using a supported remote package manager
+- checks whether a session exists before attachment
+- kills the existing tmux session only for an explicit restart
+- creates a detached session before reporting readiness and constructs the structured `ssh -tt` tmux attach command
+
 `TerminalBridge`
 
-- keeps in-memory terminal sessions by session id and VM id
-- reuses an existing running session unless restart is requested
-- starts `ssh -o StrictHostKeyChecking=accept-new <vm.host>` for real VMs
-- starts a diagnostic shell for mock VMs
-- uses `node-pty` first with `xterm-256color`, `120x32`
+- creates one fresh local PTY per browser WebSocket attachment
+- replaces the previous local attachment for the same VM without terminating tmux
+- starts `ssh -tt <vm.host> 'tmux attach-session ...'` for real VMs
+- uses the browser's measured rows and columns as the PTY's initial size
+- uses `node-pty` first with `xterm-256color` and truecolor environment hints
 - falls back to `python3 scripts/pty_bridge.py` if `node-pty` spawn throws
-- buffers the last 200,000 characters for reconnecting streams
-- supports write, resize, close, and exit events
+- exposes scoped output, input, resize, and exit operations
+- bounds PTY output buffering and terminates overflowing local attachments
+- has no replay buffer, output cursor, or ANSI mouse-mode parser
 
 ## Frontend
 
@@ -249,8 +256,9 @@ Terminal:
 
 - xterm.js renderer with fit addon
 - per-VM terminal session state
-- attach, reconnect, restart, input, resize, close-remote cleanup
-- SSE output plus POST input and resize
+- disposable xterm instance and fresh local PTY for every attachment
+- one ordered WebSocket for attach, reconnect, restart, input, resize, status, and heartbeat
+- deterministic remote tmux session per ThreadVM
 - active terminal VM persisted in localStorage for auto-attach
 - OSC 52 clipboard handling with browser clipboard fallback notice
 - keyboard shortcuts for attach/restart through `keyboardShortcuts.ts`
@@ -291,25 +299,31 @@ Client state:
 
 Detached provisioning:
 
-1. prepare repository and branch.
-2. write VM metadata.
-3. run bootstrap commands.
-4. start dev command in background.
-5. probe configured ports.
-6. mark `ready` or `failed`.
-7. persist metadata locally, remotely, and to exe.dev best-effort.
+1. provision and verify the remote tmux runtime.
+2. prepare repository and branch.
+3. write VM metadata.
+4. run bootstrap commands.
+5. start dev command in background.
+6. probe configured ports.
+7. mark `ready` or `failed`.
+8. persist metadata locally, remotely, and to exe.dev best-effort.
 
 ## Terminal Flow
 
-1. Browser calls `POST /api/terminal/attach`.
-2. Server resolves VM through `WorkspaceService`.
-3. `TerminalBridge` creates or reuses a session.
-4. Browser opens `EventSource` to `streamUrl`.
-5. Terminal output arrives as SSE `message` events.
-6. Browser sends keystrokes to `inputUrl`.
-7. Browser sends debounced size changes to `resizeUrl`.
-8. Server emits `exit` event when the process exits.
-9. Browser can close remote session with `DELETE closeUrl`.
+1. Browser fits a clean xterm instance and opens the terminal WebSocket with
+   its initial dimensions.
+2. Server validates the request and resolves the VM through
+   `WorkspaceService`.
+3. `RemoteTerminalSession` checks or restarts the deterministic remote tmux
+   session.
+4. `TerminalBridge` creates a fresh scoped local PTY running `ssh -tt` and
+   attaches it to tmux.
+5. Server emits `ready` and `attached`, then forwards PTY output.
+6. Browser sends input, resize, and ping messages on the same socket.
+7. Server processes client messages through one bounded queue in arrival order.
+8. Disconnect closes the local SSH PTY but leaves remote tmux running.
+9. Reconnect creates a fresh xterm and PTY; tmux redraws the durable screen and
+   terminal modes.
 
 ## Scripts
 

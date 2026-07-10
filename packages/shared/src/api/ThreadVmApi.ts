@@ -12,8 +12,6 @@ import {
   CreateThreadVmResponse,
   Project,
   ProjectRegistryResponse,
-  TerminalAttachRequest,
-  TerminalAttachResponse,
   ThreadVm,
   ThreadVmDevLogResponse,
   ThreadVmLifecycleResponse,
@@ -30,9 +28,6 @@ const AcceptedThreadVmResponse = CreateThreadVmResponse.pipe(
 );
 const AcceptedThreadVmLifecycleResponse = ThreadVmLifecycleResponse.pipe(
   HttpApiSchema.status(202)
-);
-const CreatedTerminalAttachResponse = TerminalAttachResponse.pipe(
-  HttpApiSchema.status(201)
 );
 
 const ProjectsGroup = HttpApiGroup.make("projects")
@@ -110,20 +105,9 @@ const ThreadVmsGroup = HttpApiGroup.make("threadvms")
   )
   .prefix("/api");
 
-const TerminalGroup = HttpApiGroup.make("terminal")
-  .add(
-    HttpApiEndpoint.post("attach", "/terminal/attach", {
-      payload: TerminalAttachRequest,
-      success: CreatedTerminalAttachResponse,
-      error: ApiErrorResponse
-    })
-  )
-  .prefix("/api");
-
 export class ThreadVmApi extends HttpApi.make("ThreadVmApi")
   .add(ProjectsGroup)
   .add(ThreadVmsGroup)
-  .add(TerminalGroup)
   .annotate(OpenApi.Summary, "ThreadVM local control API")
   .annotate(
     OpenApi.Description,

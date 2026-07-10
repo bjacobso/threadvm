@@ -12,6 +12,7 @@ import { CommandServiceLive } from "@threadvm/shared/services/CommandService";
 import { ConfigServiceLive } from "@threadvm/shared/services/ConfigService";
 import { ExeDevServiceLive } from "@threadvm/shared/services/ExeDevService";
 import { LocalStoreLive } from "@threadvm/shared/services/LocalStore";
+import { RemoteTerminalSessionLive } from "@threadvm/shared/services/RemoteTerminalSession";
 import { SshServiceLive } from "@threadvm/shared/services/SshService";
 import { TerminalBridgeLive } from "@threadvm/shared/services/TerminalBridge";
 import { WorkspaceServiceLive } from "@threadvm/shared/services/WorkspaceService";
@@ -97,12 +98,21 @@ const ExeDevServiceComposed = ExeDevServiceLive.pipe(
 
 const SshServiceComposed = SshServiceLive.pipe(Layer.provide(CommandServiceLive));
 
+const RemoteTerminalSessionComposed = RemoteTerminalSessionLive.pipe(
+  Layer.provide(SshServiceComposed)
+);
+
+const TerminalBridgeComposed = TerminalBridgeLive.pipe(
+  Layer.provide(RemoteTerminalSessionComposed)
+);
+
 const WorkspaceServiceComposed = WorkspaceServiceLive.pipe(
   Layer.provide(
     Layer.mergeAll(
       ConfigServiceLive,
       ExeDevServiceComposed,
       LocalStoreLive,
+      RemoteTerminalSessionComposed,
       SshServiceComposed
     )
   )
@@ -114,7 +124,8 @@ const AppServicesLive = Layer.mergeAll(
   LocalStoreLive,
   SshServiceComposed,
   WorkspaceServiceComposed,
-  TerminalBridgeLive
+  RemoteTerminalSessionComposed,
+  TerminalBridgeComposed
 );
 
 const RoutesLive = Layer.mergeAll(

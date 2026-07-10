@@ -17,6 +17,7 @@ import type { CommandResult } from "./CommandService.js";
 import { ConfigError, ConfigService } from "./ConfigService.js";
 import { ExeDevError, ExeDevService } from "./ExeDevService.js";
 import { LocalStore } from "./LocalStore.js";
+import { RemoteTerminalSession } from "./RemoteTerminalSession.js";
 import { SshError, SshService } from "./SshService.js";
 
 export class WorkspaceError {
@@ -185,6 +186,7 @@ export const WorkspaceServiceLive = Layer.effect(
     const config = yield* ConfigService;
     const exe = yield* ExeDevService;
     const store = yield* LocalStore;
+    const remoteTerminal = yield* RemoteTerminalSession;
     const ssh = yield* SshService;
     const decodeMetadata = Schema.decodeUnknownEffect(ThreadVmMetadata);
 
@@ -631,6 +633,22 @@ export const WorkspaceServiceLive = Layer.effect(
           threadVm,
           project,
           bootstrapping,
+          "terminal-runtime",
+          "Provision tmux terminal runtime",
+          remoteTerminal
+            .ensureInstalled(threadVm)
+            .pipe(
+              Effect.mapError(
+                toWorkspaceError(
+                  `Failed to provision terminal runtime on ${threadVm.name}`
+                )
+              )
+            )
+        );
+        current = yield* runProvisioningStep(
+          threadVm,
+          project,
+          current,
           "prepare-repo",
           "Prepare repository and branch",
           prepareRepo(threadVm, project, metadata.branch)

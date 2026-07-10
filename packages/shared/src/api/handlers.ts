@@ -2,7 +2,6 @@ import { HttpApiBuilder } from "effect/unstable/httpapi";
 import { Effect, Layer } from "effect";
 import { ApiError, ProjectRegistryResponse } from "../domain/schema.js";
 import { ConfigService } from "../services/ConfigService.js";
-import { TerminalBridge } from "../services/TerminalBridge.js";
 import { WorkspaceService } from "../services/WorkspaceService.js";
 import { ThreadVmApi } from "./ThreadVmApi.js";
 
@@ -115,26 +114,7 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
       )
 );
 
-export const TerminalApiLive = HttpApiBuilder.group(
-  ThreadVmApi,
-  "terminal",
-  (handlers) =>
-    handlers.handle("attach", ({ payload }) =>
-      Effect.gen(function* () {
-        const workspaces = yield* WorkspaceService;
-        const bridge = yield* TerminalBridge;
-        const vm = yield* workspaces.getThreadVm(payload.threadVmId).pipe(
-          Effect.mapError(toApiError(`Failed to load ${payload.threadVmId}`))
-        );
-        return yield* bridge
-          .attach(vm, { restart: payload.restart })
-          .pipe(Effect.mapError(toApiError("Failed to attach terminal")));
-      })
-    )
-);
-
 export const ThreadVmApiHandlersLive = Layer.mergeAll(
   ProjectsApiLive,
-  ThreadVmsApiLive,
-  TerminalApiLive
+  ThreadVmsApiLive
 );
