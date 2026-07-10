@@ -6,6 +6,7 @@
   "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "turbo dev",
+    "dev:stable": "turbo dev:stable",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",

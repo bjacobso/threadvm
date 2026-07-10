@@ -29,8 +29,19 @@ const terminalStreamRoute = HttpRouter.add(
   "/rpc/terminal/:sessionId/stream",
   Effect.gen(function* () {
     const { sessionId } = yield* HttpRouter.schemaPathParams(SessionParams);
+    const request = yield* HttpServerRequest.HttpServerRequest;
+    const searchParams = new URL(
+      request.url,
+      "http://threadvm.local"
+    ).searchParams;
+    const replay = searchParams.get("replay") !== "0";
+    const sinceParam = searchParams.get("since");
+    const since = sinceParam === null ? undefined : Number(sinceParam);
     const bridge = yield* TerminalBridge;
-    const stream = yield* bridge.stream(sessionId).pipe(
+    const stream = yield* bridge.stream(sessionId, {
+      replay,
+      since: Number.isFinite(since) ? since : undefined
+    }).pipe(
       Effect.catch((error) =>
         Effect.succeed(
           Stream.make(

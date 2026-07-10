@@ -1,11 +1,11 @@
 import type React from "react";
 import { toast } from "sonner";
 import {
+  ChevronDownIcon,
   FolderCogIcon,
   PlusIcon,
   RefreshCwIcon,
-  SearchIcon,
-  ServerIcon
+  SearchIcon
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -154,8 +154,8 @@ export function ThreadVmList({
         </div>
       </header>
 
-      <div className="flex h-8 items-center gap-2 border-b border-workbench-border px-3 text-[11px] uppercase text-workbench-muted">
-        <ServerIcon className="size-3.5 shrink-0" aria-hidden="true" />
+      <div className="flex h-6 items-center gap-1 border-b border-workbench-border px-2 text-[11px] uppercase text-workbench-muted">
+        <ChevronDownIcon className="size-3.5 shrink-0" aria-hidden="true" />
         <span className="truncate font-semibold">Harness</span>
         <span className="ml-auto text-[10px]">{threadVms.length}</span>
       </div>
@@ -169,7 +169,7 @@ export function ThreadVmList({
 
       <ScrollArea className="min-h-0 flex-1">
         <nav
-          className="flex flex-col py-1"
+          className="flex flex-col py-0.5"
           onKeyDown={navigateThreadVms}
         >
           {loading && threadVms.length === 0

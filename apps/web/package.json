@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
+    "dev:stable": "vite --host 127.0.0.1",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json"

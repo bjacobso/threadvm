@@ -4,7 +4,8 @@ import {
   ExternalLinkIcon,
   MoreVerticalIcon,
   PinIcon,
-  RadarIcon
+  RadarIcon,
+  ServerIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +16,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import { ThreadVmStateBadge } from "./ThreadVmStateBadge";
+import { ThreadVmStateDot } from "./ThreadVmStateBadge";
 import { firstPreviewUrl } from "./threadVmActions";
 
 interface ThreadVmRowProps {
@@ -35,15 +36,13 @@ export function ThreadVmRow({
   onCopyHost,
   onOpenPreview
 }: ThreadVmRowProps) {
-  const portHint = threadVm.ports[0]
-    ? `${threadVm.ports[0].label}:${threadVm.ports[0].port}`
-    : threadVm.source;
   const previewUrl = firstPreviewUrl(threadVm);
+  const description = threadVm.branch ?? threadVm.project ?? threadVm.host;
 
   return (
     <div
       className={cn(
-        "group grid w-full grid-cols-[minmax(0,1fr)_auto] border-l-2 border-transparent",
+        "group grid h-5 w-full grid-cols-[minmax(0,1fr)_auto] border-l-2 border-transparent",
         "text-workbench-foreground hover:bg-workbench-hover",
         selected && "border-l-workbench-accent bg-workbench-hover"
       )}
@@ -53,30 +52,27 @@ export function ThreadVmRow({
         variant="ghost"
         onClick={onSelect}
         aria-current={selected ? "true" : undefined}
+        title={`${threadVm.name} - ${description}`}
         className={cn(
-          "h-8 min-w-0 justify-start rounded-none border-0 px-2 py-0 text-left text-xs",
+          "h-5 min-w-0 justify-start rounded-none border-0 py-0 pr-2 pl-3 text-left text-[11px] font-normal",
           "hover:bg-transparent hover:text-workbench-foreground"
         )}
       >
-        <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-          <span className="flex min-w-0 items-center gap-2">
+        <span className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className="relative flex w-4 shrink-0 justify-center">
             {threadVm.pinned ? (
-              <PinIcon className="size-3 shrink-0 text-workbench-muted" />
+              <PinIcon className="size-2.5 text-workbench-muted" />
             ) : (
-              <span className="size-3 shrink-0" />
+              <ServerIcon className="size-2.5 text-workbench-muted" />
             )}
-            <span className="min-w-0">
-              <span className="block truncate font-medium">{threadVm.name}</span>
-              <span className="block truncate text-[10px] leading-none text-workbench-muted">
-                {threadVm.branch ?? threadVm.project ?? "unknown"}
-              </span>
-            </span>
+            <ThreadVmStateDot
+              state={threadVm.state}
+              className="absolute -right-0.5 -bottom-0.5 ring-1 ring-workbench-background"
+            />
           </span>
-          <span className="flex min-w-0 items-center justify-end gap-2">
-            <ThreadVmStateBadge state={threadVm.state} />
-            <span className="hidden max-w-16 truncate text-[10px] text-workbench-muted 2xl:inline">
-              {portHint}
-            </span>
+          <span className="min-w-0 truncate">{threadVm.name}</span>
+          <span className="hidden min-w-0 truncate text-[10px] text-workbench-muted 2xl:inline">
+            {description}
           </span>
         </span>
       </Button>
@@ -86,7 +82,7 @@ export function ThreadVmRow({
             type="button"
             variant="ghost"
             size="icon-xs"
-            className="h-8 rounded-none text-workbench-muted opacity-0 hover:bg-workbench-hover hover:text-workbench-foreground group-hover:opacity-100 data-[state=open]:opacity-100"
+            className="h-5 rounded-none text-workbench-muted opacity-0 hover:bg-workbench-hover hover:text-workbench-foreground group-hover:opacity-100 data-[state=open]:opacity-100"
             aria-label={`Open actions for ${threadVm.name}`}
           >
             <MoreVerticalIcon />

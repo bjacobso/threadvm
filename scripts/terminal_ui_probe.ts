@@ -225,7 +225,14 @@ const attachResponse: TerminalAttachResponseModel = {
   closeUrl: "/rpc/terminal/session-1",
   status: "running",
   reused: false,
+  mouseModes: [],
   createdAt: Date.now()
+};
+
+const reusedAttachResponse: TerminalAttachResponseModel = {
+  ...attachResponse,
+  reused: true,
+  mouseModes: [1000, 1006]
 };
 
 const project: ProjectModel = {
@@ -249,9 +256,13 @@ const project: ProjectModel = {
 };
 
 const viewOutput: Array<string> = [];
+const restoredMouseModes: Array<ReadonlyArray<number>> = [];
 const view = {
   reset: () => {
     viewOutput.push("[reset]");
+  },
+  restoreMouseModes: (modes: ReadonlyArray<number>) => {
+    restoredMouseModes.push(modes);
   },
   write: (data: string) => {
     viewOutput.push(data);
@@ -462,15 +473,29 @@ assert.equal(forwardedMouseDownCount, 1);
 assert.equal(forwardedMouseUpCount, 1);
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
-assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
-assert.equal(terminalStatusAtomFamily(vm.id).value, "attached");
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "connecting");
 assert.equal(storage.get(activeTerminalVmKey), vm.id);
 assert.equal(MockEventSource.instances.length, 1);
 assert.equal(MockEventSource.instances[0]?.url, attachResponse.streamUrl);
+assert.deepEqual(viewOutput.slice(-2), [
+  "[reset]",
+  `Attaching ${vm.name}...\n`
+]);
+assert.deepEqual(restoredMouseModes.at(-1), []);
 assert.deepEqual(
   fetchCalls.map((call) => [call.url, call.init?.method]),
   [[attachResponse.resizeUrl, "POST"]]
 );
+await terminalSessionActionAtom.sendInput(vm.id, "preopen\n");
+assert.deepEqual(
+  fetchCalls.map((call) => [call.url, call.init?.method]),
+  [[attachResponse.resizeUrl, "POST"]]
+);
+
+const source = MockEventSource.instances[0]!;
+source.open();
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
+assert.equal(terminalStatusAtomFamily(vm.id).value, "attached");
 
 await terminalSessionActionAtom.sendInput(vm.id, "ls\n");
 await terminalSessionActionAtom.resize(vm.id, { cols: 100, rows: 30 });
@@ -484,13 +509,48 @@ assert.deepEqual(
   ]
 );
 
-const source = MockEventSource.instances[0]!;
-source.message(JSON.stringify("hello from vm"));
+source.message(JSON.stringify({ data: "hello from vm", cursor: 13 }));
 assert.equal(viewOutput.at(-1), "hello from vm");
-source.emit("exit");
+source.onerror?.();
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "disconnected");
+assert.equal(source.closed, true);
+await terminalSessionActionAtom.sendInput(vm.id, "hidden\n");
+assert.deepEqual(
+  fetchCalls.map((call) => [call.url, call.init?.method]),
+  [
+    [attachResponse.resizeUrl, "POST"],
+    [attachResponse.inputUrl, "POST"],
+    [attachResponse.resizeUrl, "POST"]
+  ]
+);
+threadVmApi.attachTerminal = async (threadVmId, restart) => {
+  assert.equal(threadVmId, vm.id);
+  assert.equal(restart, false);
+  return reusedAttachResponse;
+};
+const outputCountBeforeReconnect = viewOutput.length;
+await terminalSessionActionAtom.attach({ threadVm: vm, view });
+assert.equal(MockEventSource.instances.at(-1)?.url, `${attachResponse.streamUrl}?since=13`);
+assert.equal(viewOutput.length, outputCountBeforeReconnect);
+assert.deepEqual(restoredMouseModes.at(-1), [1000, 1006]);
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "connecting");
+
+const reconnectedSource = MockEventSource.instances.at(-1)!;
+reconnectedSource.open();
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
+reconnectedSource.message(
+  JSON.stringify({ data: "after reconnect", cursor: 28 })
+);
+assert.equal(viewOutput.at(-1), "after reconnect");
+threadVmApi.attachTerminal = async (threadVmId, restart) => {
+  assert.equal(threadVmId, vm.id);
+  assert.equal(restart, false);
+  return attachResponse;
+};
+reconnectedSource.emit("exit");
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "exited");
 assert.equal(terminalStatusAtomFamily(vm.id).value, "exited");
-assert.equal(source.closed, true);
+assert.equal(reconnectedSource.closed, true);
 assert.equal(storage.get(activeTerminalVmKey), undefined);
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
@@ -501,6 +561,29 @@ assert.deepEqual(fetchCalls.at(-1), {
   url: attachResponse.closeUrl,
   init: { method: "DELETE" }
 });
+
+threadVmApi.attachTerminal = async (threadVmId, restart) => {
+  assert.equal(threadVmId, vm.id);
+  assert.equal(restart, false);
+  return reusedAttachResponse;
+};
+await terminalSessionActionAtom.attach({ threadVm: vm, view });
+const coldReconnectSource = MockEventSource.instances.at(-1)!;
+assert.equal(coldReconnectSource.url, `${attachResponse.streamUrl}?replay=0`);
+assert.deepEqual(restoredMouseModes.at(-1), [1000, 1006]);
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "connecting");
+coldReconnectSource.open();
+assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
+await new Promise((resolve) => setTimeout(resolve, 0));
+assert.deepEqual(fetchCalls.at(-1), {
+  url: attachResponse.inputUrl,
+  init: {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ data: "\f" })
+  }
+});
+terminalSessionActionAtom.cleanup(vm.id, true);
 
 threadVmsAtom.set([vm]);
 const stopProvisioning = provisioningStreamAtom.start(vm.id);

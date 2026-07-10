@@ -20,6 +20,10 @@ interface TerminalSession {
   readonly createdAt: number;
   status: "running" | "exited";
   buffer: string;
+  bufferStart: number;
+  modeParserTail: string;
+  readonly mouseModes: Set<number>;
+  outputCursor: number;
   readonly listeners: Set<(data: string) => void>;
   readonly exitListeners: Set<() => void>;
 }
@@ -40,7 +44,8 @@ export class TerminalBridge extends Context.Service<
       options?: { readonly restart?: boolean }
     ) => Effect.Effect<TerminalAttachResponse, TerminalBridgeError>;
     readonly stream: (
-      sessionId: string
+      sessionId: string,
+      options?: { readonly replay?: boolean; readonly since?: number }
     ) => Effect.Effect<Stream.Stream<Uint8Array>, TerminalBridgeError>;
     readonly write: (
       sessionId: string,
@@ -58,6 +63,7 @@ export class TerminalBridge extends Context.Service<
 const sessions = new Map<string, TerminalSession>();
 const sessionsByVm = new Map<string, string>();
 const maxBufferBytes = 200_000;
+const mouseReportingModes = new Set([9, 1000, 1002, 1003, 1005, 1006, 1015]);
 
 const commandForVm = (vm: ThreadVm): { file: string; args: ReadonlyArray<string> } => {
   const override = process.env.THREADVM_TERMINAL_COMMAND;
@@ -183,13 +189,39 @@ const attachResponse = (
     closeUrl: `/rpc/terminal/${session.id}`,
     status: session.status,
     reused,
+    mouseModes: Array.from(session.mouseModes).sort((a, b) => a - b),
     createdAt: session.createdAt
   });
 
+const rememberTerminalModes = (session: TerminalSession, data: string) => {
+  const input = session.modeParserTail + data;
+  const modePattern = /\x1b\[\?([0-9;]+)([hl])/g;
+  let match: RegExpExecArray | null;
+  while ((match = modePattern.exec(input)) !== null) {
+    const [, rawModes, operation] = match;
+    for (const rawMode of rawModes.split(";")) {
+      const mode = Number(rawMode);
+      if (!mouseReportingModes.has(mode)) {
+        continue;
+      }
+      if (operation === "h") {
+        session.mouseModes.add(mode);
+      } else {
+        session.mouseModes.delete(mode);
+      }
+    }
+  }
+  session.modeParserTail = input.slice(-64);
+};
+
 const rememberData = (session: TerminalSession, data: string) => {
+  rememberTerminalModes(session, data);
   session.buffer += data;
+  session.outputCursor += data.length;
   if (session.buffer.length > maxBufferBytes) {
-    session.buffer = session.buffer.slice(session.buffer.length - maxBufferBytes);
+    const trimmed = session.buffer.length - maxBufferBytes;
+    session.bufferStart += trimmed;
+    session.buffer = session.buffer.slice(trimmed);
   }
 };
 
@@ -210,6 +242,10 @@ const createSession = (vm: ThreadVm): TerminalSession => {
     createdAt: Date.now(),
     status: "running",
     buffer: "",
+    bufferStart: 0,
+    modeParserTail: "",
+    mouseModes: new Set(),
+    outputCursor: 0,
     listeners: new Set(),
     exitListeners: new Set()
   };
@@ -263,7 +299,7 @@ export const TerminalBridgeLive = Layer.succeed(TerminalBridge, {
       catch: (cause) => new TerminalBridgeError("Failed to attach terminal", cause)
     }),
 
-  stream: (sessionId) =>
+  stream: (sessionId, options) =>
     getSession(sessionId).pipe(
       Effect.map((session) =>
         Stream.callback<Uint8Array>((emit) =>
@@ -273,7 +309,12 @@ export const TerminalBridgeLive = Layer.succeed(TerminalBridge, {
             const sendData = (data: string) => {
               Queue.offerUnsafe(
                 emit,
-                encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    cursor: session.outputCursor,
+                    data
+                  })}\n\n`
+                )
               );
             };
 
@@ -286,8 +327,17 @@ export const TerminalBridgeLive = Layer.succeed(TerminalBridge, {
               );
             };
 
-            if (session.buffer.length > 0) {
-              sendData(session.buffer);
+            if (options?.replay !== false && session.buffer.length > 0) {
+              const since = options?.since;
+              const replay =
+                since === undefined
+                  ? session.buffer
+                  : session.buffer.slice(
+                      Math.max(0, since - session.bufferStart)
+                    );
+              if (replay.length > 0) {
+                sendData(replay);
+              }
             }
 
             session.listeners.add(sendData);

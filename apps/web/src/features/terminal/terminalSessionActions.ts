@@ -13,6 +13,7 @@ interface TerminalSize {
 
 interface TerminalSessionView {
   readonly reset: () => void;
+  readonly restoreMouseModes: (modes: ReadonlyArray<number>) => void;
   readonly write: (data: string) => void;
   readonly writeln: (data: string) => void;
   readonly getSize: () => TerminalSize | undefined;
@@ -26,6 +27,7 @@ interface AttachOptions {
 
 const cleanupByThreadVm = new Map<string, (closeRemote?: boolean) => void>();
 const lastRemoteSizes = new Map<string, TerminalSize>();
+const outputCursorBySession = new Map<string, number>();
 
 const postJson = async (url: string, body: unknown) => {
   const response = await fetch(url, {
@@ -39,12 +41,48 @@ const postJson = async (url: string, body: unknown) => {
   }
 };
 
-const parseStreamData = (data: string) => {
+const parseStreamData = (
+  data: string
+): { readonly data: string; readonly cursor?: number } => {
   try {
-    return JSON.parse(data) as string;
+    const parsed = JSON.parse(data) as unknown;
+    if (typeof parsed === "string") {
+      return { data: parsed };
+    }
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "data" in parsed &&
+      typeof parsed.data === "string"
+    ) {
+      return {
+        data: parsed.data,
+        cursor:
+          "cursor" in parsed && typeof parsed.cursor === "number"
+            ? parsed.cursor
+            : undefined
+      };
+    }
   } catch {
-    return data;
   }
+  return { data };
+};
+
+const streamUrlWithReplay = (
+  url: string,
+  replay: boolean,
+  since: number | undefined
+) => {
+  const params = new URLSearchParams();
+  if (replay) {
+    if (since !== undefined) {
+      params.set("since", String(since));
+    }
+  } else {
+    params.set("replay", "0");
+  }
+  const query = params.toString();
+  return query ? `${url}${url.includes("?") ? "&" : "?"}${query}` : url;
 };
 
 export const terminalSessionActionAtom = {
@@ -56,6 +94,12 @@ export const terminalSessionActionAtom = {
     cleanupByThreadVm.get(threadVmId)?.(closeRemote);
     cleanupByThreadVm.delete(threadVmId);
     lastRemoteSizes.delete(threadVmId);
+    if (closeRemote) {
+      const attach = terminalSessionAtomFamily(threadVmId).value.attach;
+      if (attach) {
+        outputCursorBySession.delete(attach.sessionId);
+      }
+    }
     terminalSessionAtomFamily(threadVmId).set({
       status: "detached",
       attach: undefined
@@ -72,7 +116,8 @@ export const terminalSessionActionAtom = {
     }
 
     const attach = terminalSessionAtomFamily(threadVmId).value.attach;
-    if (!attach) {
+    const status = terminalSessionAtomFamily(threadVmId).value.status;
+    if (!attach || status !== "attached") {
       return;
     }
 
@@ -108,29 +153,61 @@ export const terminalSessionActionAtom = {
 
   attach: async ({ threadVm, restart = false, view }: AttachOptions) => {
     const sessionAtom = terminalSessionAtomFamily(threadVm.id);
+    const previousAttach = sessionAtom.value.attach;
     terminalSessionActionAtom.cleanup(threadVm.id, false);
     sessionAtom.set({ status: "connecting", attach: undefined });
 
-    view.reset();
-    view.writeln(`${restart ? "Restarting" : "Attaching"} ${threadVm.name}...`);
-
     try {
       const attach = await threadVmApi.attachTerminal(threadVm.id, restart);
+      const preserveLocalTerminalState =
+        !restart &&
+        attach.reused &&
+        previousAttach?.sessionId === attach.sessionId;
+      const previousCursor = outputCursorBySession.get(attach.sessionId);
+      const canResumeFromCursor =
+        preserveLocalTerminalState && previousCursor !== undefined;
+      const shouldReplayStream = !attach.reused || canResumeFromCursor;
+      const shouldRequestRedraw = attach.reused && !canResumeFromCursor;
       let closed = false;
       const nextStatus = attach.status === "exited" ? "exited" : "attached";
 
-      sessionAtom.set({ attach, status: nextStatus });
+      if (!preserveLocalTerminalState) {
+        outputCursorBySession.delete(attach.sessionId);
+        view.reset();
+        view.restoreMouseModes(attach.mouseModes);
+        view.writeln(`${restart ? "Restarting" : "Attaching"} ${threadVm.name}...`);
+      } else {
+        view.restoreMouseModes(attach.mouseModes);
+      }
+
+      sessionAtom.set({
+        attach,
+        status: nextStatus === "attached" ? "connecting" : nextStatus
+      });
       writeStored(activeTerminalVmKey, threadVm.id);
       await terminalSessionActionAtom.resize(threadVm.id, view.getSize(), true);
 
-      const source = new EventSource(attach.streamUrl);
+      const source = new EventSource(
+        streamUrlWithReplay(
+          attach.streamUrl,
+          shouldReplayStream,
+          canResumeFromCursor ? previousCursor : undefined
+        )
+      );
       source.onopen = () => {
         if (!closed) {
           sessionAtom.set({ attach, status: "attached" });
+          if (shouldRequestRedraw) {
+            void postJson(attach.inputUrl, { data: "\f" });
+          }
         }
       };
       source.onmessage = (event) => {
-        view.write(parseStreamData(event.data));
+        const chunk = parseStreamData(event.data);
+        view.write(chunk.data);
+        if (chunk.cursor !== undefined) {
+          outputCursorBySession.set(attach.sessionId, chunk.cursor);
+        }
       };
       source.addEventListener("exit", () => {
         if (closed) {

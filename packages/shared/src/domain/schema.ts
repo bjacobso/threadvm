@@ -208,6 +208,7 @@ export class TerminalAttachResponse extends Schema.Class<TerminalAttachResponse>
   closeUrl: Schema.String,
   status: Schema.Literals(["running", "exited"]),
   reused: Schema.Boolean,
+  mouseModes: Schema.Array(Schema.Number),
   createdAt: Schema.Number
 }) {}
 

@@ -34,6 +34,16 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
+const restoreTerminalMouseModes = (
+  terminal: Terminal | null,
+  modes: ReadonlyArray<number>
+) => {
+  if (!terminal || modes.length === 0) {
+    return;
+  }
+  terminal.write(modes.map((mode) => `\x1b[?${mode}h`).join(""));
+};
+
 export function TerminalPane({ selected }: TerminalPaneProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -199,6 +209,8 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
         restart,
         view: {
           reset: () => terminalRef.current?.reset(),
+          restoreMouseModes: (modes) =>
+            restoreTerminalMouseModes(terminalRef.current, modes),
           write: (data) => terminalRef.current?.write(data),
           writeln: (data) => terminalRef.current?.writeln(data),
           getSize: getTerminalSize

@@ -140,7 +140,7 @@ const main = async () => {
       THREADVM_SSH_MOCK: "1",
       THREADVM_SSH_MOCK_STDOUT: "THREADVM_LOG_FULL\nmock dev log\n",
       THREADVM_TERMINAL_COMMAND:
-        "while IFS= read -r line; do printf 'probe:%s\\n' \"$line\"; done"
+        "printf '\\033[?1000h\\033[?1006h'; while IFS= read -r line; do printf 'probe:%s\\n' \"$line\"; done"
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -234,6 +234,12 @@ const main = async () => {
       secondAttach.sessionId !== firstAttach.sessionId
     ) {
       throw new Error(`terminal session was not reused: ${JSON.stringify(secondAttach)}`);
+    }
+    if (
+      !secondAttach.mouseModes.includes(1000) ||
+      !secondAttach.mouseModes.includes(1006)
+    ) {
+      throw new Error(`terminal mouse modes were not tracked: ${JSON.stringify(secondAttach)}`);
     }
 
     const resize = await apiJson(baseUrl, firstAttach.resizeUrl, {
