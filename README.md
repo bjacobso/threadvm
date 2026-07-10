@@ -273,6 +273,7 @@ Implemented:
 - Effect Atom client state for inventory, project config, reconciliation, selection, terminal status, and clipboard notices.
 - SSE reconciliation stream for live ThreadVM inventory snapshots.
 - New ThreadVM form backed by `POST /api/threadvms`.
+- Project registry editor backed by `PUT /api/projects/:id` and `DELETE /api/projects/:id`.
 - Local metadata cache for created ThreadVMs, including project, branch, summary, repo, and preview-port hints.
 - exe.dev tags and comments for ThreadVM-managed VMs, with rich metadata mirrored into VM-side JSON.
 - Background SSH provisioning after create/clone: repo clone/fetch, branch checkout, configured bootstrap commands, VM-side metadata write, dev command startup, configured port probing before `ready`, durable step-level progress, and command output excerpts.
@@ -280,6 +281,7 @@ Implemented:
 - Per-VM provisioning SSE stream at `/rpc/threadvms/:id/provisioning`.
 - Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.
 - Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.
+- Scripted terminal probe for attach, reconnect reuse, resize, and close: `pnpm probe:terminal`.
 - Example project config in `examples/projects.yaml`.
 
 Next:

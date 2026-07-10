@@ -93,6 +93,18 @@ const parseListOutput = (stdout: string): ReadonlyArray<ThreadVm> =>
     .map(parseVmLine)
     .filter((vm): vm is ThreadVm => vm !== undefined);
 
+const mockVm = () =>
+  new ThreadVm({
+    id: process.env.THREADVM_EXEDEV_MOCK_ID ?? "terminal-probe",
+    name: process.env.THREADVM_EXEDEV_MOCK_NAME ?? "terminal-probe",
+    host: process.env.THREADVM_EXEDEV_MOCK_HOST ?? "terminal-probe.exe.xyz",
+    state: "running",
+    source: "mock",
+    tags: ["threadvm", "mock"],
+    ports: [],
+    raw: "THREADVM_EXEDEV_MOCK=1"
+  });
+
 export const ExeDevServiceLive = Layer.effect(
   ExeDevService,
   Effect.gen(function* () {
@@ -103,28 +115,31 @@ export const ExeDevServiceLive = Layer.effect(
         .execFile("ssh", ["exe.dev", ...args], { timeoutMs: 60_000 })
         .pipe(Effect.mapError(toExeError(`ssh exe.dev ${args.join(" ")} failed`)));
 
-    const listVms = runExe(["ls"]).pipe(
-      Effect.map((result) => parseListOutput(result.stdout)),
-      Effect.catch((error) =>
-        Effect.succeed([
-          new ThreadVm({
-            id: "exe-dev-unavailable",
-            name: "exe.dev unavailable",
-            host: "exe.dev",
-            state: "unknown",
-            source: "mock",
-            ports: [
-              new Port({
-                label: "diagnostic",
-                port: 0,
-                url: "ssh exe.dev ls failed"
-              })
-            ],
-            raw: error.message
-          })
-        ])
-      )
-    );
+    const listVms =
+      process.env.THREADVM_EXEDEV_MOCK === "1"
+        ? Effect.succeed([mockVm()])
+        : runExe(["ls"]).pipe(
+            Effect.map((result) => parseListOutput(result.stdout)),
+            Effect.catch((error) =>
+              Effect.succeed([
+                new ThreadVm({
+                  id: "exe-dev-unavailable",
+                  name: "exe.dev unavailable",
+                  host: "exe.dev",
+                  state: "unknown",
+                  source: "mock",
+                  ports: [
+                    new Port({
+                      label: "diagnostic",
+                      port: 0,
+                      url: "ssh exe.dev ls failed"
+                    })
+                  ],
+                  raw: error.message
+                })
+              ])
+            )
+          );
 
     const getVm = (id: string) =>
       listVms.pipe(
