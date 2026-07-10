@@ -3,6 +3,8 @@ import { parseOsc52 } from "../apps/web/src/features/terminal/osc52.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
 import {
   activeTerminalVmKey,
+  devLogActionAtom,
+  devLogAtom,
   provisioningStreamAtom,
   provisioningStreamStateAtom,
   threadVmsAtom,
@@ -141,6 +143,16 @@ threadVmApi.attachTerminal = async (threadVmId, restart) => {
   assert.equal(restart, false);
   return attachResponse;
 };
+threadVmApi.readDevLog = async (threadVmId) => {
+  assert.equal(threadVmId, vm.id);
+  return {
+    threadVmId,
+    path: "/tmp/threadvm/vm-1/dev.log",
+    content: "dev server ready\n",
+    truncated: false,
+    observedAt: 456
+  };
+};
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
@@ -212,5 +224,10 @@ assert.equal(provisioningStreamStateAtom.value.status, "streaming");
 assert.equal(provisioningStreamStateAtom.value.lastObservedAt, 123);
 stopProvisioning();
 assert.equal(provisioningSource.closed, true);
+
+const devLog = await devLogActionAtom.load(vm.id);
+assert.equal(devLog.content, "dev server ready\n");
+assert.equal(devLogAtom.value.status, "succeeded");
+assert.equal(devLogAtom.value.response?.path, "/tmp/threadvm/vm-1/dev.log");
 
 console.log("terminal ui probe ok");

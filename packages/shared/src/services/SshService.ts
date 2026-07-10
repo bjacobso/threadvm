@@ -41,6 +41,16 @@ export const SshServiceLive = Layer.effect(
       script: string,
       options?: { readonly timeoutMs?: number }
     ) => {
+      if (process.env.THREADVM_SSH_MOCK === "1") {
+        return Effect.succeed({
+          stdout:
+            process.env.THREADVM_SSH_MOCK_STDOUT ??
+            "THREADVM_LOG_FULL\nmock dev log\n",
+          stderr: process.env.THREADVM_SSH_MOCK_STDERR ?? "",
+          exitCode: Number(process.env.THREADVM_SSH_MOCK_EXIT_CODE ?? "0")
+        });
+      }
+
       const remoteCommand = `bash -lc ${shellQuote(script)}`;
       return command
         .execFile("ssh", [host, remoteCommand], {

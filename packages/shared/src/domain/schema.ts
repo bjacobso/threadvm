@@ -118,6 +118,16 @@ export class ThreadVmLifecycleResponse extends Schema.Class<ThreadVmLifecycleRes
   message: Schema.String
 }) {}
 
+export class ThreadVmDevLogResponse extends Schema.Class<ThreadVmDevLogResponse>(
+  "ThreadVmDevLogResponse"
+)({
+  threadVmId: Schema.String,
+  path: Schema.String,
+  content: Schema.String,
+  truncated: Schema.Boolean,
+  observedAt: Schema.Number
+}) {}
+
 export class ThreadVmReconciliationEvent extends Schema.Class<ThreadVmReconciliationEvent>(
   "ThreadVmReconciliationEvent"
 )({
@@ -206,6 +216,7 @@ export type ThreadVmModel = typeof ThreadVm.Type;
 export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
 export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;
 export type ThreadVmLifecycleResponseModel = typeof ThreadVmLifecycleResponse.Type;
+export type ThreadVmDevLogResponseModel = typeof ThreadVmDevLogResponse.Type;
 export type ThreadVmReconciliationEventModel =
   typeof ThreadVmReconciliationEvent.Type;
 export type ThreadVmProvisioningEventModel = typeof ThreadVmProvisioningEvent.Type;

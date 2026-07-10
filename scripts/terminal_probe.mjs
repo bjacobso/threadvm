@@ -66,6 +66,26 @@ const main = async () => {
   const storeFile = join(tempDir, "store.json");
 
   await writeFile(projectsFile, "projects: {}\n", "utf8");
+  await writeFile(
+    storeFile,
+    JSON.stringify(
+      {
+        threadVms: {
+          "terminal-probe": {
+            id: "terminal-probe",
+            state: "running",
+            ports: [],
+            devLogPath: "/tmp/threadvm/terminal-probe/dev.log",
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          }
+        }
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
 
   const server = spawn("node", ["apps/server/dist/main.js"], {
     cwd: repoRoot,
@@ -75,6 +95,8 @@ const main = async () => {
       THREADVM_PROJECTS_FILE: projectsFile,
       THREADVM_STORE_FILE: storeFile,
       THREADVM_EXEDEV_MOCK: "1",
+      THREADVM_SSH_MOCK: "1",
+      THREADVM_SSH_MOCK_STDOUT: "THREADVM_LOG_FULL\nmock dev log\n",
       THREADVM_TERMINAL_COMMAND:
         "while IFS= read -r line; do printf 'probe:%s\\n' \"$line\"; done"
     },
@@ -102,6 +124,16 @@ const main = async () => {
     const threadVm = threadVms.find((vm) => vm.id === "terminal-probe");
     if (!threadVm) {
       throw new Error(`mock terminal-probe VM missing: ${JSON.stringify(threadVms)}`);
+    }
+
+    const devLog = await apiJson(baseUrl, `/api/threadvms/${threadVm.id}/dev-log`);
+    if (
+      devLog.threadVmId !== threadVm.id ||
+      devLog.path !== "/tmp/threadvm/terminal-probe/dev.log" ||
+      devLog.content !== "mock dev log\n" ||
+      devLog.truncated !== false
+    ) {
+      throw new Error(`unexpected dev log response: ${JSON.stringify(devLog)}`);
     }
 
     const firstAttach = await apiJson(baseUrl, "/api/terminal/attach", {

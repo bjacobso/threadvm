@@ -7,6 +7,7 @@ import {
   ProvisioningStep,
   Project,
   ThreadVm,
+  ThreadVmDevLogResponse,
   ThreadVmLifecycleResponse,
   ThreadVmMetadata
 } from "../domain/schema.js";
@@ -57,6 +58,9 @@ export class WorkspaceService extends Context.Service<
   {
     readonly listThreadVms: Effect.Effect<ReadonlyArray<ThreadVm>, WorkspaceError>;
     readonly getThreadVm: (id: string) => Effect.Effect<ThreadVm, WorkspaceError>;
+    readonly readDevLog: (
+      id: string
+    ) => Effect.Effect<ThreadVmDevLogResponse, WorkspaceError>;
     readonly createThreadVm: (
       request: CreateThreadVmRequest
     ) => Effect.Effect<CreateThreadVmResponse, WorkspaceError>;
@@ -715,6 +719,52 @@ export const WorkspaceServiceLive = Layer.effect(
         return enrichThreadVm(threadVm, resolvedMetadata);
       });
 
+    const readDevLog = (id: string) =>
+      Effect.gen(function* () {
+        const threadVm = yield* getThreadVm(id);
+        const path = threadVm.devLogPath;
+        if (!path) {
+          return yield* Effect.fail(
+            new WorkspaceError(`No dev log path is recorded for ${threadVm.name}`)
+          );
+        }
+
+        const byteLimit = 32_000;
+        const result = yield* runRemote(
+          threadVm,
+          [
+            "set -euo pipefail",
+            `path=${shellQuote(path)}`,
+            `limit=${byteLimit}`,
+            "if [ ! -e \"$path\" ]; then",
+            "  exit 4",
+            "fi",
+            "size=$(wc -c < \"$path\" | tr -d ' ')",
+            "if [ \"$size\" -gt \"$limit\" ]; then",
+            "  echo THREADVM_LOG_TRUNCATED",
+            "else",
+            "  echo THREADVM_LOG_FULL",
+            "fi",
+            "tail -c \"$limit\" \"$path\""
+          ].join("\n"),
+          30_000
+        );
+
+        const markerEnd = result.stdout.indexOf("\n");
+        const marker =
+          markerEnd === -1 ? result.stdout.trim() : result.stdout.slice(0, markerEnd);
+        const content =
+          markerEnd === -1 ? "" : result.stdout.slice(markerEnd + 1);
+
+        return new ThreadVmDevLogResponse({
+          threadVmId: id,
+          path,
+          content,
+          truncated: marker === "THREADVM_LOG_TRUNCATED",
+          observedAt: Date.now()
+        });
+      });
+
     const rememberThreadVm = (metadata: ThreadVmMetadata) =>
       store.upsertThreadVmMetadata(metadata).pipe(
         Effect.mapError(toWorkspaceError("Failed to write ThreadVM metadata"))
@@ -825,6 +875,7 @@ export const WorkspaceServiceLive = Layer.effect(
     return {
       listThreadVms,
       getThreadVm,
+      readDevLog,
       createThreadVm,
       stopThreadVm,
       removeThreadVm

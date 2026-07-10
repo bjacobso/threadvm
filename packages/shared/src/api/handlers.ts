@@ -73,6 +73,14 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           );
         })
       )
+      .handle("devLog", ({ params: { id } }) =>
+        Effect.gen(function* () {
+          const workspaces = yield* WorkspaceService;
+          return yield* workspaces.readDevLog(id).pipe(
+            Effect.mapError(toApiError(`Failed to read dev log for ${id}`))
+          );
+        })
+      )
       .handle("create", ({ payload }) =>
         Effect.gen(function* () {
           const workspaces = yield* WorkspaceService;

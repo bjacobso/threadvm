@@ -15,6 +15,7 @@ import {
   TerminalAttachRequest,
   TerminalAttachResponse,
   ThreadVm,
+  ThreadVmDevLogResponse,
   ThreadVmLifecycleResponse
 } from "../domain/schema.js";
 
@@ -68,6 +69,13 @@ const ThreadVmsGroup = HttpApiGroup.make("threadvms")
     HttpApiEndpoint.get("get", "/threadvms/:id", {
       params: IdParams,
       success: ThreadVm,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.get("devLog", "/threadvms/:id/dev-log", {
+      params: IdParams,
+      success: ThreadVmDevLogResponse,
       error: ApiErrorResponse
     })
   )

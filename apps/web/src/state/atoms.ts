@@ -4,6 +4,7 @@ import type {
   CreateThreadVmRequestModel,
   ProjectModel,
   TerminalAttachResponseModel,
+  ThreadVmDevLogResponseModel,
   ThreadVmModel
 } from "@threadvm/shared/domain";
 import { threadVmApi } from "./apiClient";
@@ -74,6 +75,13 @@ export interface ThreadVmLifecycleState {
   readonly error: string | undefined;
 }
 
+export interface DevLogState {
+  readonly status: "idle" | "loading" | "succeeded" | "failed";
+  readonly threadVmId: string | undefined;
+  readonly response: ThreadVmDevLogResponseModel | undefined;
+  readonly error: string | undefined;
+}
+
 export const selectedVmKey = "threadvm.selectedVmId";
 export const activeTerminalVmKey = "threadvm.activeTerminalVmId";
 
@@ -123,6 +131,12 @@ export const threadVmLifecycleAtom = AtomRef.make<ThreadVmLifecycleState>({
   action: undefined,
   threadVmId: undefined,
   message: undefined,
+  error: undefined
+});
+export const devLogAtom = AtomRef.make<DevLogState>({
+  status: "idle",
+  threadVmId: undefined,
+  response: undefined,
   error: undefined
 });
 
@@ -659,6 +673,44 @@ export const threadVmLifecycleActionAtom = {
       action: undefined,
       threadVmId: undefined,
       message: undefined,
+      error: undefined
+    });
+  }
+} as const;
+
+export const devLogActionAtom = {
+  load: async (threadVmId: string) => {
+    devLogAtom.set({
+      status: "loading",
+      threadVmId,
+      response: undefined,
+      error: undefined
+    });
+    try {
+      const response = await threadVmApi.readDevLog(threadVmId);
+      devLogAtom.set({
+        status: "succeeded",
+        threadVmId,
+        response,
+        error: undefined
+      });
+      return response;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      devLogAtom.set({
+        status: "failed",
+        threadVmId,
+        response: undefined,
+        error: message
+      });
+      throw cause;
+    }
+  },
+  reset: () => {
+    devLogAtom.set({
+      status: "idle",
+      threadVmId: undefined,
+      response: undefined,
       error: undefined
     });
   }
