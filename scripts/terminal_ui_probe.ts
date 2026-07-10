@@ -3,6 +3,10 @@ import { terminalShortcutAction } from "../apps/web/src/features/terminal/keyboa
 import { parseOsc52 } from "../apps/web/src/features/terminal/osc52.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
 import {
+  nextThreadVmSelection,
+  threadVmNavigationAction
+} from "../apps/web/src/features/threadvms/threadVmNavigation.js";
+import {
   activeTerminalVmKey,
   devLogActionAtom,
   devLogAtom,
@@ -149,6 +153,20 @@ assert.equal(
   undefined
 );
 assert.equal(terminalShortcutAction({ key: "k", metaKey: true }), undefined);
+
+assert.equal(threadVmNavigationAction({ key: "ArrowDown" }), "next");
+assert.equal(threadVmNavigationAction({ key: "ArrowUp" }), "previous");
+assert.equal(threadVmNavigationAction({ key: "Home" }), "first");
+assert.equal(threadVmNavigationAction({ key: "End" }), "last");
+assert.equal(threadVmNavigationAction({ key: "Enter" }), undefined);
+assert.equal(nextThreadVmSelection(["a", "b", "c"], "a", "next"), "b");
+assert.equal(nextThreadVmSelection(["a", "b", "c"], "c", "next"), "a");
+assert.equal(nextThreadVmSelection(["a", "b", "c"], "a", "previous"), "c");
+assert.equal(nextThreadVmSelection(["a", "b", "c"], undefined, "next"), "a");
+assert.equal(nextThreadVmSelection(["a", "b", "c"], undefined, "previous"), "c");
+assert.equal(nextThreadVmSelection(["a", "b", "c"], "b", "first"), "a");
+assert.equal(nextThreadVmSelection(["a", "b", "c"], "b", "last"), "c");
+assert.equal(nextThreadVmSelection([], undefined, "next"), undefined);
 
 threadVmApi.attachTerminal = async (threadVmId, restart) => {
   assert.equal(threadVmId, vm.id);

@@ -1,3 +1,4 @@
+import type React from "react";
 import {
   FolderCogIcon,
   PlusIcon,
@@ -23,6 +24,10 @@ import {
   useAtomRef
 } from "@/state/atoms";
 import { ThreadVmRow } from "./ThreadVmRow";
+import {
+  nextThreadVmSelection,
+  threadVmNavigationAction
+} from "./threadVmNavigation";
 
 interface ThreadVmListProps {
   readonly onOpenQuickSwitch: () => void;
@@ -39,6 +44,24 @@ export function ThreadVmList({
   const selectedId = useAtomRef(selectedThreadVmIdAtom);
   const loading = useAtomRef(inventoryLoadingAtom);
   const error = useAtomRef(inventoryErrorAtom);
+  const navigateThreadVms = (event: React.KeyboardEvent<HTMLElement>) => {
+    const action = threadVmNavigationAction(event);
+    if (!action) {
+      return;
+    }
+
+    const nextId = nextThreadVmSelection(
+      threadVms.map((threadVm) => threadVm.id),
+      selectedId,
+      action
+    );
+    if (!nextId) {
+      return;
+    }
+
+    event.preventDefault();
+    setSelectedThreadVmId(nextId);
+  };
 
   return (
     <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -113,7 +136,10 @@ export function ThreadVmList({
       ) : null}
 
       <ScrollArea className="min-h-0 flex-1">
-        <nav className="flex flex-col gap-1.5 p-2">
+        <nav
+          className="flex flex-col gap-1.5 p-2"
+          onKeyDown={navigateThreadVms}
+        >
           {loading && threadVms.length === 0
             ? Array.from({ length: 7 }).map((_, index) => (
                 <Skeleton key={index} className="h-14 rounded-md" />

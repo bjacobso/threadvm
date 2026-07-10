@@ -19,6 +19,7 @@ export function ThreadVmRow({ threadVm, selected, onSelect }: ThreadVmRowProps) 
       type="button"
       variant="ghost"
       onClick={onSelect}
+      aria-current={selected ? "true" : undefined}
       className={cn(
         "h-auto w-full justify-start rounded-md border border-border/60 px-2.5 py-2 text-left",
         "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -42,4 +43,3 @@ export function ThreadVmRow({ threadVm, selected, onSelect }: ThreadVmRowProps) 
     </Button>
   );
 }
-
