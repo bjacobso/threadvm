@@ -34,6 +34,11 @@
       "types": "./dist/services/ExeDevService.d.ts",
       "import": "./dist/services/ExeDevService.js"
     },
+    "./services/LocalStore": {
+      "development": "./src/services/LocalStore.ts",
+      "types": "./dist/services/LocalStore.d.ts",
+      "import": "./dist/services/LocalStore.js"
+    },
     "./services/TerminalBridge": {
       "development": "./src/services/TerminalBridge.ts",
       "types": "./dist/services/TerminalBridge.d.ts",

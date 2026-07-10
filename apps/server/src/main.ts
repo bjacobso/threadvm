@@ -11,6 +11,7 @@ import { ThreadVmApiHandlersLive } from "@threadvm/shared/api/handlers";
 import { CommandServiceLive } from "@threadvm/shared/services/CommandService";
 import { ConfigServiceLive } from "@threadvm/shared/services/ConfigService";
 import { ExeDevServiceLive } from "@threadvm/shared/services/ExeDevService";
+import { LocalStoreLive } from "@threadvm/shared/services/LocalStore";
 import { TerminalBridgeLive } from "@threadvm/shared/services/TerminalBridge";
 import { WorkspaceServiceLive } from "@threadvm/shared/services/WorkspaceService";
 import { ReconciliationRoutesLive } from "./reconciliationRoutes.js";
@@ -56,12 +57,15 @@ const ExeDevServiceComposed = ExeDevServiceLive.pipe(
 );
 
 const WorkspaceServiceComposed = WorkspaceServiceLive.pipe(
-  Layer.provide(Layer.mergeAll(ConfigServiceLive, ExeDevServiceComposed))
+  Layer.provide(
+    Layer.mergeAll(ConfigServiceLive, ExeDevServiceComposed, LocalStoreLive)
+  )
 );
 
 const AppServicesLive = Layer.mergeAll(
   ConfigServiceLive,
   ExeDevServiceComposed,
+  LocalStoreLive,
   WorkspaceServiceComposed,
   TerminalBridgeLive
 );

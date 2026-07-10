@@ -95,6 +95,26 @@ export class ThreadVmReconciliationEvent extends Schema.Class<ThreadVmReconcilia
   observedAt: Schema.Number
 }) {}
 
+export class ThreadVmMetadata extends Schema.Class<ThreadVmMetadata>(
+  "ThreadVmMetadata"
+)({
+  id: Schema.String,
+  project: Schema.optional(Schema.String),
+  slug: Schema.optional(Schema.String),
+  summary: Schema.optional(Schema.String),
+  repo: Schema.optional(Schema.String),
+  branch: Schema.optional(Schema.String),
+  ports: Schema.Array(Port),
+  createdAt: Schema.Number,
+  updatedAt: Schema.Number
+}) {}
+
+export class ThreadVmMetadataFile extends Schema.Class<ThreadVmMetadataFile>(
+  "ThreadVmMetadataFile"
+)({
+  threadVms: Schema.Record(Schema.String, ThreadVmMetadata)
+}) {}
+
 export class TerminalAttachRequest extends Schema.Class<TerminalAttachRequest>(
   "TerminalAttachRequest"
 )({
@@ -143,4 +163,6 @@ export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;
 export type ThreadVmLifecycleResponseModel = typeof ThreadVmLifecycleResponse.Type;
 export type ThreadVmReconciliationEventModel =
   typeof ThreadVmReconciliationEvent.Type;
+export type ThreadVmMetadataModel = typeof ThreadVmMetadata.Type;
+export type ThreadVmMetadataFileModel = typeof ThreadVmMetadataFile.Type;
 export type TerminalAttachResponseModel = typeof TerminalAttachResponse.Type;
