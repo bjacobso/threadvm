@@ -8,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger
 } from "@/components/ui/tooltip";
-import type { ClipboardNotice, TerminalSessionState } from "@/state/atoms";
+import type { ClipboardNotice, TerminalSessionState } from "./terminalAtoms";
 
 interface TerminalToolbarProps {
   readonly selected: ThreadVmModel | undefined;

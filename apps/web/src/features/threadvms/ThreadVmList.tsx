@@ -24,7 +24,7 @@ import {
   setSelectedThreadVmId,
   threadVmsAtom,
   useAtomRef
-} from "@/state/atoms";
+} from "./threadVmAtoms";
 import { ThreadVmRow } from "./ThreadVmRow";
 import { firstPreviewUrl, threadVmHostClipboardText } from "./threadVmActions";
 import {

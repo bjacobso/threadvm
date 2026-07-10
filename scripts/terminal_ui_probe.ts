@@ -28,21 +28,25 @@ import {
 import {
   activeTerminalVmKey,
   clipboardNoticeAtom,
-  createThreadVmActionAtom,
-  createThreadVmAtom,
-  devLogActionAtom,
-  devLogAtom,
   focusedPanelAtom,
-  portStatusActionAtom,
-  portStatusAtom,
-  provisioningStreamAtom,
-  provisioningStreamStateAtom,
-  selectedThreadVmAtom,
-  selectedVmKey,
-  threadVmsAtom,
   terminalSessionAtomFamily,
   terminalStatusAtomFamily
+} from "../apps/web/src/features/terminal/terminalAtoms.js";
+import {
+  devLogActionAtom,
+  devLogAtom,
+  portStatusAtom,
+  provisioningStreamAtom,
+  provisioningStreamStateAtom
 } from "../apps/web/src/state/atoms.js";
+import {
+  createThreadVmActionAtom,
+  createThreadVmAtom,
+  portStatusActionAtom,
+  selectedThreadVmAtom,
+  selectedVmKey,
+  threadVmsAtom
+} from "../apps/web/src/features/threadvms/threadVmAtoms.js";
 import { threadVmApi } from "../apps/web/src/state/apiClient.js";
 import type {
   TerminalAttachResponseModel,

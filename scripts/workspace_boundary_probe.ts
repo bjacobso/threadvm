@@ -25,6 +25,11 @@ interface Violation {
   readonly reason: string;
 }
 
+interface ArchitectureViolation {
+  readonly file: string;
+  readonly reason: string;
+}
+
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const workspaces: ReadonlyArray<Workspace> = [
@@ -186,6 +191,58 @@ const checkReference = async (
   };
 };
 
+const plannedFeatureAtomModules = [
+  "apps/web/src/features/threadvms/threadVmAtoms.ts",
+  "apps/web/src/features/terminal/terminalAtoms.ts"
+] as const;
+
+const featureStateEntryPoint = (file: string) => {
+  const relative = path.relative(repoRoot, file);
+  if (
+    relative.startsWith("apps/web/src/features/threadvms/") &&
+    relative !== "apps/web/src/features/threadvms/threadVmAtoms.ts"
+  ) {
+    return "./threadVmAtoms";
+  }
+  if (
+    relative.startsWith("apps/web/src/features/terminal/") &&
+    relative !== "apps/web/src/features/terminal/terminalAtoms.ts"
+  ) {
+    return "./terminalAtoms";
+  }
+  return undefined;
+};
+
+const checkFeatureAtomBoundaries = async (
+  references: ReadonlyArray<ImportReference>
+) => {
+  const violations: Array<ArchitectureViolation> = [];
+
+  for (const modulePath of plannedFeatureAtomModules) {
+    if (!(await exists(path.join(repoRoot, modulePath)))) {
+      violations.push({
+        file: path.join(repoRoot, modulePath),
+        reason: "planned feature atom module is missing"
+      });
+    }
+  }
+
+  for (const reference of references) {
+    const expectedEntryPoint = featureStateEntryPoint(reference.file);
+    if (
+      expectedEntryPoint &&
+      reference.specifier === "@/state/atoms"
+    ) {
+      violations.push({
+        file: reference.file,
+        reason: `feature state should be imported from ${expectedEntryPoint}, not @/state/atoms`
+      });
+    }
+  }
+
+  return violations;
+};
+
 const main = async () => {
   const sourceFiles = (
     await Promise.all(workspaces.map((workspace) => readSourceFiles(workspace.src)))
@@ -194,14 +251,20 @@ const main = async () => {
   const violations = (
     await Promise.all(references.map(checkReference))
   ).filter((violation): violation is Violation => violation !== undefined);
+  const architectureViolations = await checkFeatureAtomBoundaries(references);
 
-  if (violations.length > 0) {
+  if (violations.length > 0 || architectureViolations.length > 0) {
     console.error("workspace boundary probe failed");
     for (const violation of violations) {
       console.error(
         `- ${path.relative(repoRoot, violation.file)} imports ${JSON.stringify(
           violation.specifier
         )}: ${violation.reason}`
+      );
+    }
+    for (const violation of architectureViolations) {
+      console.error(
+        `- ${path.relative(repoRoot, violation.file)}: ${violation.reason}`
       );
     }
     process.exitCode = 1;

@@ -17,7 +17,7 @@ import {
   setSelectedThreadVmId,
   threadVmsAtom,
   useAtomRef
-} from "@/state/atoms";
+} from "./threadVmAtoms";
 import { ThreadVmStateBadge } from "./ThreadVmStateBadge";
 
 interface ThreadVmCommandPaletteProps {

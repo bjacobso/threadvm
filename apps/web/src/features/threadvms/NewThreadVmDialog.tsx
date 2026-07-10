@@ -36,7 +36,7 @@ import {
   createThreadVmAtom,
   projectConfigAtom,
   useAtomRef
-} from "@/state/atoms";
+} from "./threadVmAtoms";
 
 interface NewThreadVmDialogProps {
   readonly open: boolean;

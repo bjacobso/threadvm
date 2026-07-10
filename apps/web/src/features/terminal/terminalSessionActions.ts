@@ -2,7 +2,7 @@ import type { ThreadVmModel } from "@threadvm/shared/domain";
 import {
   activeTerminalVmKey,
   terminalSessionAtomFamily
-} from "@/state/atoms";
+} from "./terminalAtoms";
 import { threadVmApi } from "@/state/apiClient";
 import { writeStored } from "@/state/storage";
 

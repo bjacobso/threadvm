@@ -9,7 +9,7 @@ import {
   clipboardNoticeAtom,
   terminalSessionAtomFamily,
   useAtomRef
-} from "@/state/atoms";
+} from "./terminalAtoms";
 import { terminalShortcutAction } from "./keyboardShortcuts";
 import { parseOsc52 } from "./osc52";
 import { TerminalToolbar } from "./TerminalToolbar";
