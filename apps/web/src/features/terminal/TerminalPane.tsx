@@ -12,6 +12,7 @@ import {
 } from "./terminalAtoms";
 import { terminalShortcutAction } from "./keyboardShortcuts";
 import { parseOsc52 } from "./osc52";
+import { focusTerminalPane } from "./terminalFocus";
 import { TerminalToolbar } from "./TerminalToolbar";
 import { terminalSessionActionAtom } from "./terminalSessionActions";
 import { terminalFontStack, xtermTheme } from "./xtermTheme";
@@ -190,6 +191,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       }
 
       fitAndSync();
+      focusTerminalPane(terminalRef.current);
       await terminalSessionActionAtom.attach({
         threadVm: selected,
         restart,
@@ -257,7 +259,11 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
         }}
       />
       <Separator />
-      <div ref={elementRef} className="terminal-surface" />
+      <div
+        ref={elementRef}
+        className="terminal-surface"
+        onPointerDownCapture={() => focusTerminalPane(terminalRef.current)}
+      />
     </section>
   );
 }

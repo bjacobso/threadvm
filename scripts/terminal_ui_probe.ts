@@ -16,6 +16,7 @@ import {
   TabsTrigger
 } from "../apps/web/src/components/ui/tabs.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
+import { focusTerminalPane } from "../apps/web/src/features/terminal/terminalFocus.js";
 import {
   nextThreadVmSelection,
   threadVmNavigationAction
@@ -292,6 +293,14 @@ clipboardNoticeAtom.set({
 assert.equal(clipboardNoticeAtom.value?.message, "Copied 5 chars");
 focusedPanelAtom.set("inspector");
 assert.equal(focusedPanelAtom.value, "inspector");
+let focusCount = 0;
+focusTerminalPane({
+  focus: () => {
+    focusCount += 1;
+  }
+});
+assert.equal(focusedPanelAtom.value, "terminal");
+assert.equal(focusCount, 1);
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");
