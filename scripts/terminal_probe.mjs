@@ -76,7 +76,13 @@ const main = async () => {
             state: "running",
             startingPrompt: "inspect terminal behavior",
             pinned: true,
-            ports: [],
+            ports: [
+              {
+                label: "dev:3000",
+                port: 3000,
+                url: "https://terminal-probe.exe.xyz:3000"
+              }
+            ],
             devLogPath: "/tmp/threadvm/terminal-probe/dev.log",
             createdAt: Date.now(),
             updatedAt: Date.now()
@@ -140,6 +146,16 @@ const main = async () => {
       threadVm.pinned !== true
     ) {
       throw new Error(`intent metadata was not preserved: ${JSON.stringify(threadVm)}`);
+    }
+
+    const ports = await apiJson(baseUrl, `/api/threadvms/${threadVm.id}/ports`);
+    if (
+      ports.threadVmId !== threadVm.id ||
+      ports.ports.length !== 1 ||
+      ports.ports[0].port !== 3000 ||
+      ports.ports[0].status !== "unknown"
+    ) {
+      throw new Error(`unexpected ports response: ${JSON.stringify(ports)}`);
     }
 
     const devLog = await apiJson(baseUrl, `/api/threadvms/${threadVm.id}/dev-log`);

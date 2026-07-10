@@ -130,6 +130,25 @@ export class ThreadVmDevLogResponse extends Schema.Class<ThreadVmDevLogResponse>
   observedAt: Schema.Number
 }) {}
 
+export class ThreadVmPortStatus extends Schema.Class<ThreadVmPortStatus>(
+  "ThreadVmPortStatus"
+)({
+  label: Schema.String,
+  port: Schema.Number,
+  url: Schema.String,
+  status: Schema.Literals(["reachable", "unreachable", "unknown"]),
+  message: Schema.optional(Schema.String),
+  observedAt: Schema.Number
+}) {}
+
+export class ThreadVmPortsResponse extends Schema.Class<ThreadVmPortsResponse>(
+  "ThreadVmPortsResponse"
+)({
+  threadVmId: Schema.String,
+  ports: Schema.Array(ThreadVmPortStatus),
+  observedAt: Schema.Number
+}) {}
+
 export class ThreadVmReconciliationEvent extends Schema.Class<ThreadVmReconciliationEvent>(
   "ThreadVmReconciliationEvent"
 )({
@@ -221,6 +240,8 @@ export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
 export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;
 export type ThreadVmLifecycleResponseModel = typeof ThreadVmLifecycleResponse.Type;
 export type ThreadVmDevLogResponseModel = typeof ThreadVmDevLogResponse.Type;
+export type ThreadVmPortStatusModel = typeof ThreadVmPortStatus.Type;
+export type ThreadVmPortsResponseModel = typeof ThreadVmPortsResponse.Type;
 export type ThreadVmReconciliationEventModel =
   typeof ThreadVmReconciliationEvent.Type;
 export type ThreadVmProvisioningEventModel = typeof ThreadVmProvisioningEvent.Type;

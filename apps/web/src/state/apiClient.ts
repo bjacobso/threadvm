@@ -6,6 +6,7 @@ import type {
   TerminalAttachResponseModel,
   ThreadVmDevLogResponseModel,
   ThreadVmLifecycleResponseModel,
+  ThreadVmPortsResponseModel,
   ThreadVmProvisioningEventModel,
   ThreadVmReconciliationEventModel,
   ThreadVmModel
@@ -80,6 +81,10 @@ export const threadVmApi = {
   readDevLog: async (threadVmId: string): Promise<ThreadVmDevLogResponseModel> =>
     await runApiEffect(
       (await clientPromise).threadvms.devLog({ params: { id: threadVmId } })
+    ),
+  checkPorts: async (threadVmId: string): Promise<ThreadVmPortsResponseModel> =>
+    await runApiEffect(
+      (await clientPromise).threadvms.ports({ params: { id: threadVmId } })
     ),
   createThreadVm: async (
     request: CreateThreadVmRequestModel

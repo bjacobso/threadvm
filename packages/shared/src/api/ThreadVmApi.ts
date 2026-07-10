@@ -16,7 +16,8 @@ import {
   TerminalAttachResponse,
   ThreadVm,
   ThreadVmDevLogResponse,
-  ThreadVmLifecycleResponse
+  ThreadVmLifecycleResponse,
+  ThreadVmPortsResponse
 } from "../domain/schema.js";
 
 const IdParams = Schema.Struct({
@@ -76,6 +77,13 @@ const ThreadVmsGroup = HttpApiGroup.make("threadvms")
     HttpApiEndpoint.get("devLog", "/threadvms/:id/dev-log", {
       params: IdParams,
       success: ThreadVmDevLogResponse,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.get("ports", "/threadvms/:id/ports", {
+      params: IdParams,
+      success: ThreadVmPortsResponse,
       error: ApiErrorResponse
     })
   )

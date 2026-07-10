@@ -9,7 +9,9 @@ import {
   ThreadVm,
   ThreadVmDevLogResponse,
   ThreadVmLifecycleResponse,
-  ThreadVmMetadata
+  ThreadVmMetadata,
+  ThreadVmPortStatus,
+  ThreadVmPortsResponse
 } from "../domain/schema.js";
 import type { CommandResult } from "./CommandService.js";
 import { ConfigError, ConfigService } from "./ConfigService.js";
@@ -63,6 +65,9 @@ export class WorkspaceService extends Context.Service<
     readonly readDevLog: (
       id: string
     ) => Effect.Effect<ThreadVmDevLogResponse, WorkspaceError>;
+    readonly checkPorts: (
+      id: string
+    ) => Effect.Effect<ThreadVmPortsResponse, WorkspaceError>;
     readonly createThreadVm: (
       request: CreateThreadVmRequest
     ) => Effect.Effect<CreateThreadVmResponse, WorkspaceError>;
@@ -776,6 +781,86 @@ export const WorkspaceServiceLive = Layer.effect(
         });
       });
 
+    const unknownPortStatuses = (threadVm: ThreadVm, message: string) => {
+      const observedAt = Date.now();
+      return new ThreadVmPortsResponse({
+        threadVmId: threadVm.id,
+        observedAt,
+        ports: threadVm.ports.map(
+          (port) =>
+            new ThreadVmPortStatus({
+              ...port,
+              status: "unknown",
+              message,
+              observedAt
+            })
+        )
+      });
+    };
+
+    const checkPorts = (id: string) =>
+      Effect.gen(function* () {
+        const threadVm = yield* getThreadVm(id);
+        const observedAt = Date.now();
+        if (threadVm.ports.length === 0) {
+          return new ThreadVmPortsResponse({
+            threadVmId: id,
+            ports: [],
+            observedAt
+          });
+        }
+
+        if (threadVm.source === "mock") {
+          return unknownPortStatuses(threadVm, "Port probes are skipped for mock VMs");
+        }
+
+        const ports = threadVm.ports.map((port) => String(port.port)).join(" ");
+        const result = yield* runRemote(
+          threadVm,
+          [
+            "set -euo pipefail",
+            `ports=${shellQuote(ports)}`,
+            "for port in $ports; do",
+            "  if timeout 1 bash -lc \"</dev/tcp/127.0.0.1/$port\" >/dev/null 2>&1; then",
+            "    printf '%s reachable\\n' \"$port\"",
+            "  else",
+            "    printf '%s unreachable\\n' \"$port\"",
+            "  fi",
+            "done"
+          ].join("\n"),
+          30_000
+        );
+
+        const statusByPort = new Map(
+          result.stdout
+            .split(/\r?\n/)
+            .map((line) => line.trim().split(/\s+/))
+            .filter(
+              (parts): parts is [string, "reachable" | "unreachable"] =>
+                parts.length >= 2 &&
+                (parts[1] === "reachable" || parts[1] === "unreachable")
+            )
+            .map(([port, status]) => [Number(port), status] as const)
+        );
+
+        return new ThreadVmPortsResponse({
+          threadVmId: id,
+          observedAt,
+          ports: threadVm.ports.map((port) => {
+            const status = statusByPort.get(port.port) ?? "unknown";
+            return new ThreadVmPortStatus({
+              ...port,
+              status,
+              message:
+                status === "unknown"
+                  ? "No probe result was returned for this port"
+                  : undefined,
+              observedAt
+            });
+          })
+        });
+      });
+
     const rememberThreadVm = (metadata: ThreadVmMetadata) =>
       store.upsertThreadVmMetadata(metadata).pipe(
         Effect.mapError(toWorkspaceError("Failed to write ThreadVM metadata"))
@@ -889,6 +974,7 @@ export const WorkspaceServiceLive = Layer.effect(
       listThreadVms,
       getThreadVm,
       readDevLog,
+      checkPorts,
       createThreadVm,
       stopThreadVm,
       removeThreadVm

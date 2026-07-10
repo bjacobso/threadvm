@@ -5,6 +5,7 @@ import type {
   ProjectModel,
   TerminalAttachResponseModel,
   ThreadVmDevLogResponseModel,
+  ThreadVmPortsResponseModel,
   ThreadVmModel
 } from "@threadvm/shared/domain";
 import { threadVmApi } from "./apiClient";
@@ -82,6 +83,13 @@ export interface DevLogState {
   readonly error: string | undefined;
 }
 
+export interface PortStatusState {
+  readonly status: "idle" | "loading" | "succeeded" | "failed";
+  readonly threadVmId: string | undefined;
+  readonly response: ThreadVmPortsResponseModel | undefined;
+  readonly error: string | undefined;
+}
+
 export const selectedVmKey = "threadvm.selectedVmId";
 export const activeTerminalVmKey = "threadvm.activeTerminalVmId";
 
@@ -135,6 +143,12 @@ export const threadVmLifecycleAtom = AtomRef.make<ThreadVmLifecycleState>({
   error: undefined
 });
 export const devLogAtom = AtomRef.make<DevLogState>({
+  status: "idle",
+  threadVmId: undefined,
+  response: undefined,
+  error: undefined
+});
+export const portStatusAtom = AtomRef.make<PortStatusState>({
   status: "idle",
   threadVmId: undefined,
   response: undefined,
@@ -742,6 +756,44 @@ export const devLogActionAtom = {
   },
   reset: () => {
     devLogAtom.set({
+      status: "idle",
+      threadVmId: undefined,
+      response: undefined,
+      error: undefined
+    });
+  }
+} as const;
+
+export const portStatusActionAtom = {
+  load: async (threadVmId: string) => {
+    portStatusAtom.set({
+      status: "loading",
+      threadVmId,
+      response: undefined,
+      error: undefined
+    });
+    try {
+      const response = await threadVmApi.checkPorts(threadVmId);
+      portStatusAtom.set({
+        status: "succeeded",
+        threadVmId,
+        response,
+        error: undefined
+      });
+      return response;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      portStatusAtom.set({
+        status: "failed",
+        threadVmId,
+        response: undefined,
+        error: message
+      });
+      throw cause;
+    }
+  },
+  reset: () => {
+    portStatusAtom.set({
       status: "idle",
       threadVmId: undefined,
       response: undefined,

@@ -13,6 +13,8 @@ import {
   createThreadVmAtom,
   devLogActionAtom,
   devLogAtom,
+  portStatusActionAtom,
+  portStatusAtom,
   provisioningStreamAtom,
   provisioningStreamStateAtom,
   selectedThreadVmAtom,
@@ -116,7 +118,13 @@ const vm: ThreadVmModel = {
   host: "probe-vm.exe.xyz",
   state: "running",
   source: "mock",
-  ports: []
+  ports: [
+    {
+      label: "dev:3000",
+      port: 3000,
+      url: "https://probe-vm.exe.xyz:3000"
+    }
+  ]
 };
 
 const attachResponse: TerminalAttachResponseModel = {
@@ -187,6 +195,22 @@ threadVmApi.readDevLog = async (threadVmId) => {
     content: "dev server ready\n",
     truncated: false,
     observedAt: 456
+  };
+};
+threadVmApi.checkPorts = async (threadVmId) => {
+  assert.equal(threadVmId, vm.id);
+  return {
+    threadVmId,
+    observedAt: 789,
+    ports: [
+      {
+        label: "dev:3000",
+        port: 3000,
+        url: "https://probe-vm.exe.xyz:3000",
+        status: "reachable",
+        observedAt: 789
+      }
+    ]
   };
 };
 threadVmApi.createThreadVm = async (request) => {
@@ -306,5 +330,10 @@ const devLog = await devLogActionAtom.load(vm.id);
 assert.equal(devLog.content, "dev server ready\n");
 assert.equal(devLogAtom.value.status, "succeeded");
 assert.equal(devLogAtom.value.response?.path, "/tmp/threadvm/vm-1/dev.log");
+
+const portStatus = await portStatusActionAtom.load(vm.id);
+assert.equal(portStatus.ports[0]?.status, "reachable");
+assert.equal(portStatusAtom.value.status, "succeeded");
+assert.equal(portStatusAtom.value.response?.observedAt, 789);
 
 console.log("terminal ui probe ok");

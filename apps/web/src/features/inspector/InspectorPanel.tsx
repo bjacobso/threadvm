@@ -7,6 +7,8 @@ import { Separator } from "@/components/ui/separator";
 import {
   devLogActionAtom,
   devLogAtom,
+  portStatusActionAtom,
+  portStatusAtom,
   provisioningStreamStateAtom,
   useAtomRef,
   useSelectedThreadVm
@@ -22,6 +24,7 @@ const formatObservedAt = (observedAt: number | undefined) =>
 export function InspectorPanel() {
   const selected = useSelectedThreadVm();
   const devLog = useAtomRef(devLogAtom);
+  const portStatus = useAtomRef(portStatusAtom);
   const provisioningStream = useAtomRef(provisioningStreamStateAtom);
   const streamMatchesSelection =
     selected !== undefined && provisioningStream.threadVmId === selected.id;
@@ -29,6 +32,10 @@ export function InspectorPanel() {
     selected !== undefined && devLog.threadVmId === selected.id;
   const loadingDevLog =
     devLog.status === "loading" && devLog.threadVmId === selected?.id;
+  const portStatusMatchesSelection =
+    selected !== undefined && portStatus.threadVmId === selected.id;
+  const loadingPortStatus =
+    portStatus.status === "loading" && portStatus.threadVmId === selected?.id;
 
   return (
     <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-l bg-sidebar text-sidebar-foreground">
@@ -73,7 +80,17 @@ export function InspectorPanel() {
                     )
                   ],
                   ["Tags", selected.tags?.length ? selected.tags.join(", ") : "none"],
-                  ["Ports", <PortLinks ports={selected.ports} />],
+                  [
+                    "Ports",
+                    <PortLinks
+                      ports={selected.ports}
+                      statuses={
+                        portStatusMatchesSelection
+                          ? portStatus.response?.ports
+                          : undefined
+                      }
+                    />
+                  ],
                   ["Metadata", selected.metadataPath ?? "unknown"],
                   ["Dev log", selected.devLogPath ?? "unknown"],
                   ["Dev pid", selected.devPidPath ?? "unknown"],
@@ -132,6 +149,42 @@ export function InspectorPanel() {
               />
               <Separator />
               <LifecycleActions threadVm={selected} />
+              <Separator />
+              <section className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-xs font-semibold">Ports</h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={selected.ports.length === 0 || loadingPortStatus}
+                    onClick={() => void portStatusActionAtom.load(selected.id)}
+                  >
+                    <RefreshCwIcon data-icon="inline-start" />
+                    {loadingPortStatus ? "Checking..." : "Check"}
+                  </Button>
+                </div>
+                {portStatusMatchesSelection && portStatus.error ? (
+                  <Alert variant="destructive">
+                    <FileTextIcon />
+                    <AlertTitle>Port check unavailable</AlertTitle>
+                    <AlertDescription className="break-words">
+                      {portStatus.error}
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {portStatusMatchesSelection && portStatus.response ? (
+                  <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+                    <span>
+                      observed {formatObservedAt(portStatus.response.observedAt)}
+                    </span>
+                    <PortLinks
+                      ports={selected.ports}
+                      statuses={portStatus.response.ports}
+                    />
+                  </div>
+                ) : null}
+              </section>
               <Separator />
               <section className="flex flex-col gap-3">
                 <div className="flex items-center justify-between gap-3">

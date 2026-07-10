@@ -81,6 +81,14 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           );
         })
       )
+      .handle("ports", ({ params: { id } }) =>
+        Effect.gen(function* () {
+          const workspaces = yield* WorkspaceService;
+          return yield* workspaces.checkPorts(id).pipe(
+            Effect.mapError(toApiError(`Failed to check ports for ${id}`))
+          );
+        })
+      )
       .handle("create", ({ payload }) =>
         Effect.gen(function* () {
           const workspaces = yield* WorkspaceService;
