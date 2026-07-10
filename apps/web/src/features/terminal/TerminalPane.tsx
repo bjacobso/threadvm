@@ -9,6 +9,7 @@ import {
   terminalUiAtom,
   useAtomRef
 } from "@/state/atoms";
+import { terminalShortcutAction } from "./keyboardShortcuts";
 import { parseOsc52 } from "./osc52";
 import { TerminalToolbar } from "./TerminalToolbar";
 import { terminalSessionActionAtom } from "./terminalSessionActions";
@@ -17,6 +18,17 @@ import { terminalFontStack, xtermTheme } from "./xtermTheme";
 interface TerminalPaneProps {
   readonly selected: ThreadVmModel | undefined;
 }
+
+const isEditableTarget = (target: EventTarget | null) => {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  return (
+    target.isContentEditable ||
+    ["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)
+  );
+};
 
 export function TerminalPane({ selected }: TerminalPaneProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
@@ -213,6 +225,30 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     autoAttachRef.current = selected.id;
     void attachTerminal(false);
   }, [attachTerminal, selected, session.status]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        !selected ||
+        sessionAtom.value.status === "connecting" ||
+        event.defaultPrevented ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      const action = terminalShortcutAction(event);
+      if (!action) {
+        return;
+      }
+
+      event.preventDefault();
+      void attachTerminal(action === "restart");
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [attachTerminal, selected, sessionAtom]);
 
   return (
     <section className="grid size-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-terminal-background">

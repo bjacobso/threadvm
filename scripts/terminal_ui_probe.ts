@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { terminalShortcutAction } from "../apps/web/src/features/terminal/keyboardShortcuts.js";
 import { parseOsc52 } from "../apps/web/src/features/terminal/osc52.js";
 import { terminalSessionActionAtom } from "../apps/web/src/features/terminal/terminalSessionActions.js";
 import {
@@ -137,6 +138,17 @@ assert.equal(parseOsc52("c;aGVsbG8="), "hello");
 assert.equal(parseOsc52("c; aG Vs bG8 "), "hello");
 assert.equal(parseOsc52("x;aGVsbG8="), undefined);
 assert.equal(parseOsc52("c;?"), undefined);
+
+assert.equal(terminalShortcutAction({ key: "Enter", metaKey: true }), "attach");
+assert.equal(
+  terminalShortcutAction({ key: "Enter", ctrlKey: true, shiftKey: true }),
+  "restart"
+);
+assert.equal(
+  terminalShortcutAction({ key: "Enter", metaKey: true, altKey: true }),
+  undefined
+);
+assert.equal(terminalShortcutAction({ key: "k", metaKey: true }), undefined);
 
 threadVmApi.attachTerminal = async (threadVmId, restart) => {
   assert.equal(threadVmId, vm.id);
