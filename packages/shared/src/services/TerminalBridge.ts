@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Queue, Stream } from "effect";
+import { Context, Effect, Layer, Queue, Scope, Stream } from "effect";
 import * as pty from "node-pty";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -266,41 +266,47 @@ export const TerminalBridgeLive = Layer.succeed(TerminalBridge, {
   stream: (sessionId) =>
     getSession(sessionId).pipe(
       Effect.map((session) =>
-        Stream.callback<Uint8Array>((emit) => {
-          const encoder = new TextEncoder();
+        Stream.callback<Uint8Array>((emit) =>
+          Effect.gen(function* () {
+            const encoder = new TextEncoder();
 
-          const sendData = (data: string) => {
-            Queue.offerUnsafe(
-              emit,
-              encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+            const sendData = (data: string) => {
+              Queue.offerUnsafe(
+                emit,
+                encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+              );
+            };
+
+            const sendExit = () => {
+              Queue.offerUnsafe(
+                emit,
+                encoder.encode(
+                  `event: exit\ndata: ${JSON.stringify({ sessionId })}\n\n`
+                )
+              );
+            };
+
+            if (session.buffer.length > 0) {
+              sendData(session.buffer);
+            }
+
+            session.listeners.add(sendData);
+            session.exitListeners.add(sendExit);
+
+            if (session.status === "exited") {
+              sendExit();
+            }
+
+            const scope = yield* Scope.Scope;
+            yield* Scope.addFinalizer(
+              scope,
+              Effect.sync(() => {
+                session.listeners.delete(sendData);
+                session.exitListeners.delete(sendExit);
+              })
             );
-          };
-
-          const sendExit = () => {
-            Queue.offerUnsafe(
-              emit,
-              encoder.encode(
-                `event: exit\ndata: ${JSON.stringify({ sessionId })}\n\n`
-              )
-            );
-          };
-
-          if (session.buffer.length > 0) {
-            sendData(session.buffer);
-          }
-
-          session.listeners.add(sendData);
-          session.exitListeners.add(sendExit);
-
-          if (session.status === "exited") {
-            sendExit();
-          }
-
-          return Effect.sync(() => {
-            session.listeners.delete(sendData);
-            session.exitListeners.delete(sendExit);
-          });
-        })
+          })
+        )
       )
     ),
 

@@ -58,6 +58,40 @@ const apiJson = async (baseUrl, path, init) => {
   return await response.json();
 };
 
+const waitForStreamText = async (baseUrl, path, expected, timeoutMs = 5_000) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const response = await fetch(`${baseUrl}${path}`, {
+    signal: controller.signal
+  });
+  if (!response.ok || !response.body) {
+    clearTimeout(timeout);
+    throw new Error(`stream failed: ${response.status} ${await response.text()}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+
+  try {
+    while (!text.includes(expected)) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+  } finally {
+    clearTimeout(timeout);
+    await reader.cancel().catch(() => {});
+  }
+
+  if (!text.includes(expected)) {
+    throw new Error(`stream did not include ${expected}: ${text}`);
+  }
+  return text;
+};
+
 const main = async () => {
   const port = await findPort();
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -176,6 +210,12 @@ const main = async () => {
       throw new Error(`unexpected first attach: ${JSON.stringify(firstAttach)}`);
     }
 
+    const streamTextPromise = waitForStreamText(
+      baseUrl,
+      firstAttach.streamUrl,
+      "probe:ping"
+    );
+
     const input = await apiJson(baseUrl, firstAttach.inputUrl, {
       method: "POST",
       body: JSON.stringify({ data: "ping\n" })
@@ -183,6 +223,7 @@ const main = async () => {
     if (input.ok !== true) {
       throw new Error(`input failed: ${JSON.stringify(input)}`);
     }
+    await streamTextPromise;
 
     const secondAttach = await apiJson(baseUrl, "/api/terminal/attach", {
       method: "POST",
