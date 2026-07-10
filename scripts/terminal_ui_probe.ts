@@ -7,6 +7,10 @@ import {
   threadVmNavigationAction
 } from "../apps/web/src/features/threadvms/threadVmNavigation.js";
 import {
+  firstPreviewUrl,
+  threadVmHostClipboardText
+} from "../apps/web/src/features/threadvms/threadVmActions.js";
+import {
   activeTerminalVmKey,
   clipboardNoticeAtom,
   createThreadVmActionAtom,
@@ -245,6 +249,8 @@ assert.equal(createResponse.threadVm.pinned, true);
 assert.equal(createThreadVmAtom.value.status, "succeeded");
 assert.equal(selectedThreadVmAtom.value?.id, "created-vm");
 assert.equal(storage.get(selectedVmKey), "created-vm");
+assert.equal(firstPreviewUrl(vm), "https://probe-vm.exe.xyz:3000");
+assert.equal(threadVmHostClipboardText(vm), "probe-vm.exe.xyz");
 
 clipboardNoticeAtom.set({
   status: "copied",

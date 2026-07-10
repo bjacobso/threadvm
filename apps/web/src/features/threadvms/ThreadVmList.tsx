@@ -1,4 +1,5 @@
 import type React from "react";
+import { toast } from "sonner";
 import {
   FolderCogIcon,
   PlusIcon,
@@ -17,6 +18,7 @@ import {
 import {
   inventoryErrorAtom,
   inventoryLoadingAtom,
+  portStatusActionAtom,
   refreshThreadVmsAtom,
   selectedThreadVmIdAtom,
   setSelectedThreadVmId,
@@ -24,6 +26,7 @@ import {
   useAtomRef
 } from "@/state/atoms";
 import { ThreadVmRow } from "./ThreadVmRow";
+import { firstPreviewUrl, threadVmHostClipboardText } from "./threadVmActions";
 import {
   nextThreadVmSelection,
   threadVmNavigationAction
@@ -44,6 +47,25 @@ export function ThreadVmList({
   const selectedId = useAtomRef(selectedThreadVmIdAtom);
   const loading = useAtomRef(inventoryLoadingAtom);
   const error = useAtomRef(inventoryErrorAtom);
+  const copyHost = async (threadVm: (typeof threadVms)[number]) => {
+    try {
+      await navigator.clipboard.writeText(threadVmHostClipboardText(threadVm));
+      toast.success(`Copied ${threadVm.host}`);
+    } catch {
+      toast.error("Host copy failed");
+    }
+  };
+  const openPreview = (threadVm: (typeof threadVms)[number]) => {
+    const previewUrl = firstPreviewUrl(threadVm);
+    if (!previewUrl) {
+      return;
+    }
+    window.open(previewUrl, "_blank", "noopener,noreferrer");
+  };
+  const checkPorts = (threadVm: (typeof threadVms)[number]) => {
+    setSelectedThreadVmId(threadVm.id);
+    void portStatusActionAtom.load(threadVm.id);
+  };
   const navigateThreadVms = (event: React.KeyboardEvent<HTMLElement>) => {
     const action = threadVmNavigationAction(event);
     if (!action) {
@@ -150,6 +172,9 @@ export function ThreadVmList({
                   threadVm={threadVm}
                   selected={threadVm.id === selectedId}
                   onSelect={() => setSelectedThreadVmId(threadVm.id)}
+                  onCheckPorts={() => checkPorts(threadVm)}
+                  onCopyHost={() => void copyHost(threadVm)}
+                  onOpenPreview={() => openPreview(threadVm)}
                 />
               ))}
         </nav>
