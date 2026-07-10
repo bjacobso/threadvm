@@ -51,11 +51,15 @@ import {
   selectedVmKey,
   threadVmsAtom
 } from "../apps/web/src/features/threadvms/threadVmAtoms.js";
-import { threadVmApi } from "../apps/web/src/state/apiClient.js";
+import {
+  apiPayloads,
+  threadVmApi
+} from "../apps/web/src/state/apiClient.js";
 import type {
+  ProjectModel,
   TerminalAttachResponseModel,
   ThreadVmModel
-} from "@threadvm/shared/domain";
+} from "../packages/shared/src/domain/schema.js";
 
 interface FetchCall {
   readonly url: string;
@@ -217,6 +221,26 @@ const attachResponse: TerminalAttachResponseModel = {
   createdAt: Date.now()
 };
 
+const project: ProjectModel = {
+  id: "onboarded",
+  repo: "git@github.com:example/onboarded.git",
+  defaultBranch: "main",
+  workdir: "/home/exedev/onboarded",
+  bootstrap: [],
+  dev: {
+    command: "pnpm dev",
+    ports: [3000]
+  },
+  herdr: {
+    install: "manual",
+    sessionPrefix: "onboarded"
+  },
+  agents: {
+    default: "codex",
+    panes: []
+  }
+};
+
 const viewOutput: Array<string> = [];
 const view = {
   reset: () => {
@@ -248,6 +272,21 @@ assert.equal(typeof SheetHeader, "function");
 assert.equal(typeof SheetTitle, "function");
 assert.equal(typeof SheetDescription, "function");
 assert.equal(typeof Separator, "function");
+const projectPayload = apiPayloads.project(project);
+const createPayload = apiPayloads.createThreadVmRequest({
+  project: "onboarded",
+  summary: "investigate callback",
+  startingPrompt: "check auth logs",
+  pinned: true
+});
+const attachPayload = apiPayloads.terminalAttachRequest(vm.id, false);
+assert.notEqual(Object.getPrototypeOf(projectPayload), Object.prototype);
+assert.notEqual(Object.getPrototypeOf(createPayload), Object.prototype);
+assert.notEqual(Object.getPrototypeOf(attachPayload), Object.prototype);
+assert.equal(projectPayload.id, "onboarded");
+assert.equal(createPayload.project, "onboarded");
+assert.equal(attachPayload.threadVmId, vm.id);
+assert.equal(attachPayload.restart, false);
 
 assert.equal(terminalShortcutAction({ key: "Enter", metaKey: true }), "attach");
 assert.equal(

@@ -13,6 +13,9 @@ import type {
 } from "@threadvm/shared/domain";
 import { ThreadVmApi } from "@threadvm/shared/api";
 import {
+  CreateThreadVmRequest,
+  Project,
+  TerminalAttachRequest,
   ThreadVmProvisioningEvent,
   ThreadVmReconciliationEvent
 } from "@threadvm/shared/domain";
@@ -58,6 +61,17 @@ const runApiEffect = async <A>(
   }
 };
 
+export const apiPayloads = {
+  project: (project: ProjectModel): Project => new Project(project),
+  createThreadVmRequest: (
+    request: CreateThreadVmRequestModel
+  ): CreateThreadVmRequest => new CreateThreadVmRequest(request),
+  terminalAttachRequest: (
+    threadVmId: string,
+    restart = false
+  ): TerminalAttachRequest => new TerminalAttachRequest({ threadVmId, restart })
+};
+
 export const threadVmApi = {
   listProjects: async (): Promise<ReadonlyArray<ProjectModel>> =>
     await runApiEffect((await clientPromise).projects.list()),
@@ -67,7 +81,7 @@ export const threadVmApi = {
     await runApiEffect(
       (await clientPromise).projects.save({
         params: { id: project.id },
-        payload: project
+        payload: apiPayloads.project(project)
       })
     ),
   removeProject: async (
@@ -90,7 +104,9 @@ export const threadVmApi = {
     request: CreateThreadVmRequestModel
   ): Promise<CreateThreadVmResponseModel> =>
     await runApiEffect(
-      (await clientPromise).threadvms.create({ payload: request })
+      (await clientPromise).threadvms.create({
+        payload: apiPayloads.createThreadVmRequest(request)
+      })
     ),
   stopThreadVm: async (
     threadVmId: string
@@ -118,7 +134,7 @@ export const threadVmApi = {
   ): Promise<TerminalAttachResponseModel> =>
     await runApiEffect(
       (await clientPromise).terminal.attach({
-        payload: { threadVmId, restart }
+        payload: apiPayloads.terminalAttachRequest(threadVmId, restart)
       })
     )
 };
