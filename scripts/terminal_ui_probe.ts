@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { terminalShortcutAction } from "../apps/web/src/features/terminal/keyboardShortcuts.js";
 import { parseOsc52 } from "../apps/web/src/features/terminal/osc52.js";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from "../apps/web/src/components/ui/sheet.js";
+import {
   Tabs,
   TabsContent,
   TabsList,
@@ -175,6 +182,11 @@ assert.equal(typeof Tabs, "function");
 assert.equal(typeof TabsList, "function");
 assert.equal(typeof TabsTrigger, "function");
 assert.equal(typeof TabsContent, "function");
+assert.equal(typeof Sheet, "function");
+assert.equal(typeof SheetContent, "function");
+assert.equal(typeof SheetHeader, "function");
+assert.equal(typeof SheetTitle, "function");
+assert.equal(typeof SheetDescription, "function");
 
 assert.equal(terminalShortcutAction({ key: "Enter", metaKey: true }), "attach");
 assert.equal(

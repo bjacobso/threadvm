@@ -281,7 +281,7 @@ Implemented:
 - Background SSH provisioning after create/clone: repo clone/fetch, branch checkout, configured bootstrap commands, VM-side metadata write, dev command startup, configured port probing before `ready`, durable step-level progress, and command output excerpts.
 - Typed `GET /api/threadvms/:id/ports` port checks with inspector status badges beside preview links.
 - Per-VM row action menu for copying hosts, opening previews, and checking ports.
-- Tabbed shadcn inspector panes for overview metadata, port checks, and provisioning/dev logs.
+- Tabbed shadcn inspector panes for overview metadata, port checks, and provisioning/dev logs, with a sheet-backed compact inspector path for narrow viewports.
 - VM-side metadata recovery from configured project workdirs, with recovered metadata written back into the local cache.
 - Per-VM provisioning SSE stream at `/rpc/threadvms/:id/provisioning`.
 - Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.

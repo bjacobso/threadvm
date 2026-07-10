@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
+import { PanelRightOpenIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup
 } from "@/components/ui/resizable";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle
+} from "@/components/ui/sheet";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InspectorPanel } from "@/features/inspector/InspectorPanel";
 import { ProjectRegistryDialog } from "@/features/projects/ProjectRegistryDialog";
@@ -37,6 +46,7 @@ export function App() {
   const [commandOpen, setCommandOpen] = useState(false);
   const [newThreadVmOpen, setNewThreadVmOpen] = useState(false);
   const [projectRegistryOpen, setProjectRegistryOpen] = useState(false);
+  const [inspectorSheetOpen, setInspectorSheetOpen] = useState(false);
   const markFocusedPanel = (panel: FocusedPanel) => {
     focusedPanelAtom.set(panel);
   };
@@ -70,7 +80,7 @@ export function App() {
 
   return (
     <TooltipProvider>
-      <main className="h-svh min-h-0 bg-background text-foreground">
+      <main className="relative h-svh min-h-0 bg-background text-foreground">
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           <ResizablePanel defaultSize="18%" minSize="14%" maxSize="28%">
             <div
@@ -106,7 +116,31 @@ export function App() {
             </div>
           </ResizablePanel>
         </ResizablePanelGroup>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          className="absolute top-3 right-3 xl:hidden"
+          onClick={() => {
+            markFocusedPanel("inspector");
+            setInspectorSheetOpen(true);
+          }}
+          aria-label="Open inspector"
+        >
+          <PanelRightOpenIcon />
+        </Button>
       </main>
+      <Sheet open={inspectorSheetOpen} onOpenChange={setInspectorSheetOpen}>
+        <SheetContent side="right" className="w-[min(92vw,420px)] p-0">
+          <SheetHeader className="sr-only">
+            <SheetTitle>Inspector</SheetTitle>
+            <SheetDescription>
+              ThreadVM metadata, port checks, actions, and logs.
+            </SheetDescription>
+          </SheetHeader>
+          <InspectorPanel />
+        </SheetContent>
+      </Sheet>
       <ThreadVmCommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
       <NewThreadVmDialog
         open={newThreadVmOpen}
