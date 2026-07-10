@@ -9,10 +9,12 @@
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
-    "probe:terminal": "pnpm build && node scripts/terminal_probe.mjs",
+    "probe:terminal": "pnpm build && node scripts/terminal_probe.mjs && pnpm probe:terminal-ui",
+    "probe:terminal-ui": "pnpm exec tsx --tsconfig apps/web/tsconfig.json scripts/terminal_ui_probe.ts",
     "start": "pnpm --filter @threadvm/server start"
   },
   "devDependencies": {
+    "tsx": "^4.23.0",
     "turbo": "^2.10.4",
     "typescript": "^7.0.2"
   }
