@@ -17,6 +17,7 @@ import {
   createThreadVmAtom,
   devLogActionAtom,
   devLogAtom,
+  focusedPanelAtom,
   portStatusActionAtom,
   portStatusAtom,
   provisioningStreamAtom,
@@ -257,6 +258,8 @@ clipboardNoticeAtom.set({
   message: "Copied 5 chars"
 });
 assert.equal(clipboardNoticeAtom.value?.message, "Copied 5 chars");
+focusedPanelAtom.set("inspector");
+assert.equal(focusedPanelAtom.value, "inspector");
 
 await terminalSessionActionAtom.attach({ threadVm: vm, view });
 assert.equal(terminalSessionAtomFamily(vm.id).value.status, "attached");

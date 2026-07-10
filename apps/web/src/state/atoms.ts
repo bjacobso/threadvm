@@ -122,6 +122,7 @@ export const terminalUiAtom = AtomRef.make<TerminalUiState>({
   focusedPanel: "terminal"
 });
 export const clipboardNoticeAtom = terminalUiAtom.prop("clipboardNotice");
+export const focusedPanelAtom = terminalUiAtom.prop("focusedPanel");
 export const createThreadVmAtom = AtomRef.make<CreateThreadVmState>({
   status: "idle",
   message: undefined,
