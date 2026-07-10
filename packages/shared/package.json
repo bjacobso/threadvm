@@ -1,0 +1,61 @@
+{
+  "name": "@threadvm/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./api": {
+      "development": "./src/api/ThreadVmApi.ts",
+      "types": "./dist/api/ThreadVmApi.d.ts",
+      "import": "./dist/api/ThreadVmApi.js"
+    },
+    "./api/handlers": {
+      "development": "./src/api/handlers.ts",
+      "types": "./dist/api/handlers.d.ts",
+      "import": "./dist/api/handlers.js"
+    },
+    "./domain": {
+      "development": "./src/domain/schema.ts",
+      "types": "./dist/domain/schema.d.ts",
+      "import": "./dist/domain/schema.js"
+    },
+    "./services/CommandService": {
+      "development": "./src/services/CommandService.ts",
+      "types": "./dist/services/CommandService.d.ts",
+      "import": "./dist/services/CommandService.js"
+    },
+    "./services/ConfigService": {
+      "development": "./src/services/ConfigService.ts",
+      "types": "./dist/services/ConfigService.d.ts",
+      "import": "./dist/services/ConfigService.js"
+    },
+    "./services/ExeDevService": {
+      "development": "./src/services/ExeDevService.ts",
+      "types": "./dist/services/ExeDevService.d.ts",
+      "import": "./dist/services/ExeDevService.js"
+    },
+    "./services/TerminalBridge": {
+      "development": "./src/services/TerminalBridge.ts",
+      "types": "./dist/services/TerminalBridge.d.ts",
+      "import": "./dist/services/TerminalBridge.js"
+    },
+    "./services/WorkspaceService": {
+      "development": "./src/services/WorkspaceService.ts",
+      "types": "./dist/services/WorkspaceService.d.ts",
+      "import": "./dist/services/WorkspaceService.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "effect": "^4.0.0-beta.94",
+    "node-pty": "^1.1.0",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1"
+  }
+}

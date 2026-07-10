@@ -1,6 +1,10 @@
 node_modules/
+.turbo/
 dist/
 dist-client/
+apps/*/dist/
+apps/*/dist-client/
+packages/*/dist/
 .threadvm/
 .DS_Store
 *.log

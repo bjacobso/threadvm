@@ -3,35 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "threadvm": "./dist/cli/main.js"
-  },
+  "packageManager": "pnpm@10.20.0",
   "scripts": {
-    "dev": "concurrently -n server,client -c cyan,green \"tsx watch src/app/server/main.ts\" \"vite --host 127.0.0.1\"",
-    "server:dev": "tsx watch src/app/server/main.ts",
-    "client:dev": "vite --host 127.0.0.1",
-    "build": "tsc -p tsconfig.server.json && vite build",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
-    "start": "node dist/app/server/main.js"
-  },
-  "dependencies": {
-    "@effect/platform-node": "^4.0.0-beta.94",
-    "@xterm/addon-fit": "^0.11.0",
-    "@xterm/xterm": "^6.0.0",
-    "effect": "^4.0.0-beta.94",
-    "node-pty": "^1.1.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "yaml": "^2.8.2"
+    "dev": "turbo dev --parallel",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck",
+    "lint": "turbo lint",
+    "start": "pnpm --filter @threadvm/server start"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.7",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
-    "concurrently": "^10.0.3",
-    "tsx": "^4.23.0",
-    "typescript": "^7.0.2",
-    "vite": "^8.1.4"
+    "turbo": "^2.10.4",
+    "typescript": "^7.0.2"
   }
 }
