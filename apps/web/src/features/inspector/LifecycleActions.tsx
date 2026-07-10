@@ -59,12 +59,13 @@ export function LifecycleActions({ threadVm }: LifecycleActionsProps) {
   };
 
   return (
-    <section className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
+    <section className="flex flex-col gap-2 pt-2">
+      <div className="flex items-center gap-1">
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
+          className="h-7 rounded-none px-2 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
           disabled={stopDisabled}
           onClick={() => void stopThreadVm()}
         >
@@ -76,8 +77,9 @@ export function LifecycleActions({ threadVm }: LifecycleActionsProps) {
           <AlertDialogTrigger asChild>
             <Button
               type="button"
-              variant="destructive"
+              variant="ghost"
               size="sm"
+              className="h-7 rounded-none px-2 text-[11px] text-destructive hover:bg-destructive/10"
               disabled={pendingForThisVm}
             >
               <Trash2Icon data-icon="inline-start" />

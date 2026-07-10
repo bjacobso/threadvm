@@ -4,7 +4,8 @@ import {
   FolderCogIcon,
   PlusIcon,
   RefreshCwIcon,
-  SearchIcon
+  SearchIcon,
+  ServerIcon
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -86,21 +87,21 @@ export function ThreadVmList({
   };
 
   return (
-    <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-      <header className="flex items-start justify-between gap-3 border-b px-4 py-4">
+    <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-r border-workbench-border bg-workbench-background text-workbench-foreground">
+      <header className="flex h-9 items-center justify-between gap-2 border-b border-workbench-border bg-workbench-tab px-3">
         <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold">ThreadVM</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            exe.dev reflected workspaces
-          </p>
+          <h1 className="truncate text-xs font-semibold uppercase tracking-normal text-workbench-muted">
+            Explorer
+          </h1>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
-                size="icon-sm"
+                variant="ghost"
+                size="icon-xs"
+                className="rounded-none text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
                 onClick={onOpenNewThreadVm}
                 aria-label="Create ThreadVM"
               >
@@ -113,8 +114,9 @@ export function ThreadVmList({
             <TooltipTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
-                size="icon-sm"
+                variant="ghost"
+                size="icon-xs"
+                className="rounded-none text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
                 onClick={onOpenProjectRegistry}
                 aria-label="Open project registry"
               >
@@ -127,8 +129,9 @@ export function ThreadVmList({
             <TooltipTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
-                size="icon-sm"
+                variant="ghost"
+                size="icon-xs"
+                className="rounded-none text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
                 onClick={onOpenQuickSwitch}
                 aria-label="Open ThreadVM switcher"
               >
@@ -139,16 +142,23 @@ export function ThreadVmList({
           </Tooltip>
           <Button
             type="button"
-            variant="outline"
-            size="sm"
+            variant="ghost"
+            size="icon-xs"
+            className="rounded-none text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
             disabled={loading}
             onClick={() => void refreshThreadVmsAtom.run()}
+            aria-label="Refresh ThreadVMs"
           >
-            <RefreshCwIcon data-icon="inline-start" />
-            Refresh
+            <RefreshCwIcon />
           </Button>
         </div>
       </header>
+
+      <div className="flex h-8 items-center gap-2 border-b border-workbench-border px-3 text-[11px] uppercase text-workbench-muted">
+        <ServerIcon className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className="truncate font-semibold">Harness</span>
+        <span className="ml-auto text-[10px]">{threadVms.length}</span>
+      </div>
 
       {error ? (
         <Alert variant="destructive" className="m-3">
@@ -159,12 +169,12 @@ export function ThreadVmList({
 
       <ScrollArea className="min-h-0 flex-1">
         <nav
-          className="flex flex-col gap-1.5 p-2"
+          className="flex flex-col py-1"
           onKeyDown={navigateThreadVms}
         >
           {loading && threadVms.length === 0
             ? Array.from({ length: 7 }).map((_, index) => (
-                <Skeleton key={index} className="h-14 rounded-md" />
+                <Skeleton key={index} className="mx-2 my-1 h-7 rounded-sm" />
               ))
             : threadVms.map((threadVm) => (
                 <ThreadVmRow

@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { ClipboardCopyIcon, RotateCcwIcon, UnplugIcon } from "lucide-react";
+import type { ComponentProps, ReactNode } from "react";
+import {
+  ChevronRightIcon,
+  CircleIcon,
+  ClockIcon,
+  ClipboardCopyIcon,
+  GitBranchIcon,
+  ServerIcon,
+  RotateCcwIcon,
+  TerminalIcon,
+  UnplugIcon
+} from "lucide-react";
 import type { ThreadVmModel } from "@threadvm/shared/domain";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import type { ClipboardNotice, TerminalSessionState } from "./terminalAtoms";
 
 interface TerminalToolbarProps {
@@ -36,6 +47,62 @@ const formatSessionAge = (createdAt: number, now: number) => {
   return "<1m";
 };
 
+const sessionStatusClass: Record<TerminalSessionState["status"], string> = {
+  detached: "text-muted-foreground",
+  connecting: "text-status-blocked",
+  attached: "text-status-attached",
+  disconnected: "text-status-failed",
+  exited: "text-muted-foreground"
+};
+
+const vmStateClass: Record<ThreadVmModel["state"], string> = {
+  discovering: "text-status-blocked",
+  creating: "text-status-blocked",
+  bootstrapping: "text-status-blocked",
+  ready: "text-status-running",
+  running: "text-status-running",
+  blocked: "text-status-blocked",
+  stopped: "text-muted-foreground",
+  failed: "text-status-failed",
+  destroying: "text-status-failed",
+  unknown: "text-muted-foreground"
+};
+
+const BreadcrumbItem = ({
+  icon: Icon,
+  children,
+  value
+}: {
+  readonly icon?: typeof GitBranchIcon;
+  readonly children?: ReactNode;
+  readonly value: string | undefined;
+}) =>
+  value ? (
+    <span className="flex min-w-0 items-center gap-1.5">
+      {Icon ? <Icon className="size-3 shrink-0" aria-hidden="true" /> : null}
+      <span className="truncate">{children ?? value}</span>
+    </span>
+  ) : null;
+
+const WorkbenchButton = ({
+  children,
+  className,
+  ...props
+}: ComponentProps<typeof Button>) => (
+  <Button
+    type="button"
+    variant="ghost"
+    size="sm"
+    className={cn(
+      "h-7 rounded-none px-2 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </Button>
+);
+
 export function TerminalToolbar({
   selected,
   session,
@@ -49,6 +116,7 @@ export function TerminalToolbar({
       ? "Reconnect"
       : "Attach Terminal";
   const pendingClipboard = clipboardNotice?.status === "pending";
+  const selectedState = selected?.state ?? "unknown";
   const sessionAge = useMemo(
     () =>
       session.attach
@@ -67,67 +135,115 @@ export function TerminalToolbar({
   }, [session.attach]);
 
   return (
-    <div className="flex h-14 items-center justify-between gap-3 bg-background px-3">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <strong className="truncate text-sm">
-            {selected?.name ?? "No ThreadVM selected"}
-          </strong>
-          <Badge variant="secondary" className="capitalize">
-            {session.status}
-          </Badge>
-          {session.attach ? (
-            <Badge variant="outline">
-              {session.attach.reused ? "reused" : "new"} session
-            </Badge>
-          ) : null}
-          {sessionAge ? <Badge variant="outline">{sessionAge}</Badge> : null}
+    <header className="flex min-h-0 flex-col border-b border-workbench-border bg-workbench-background text-workbench-foreground">
+      <div className="flex h-9 min-w-0 items-center border-b border-workbench-border">
+        <div className="flex h-full max-w-[min(52vw,460px)] min-w-0 items-center gap-2 border-r border-t-2 border-workbench-border border-t-workbench-accent bg-workbench-tab px-3 text-xs">
+          <TerminalIcon className="size-3.5 shrink-0 text-workbench-icon" />
+          <span className="truncate font-medium">
+            {selected?.name ?? "terminal"}
+          </span>
+          <CircleIcon
+            className={cn(
+              "size-2 shrink-0 fill-current",
+              sessionStatusClass[session.status]
+            )}
+            aria-hidden="true"
+          />
         </div>
-      </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        {pendingClipboard ? (
+        <div className="min-w-0 flex-1" />
+
+        <div className="flex h-full shrink-0 items-center">
+          {pendingClipboard ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <WorkbenchButton onClick={onCopyPendingClipboard}>
+                  <ClipboardCopyIcon data-icon="inline-start" />
+                  Copy
+                </WorkbenchButton>
+              </TooltipTrigger>
+              <TooltipContent>Copy terminal clipboard payload</TooltipContent>
+            </Tooltip>
+          ) : null}
+          <WorkbenchButton
+            disabled={!selected || session.status === "connecting"}
+            onClick={() => onAttach(false)}
+            className="text-workbench-foreground"
+          >
+            <UnplugIcon data-icon="inline-start" />
+            {primaryLabel}
+          </WorkbenchButton>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 type="button"
-                variant="outline"
-                size="sm"
-                onClick={onCopyPendingClipboard}
+                variant="ghost"
+                size="icon-sm"
+                className="h-7 rounded-none text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
+                disabled={!selected || session.status === "connecting"}
+                onClick={() => onAttach(true)}
+                aria-label="Restart terminal session"
               >
-                <ClipboardCopyIcon data-icon="inline-start" />
-                Copy
+                <RotateCcwIcon />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Copy terminal clipboard payload</TooltipContent>
+            <TooltipContent>Restart terminal session</TooltipContent>
           </Tooltip>
-        ) : null}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={!selected || session.status === "connecting"}
-          onClick={() => onAttach(false)}
-        >
-          <UnplugIcon data-icon="inline-start" />
-          {primaryLabel}
-        </Button>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-sm"
-              disabled={!selected || session.status === "connecting"}
-              onClick={() => onAttach(true)}
-              aria-label="Restart terminal session"
-            >
-              <RotateCcwIcon />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Restart terminal session</TooltipContent>
-        </Tooltip>
+        </div>
       </div>
-    </div>
+
+      <div className="flex h-7 min-w-0 items-center justify-between gap-3 bg-workbench-tab px-3 text-[11px] text-workbench-muted">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <BreadcrumbItem value="ThreadVM">ThreadVM</BreadcrumbItem>
+          <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />
+          <BreadcrumbItem value={selected?.project}> 
+            {selected?.project}
+          </BreadcrumbItem>
+          {selected?.project ? (
+            <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />
+          ) : null}
+          <BreadcrumbItem value={selected?.name}>
+            <span className="text-workbench-foreground">
+              {selected?.name ?? "terminal"}
+            </span>
+          </BreadcrumbItem>
+          {selected?.branch ? (
+            <>
+              <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />
+              <BreadcrumbItem icon={GitBranchIcon} value={selected.branch} />
+            </>
+          ) : null}
+        </div>
+        <div className="hidden min-w-0 shrink-0 items-center gap-3 sm:flex">
+          <span className="flex items-center gap-1.5 capitalize">
+            <CircleIcon
+              className={cn("size-2 fill-current", vmStateClass[selectedState])}
+              aria-hidden="true"
+            />
+            {selected?.state ?? "unknown"}
+          </span>
+          <span className={cn("capitalize", sessionStatusClass[session.status])}>
+            {session.status}
+          </span>
+          {sessionAge ? (
+            <span className="flex items-center gap-1.5">
+              <ClockIcon className="size-3" aria-hidden="true" />
+              {sessionAge}
+            </span>
+          ) : null}
+          {selected?.host ? (
+            <span className="flex max-w-56 items-center gap-1.5 truncate">
+              <ServerIcon className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{selected.host}</span>
+            </span>
+          ) : null}
+          {selected?.ports.length ? (
+            <span>
+              {selected.ports.length} port{selected.ports.length === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </header>
   );
 }

@@ -1,9 +1,15 @@
-import { FileTextIcon, RefreshCwIcon } from "lucide-react";
+import type React from "react";
+import {
+  CircleIcon,
+  FileTextIcon,
+  GitBranchIcon,
+  RefreshCwIcon,
+  ServerIcon
+} from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Tabs,
   TabsContent,
@@ -27,6 +33,19 @@ import { PortLinks } from "./PortLinks";
 const formatObservedAt = (observedAt: number | undefined) =>
   observedAt === undefined ? "pending" : new Date(observedAt).toLocaleTimeString();
 
+const SectionHeader = ({
+  title,
+  children
+}: {
+  readonly title: string;
+  readonly children?: React.ReactNode;
+}) => (
+  <div className="flex h-7 items-center justify-between gap-2 border-b border-workbench-border text-[11px] uppercase text-workbench-muted">
+    <span className="font-semibold">{title}</span>
+    {children ? <div className="flex items-center gap-1">{children}</div> : null}
+  </div>
+);
+
 export function InspectorPanel() {
   const selected = useSelectedThreadVm();
   const devLog = useAtomRef(devLogAtom);
@@ -44,18 +63,44 @@ export function InspectorPanel() {
     portStatus.status === "loading" && portStatus.threadVmId === selected?.id;
 
   return (
-    <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-l bg-sidebar text-sidebar-foreground">
-      <header className="px-4 py-4">
-        <h2 className="text-sm font-semibold">Inspector</h2>
+    <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-l border-workbench-border bg-workbench-background text-workbench-foreground">
+      <header className="flex h-9 items-center justify-between border-b border-workbench-border bg-workbench-tab px-3">
+        <h2 className="truncate text-xs font-semibold uppercase tracking-normal text-workbench-muted">
+          Inspector
+        </h2>
       </header>
-      <Separator />
+      <div className="flex h-10 min-w-0 items-center gap-2 border-b border-workbench-border px-3">
+        {selected ? (
+          <>
+            <CircleIcon
+              className="size-2.5 shrink-0 fill-current text-status-running"
+              aria-hidden="true"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-medium">{selected.name}</div>
+              <div className="flex min-w-0 items-center gap-2 text-[10px] text-workbench-muted">
+                <ServerIcon className="size-3 shrink-0" aria-hidden="true" />
+                <span className="truncate">{selected.host}</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <span className="text-xs text-workbench-muted">No ThreadVM selected</span>
+        )}
+      </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-3 p-3">
           {selected ? (
             <>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 text-[11px]">
                 <ThreadVmStateBadge state={selected.state} />
-                <Badge variant="outline">{selected.source}</Badge>
+                <span className="text-workbench-muted">{selected.source}</span>
+                {selected.branch ? (
+                  <span className="flex min-w-0 items-center gap-1.5 text-workbench-muted">
+                    <GitBranchIcon className="size-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{selected.branch}</span>
+                  </span>
+                ) : null}
                 {streamMatchesSelection ? (
                   <Badge
                     variant={
@@ -75,7 +120,9 @@ export function InspectorPanel() {
                   <TabsTrigger value="logs">Logs</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="overview" className="flex flex-col gap-4">
+                <TabsContent value="overview" className="flex flex-col gap-3">
+                  <section>
+                    <SectionHeader title="Properties" />
                   <MetadataTable
                     rows={[
                       ["Host", selected.host],
@@ -108,24 +155,28 @@ export function InspectorPanel() {
                       ]
                     ]}
                   />
-                  <Separator />
+                  </section>
+                  <section className="flex flex-col gap-2">
+                    <SectionHeader title="Lifecycle" />
                   <LifecycleActions threadVm={selected} />
+                  </section>
                 </TabsContent>
 
                 <TabsContent value="ports" className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-xs font-semibold">Ports</h3>
+                  <section className="flex flex-col gap-2">
+                    <SectionHeader title="Ports">
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
+                      className="h-6 rounded-none px-1.5 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
                       disabled={selected.ports.length === 0 || loadingPortStatus}
                       onClick={() => void portStatusActionAtom.load(selected.id)}
                     >
                       <RefreshCwIcon data-icon="inline-start" />
                       {loadingPortStatus ? "Checking..." : "Check"}
                     </Button>
-                  </div>
+                    </SectionHeader>
                   <PortLinks
                     ports={selected.ports}
                     statuses={
@@ -148,9 +199,12 @@ export function InspectorPanel() {
                       observed {formatObservedAt(portStatus.response.observedAt)}
                     </span>
                   ) : null}
+                  </section>
                 </TabsContent>
 
-                <TabsContent value="logs" className="flex flex-col gap-4">
+                <TabsContent value="logs" className="flex flex-col gap-3">
+                  <section>
+                    <SectionHeader title="Provisioning" />
                   <MetadataTable
                     rows={[
                       [
@@ -202,21 +256,21 @@ export function InspectorPanel() {
                       ]
                     ]}
                   />
-                  <Separator />
+                  </section>
                   <section className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <h3 className="text-xs font-semibold">Dev Log</h3>
+                    <SectionHeader title="Dev Log">
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
+                        className="h-6 rounded-none px-1.5 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
                         disabled={!selected.devLogPath || loadingDevLog}
                         onClick={() => void devLogActionAtom.load(selected.id)}
                       >
                         <RefreshCwIcon data-icon="inline-start" />
                         {loadingDevLog ? "Loading..." : "Refresh"}
                       </Button>
-                    </div>
+                    </SectionHeader>
                     {devLogMatchesSelection && devLog.error ? (
                       <Alert variant="destructive">
                         <FileTextIcon />

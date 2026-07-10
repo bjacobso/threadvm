@@ -2,16 +2,16 @@ import type {
   ThreadVmModel,
   ThreadVmPortStatusModel
 } from "@threadvm/shared/domain";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
-const statusVariant = (status: ThreadVmPortStatusModel["status"]) => {
+const statusClass = (status: ThreadVmPortStatusModel["status"]) => {
   switch (status) {
     case "reachable":
-      return "secondary";
+      return "text-status-running";
     case "unreachable":
-      return "destructive";
+      return "text-status-failed";
     case "unknown":
-      return "outline";
+      return "text-muted-foreground";
   }
 };
 
@@ -23,27 +23,36 @@ export function PortLinks({
   readonly statuses?: ReadonlyArray<ThreadVmPortStatusModel>;
 }) {
   if (ports.length === 0) {
-    return <span className="text-muted-foreground">none</span>;
+    return <span className="text-[11px] text-workbench-muted">none</span>;
   }
 
   const statusByPort = new Map(statuses?.map((status) => [status.port, status]));
 
   return (
-    <span className="flex flex-col gap-1">
+    <span className="flex flex-col">
       {ports.map((port) => {
         const status = statusByPort.get(port.port);
         return (
-          <span key={`${port.label}-${port.port}`} className="flex flex-wrap gap-2">
+          <span
+            key={`${port.label}-${port.port}`}
+            className="flex min-h-7 items-center gap-2 border-b border-workbench-border/70 text-[11px]"
+          >
             <a
               href={port.url}
-              className="truncate text-foreground underline-offset-4 hover:underline"
+              className="min-w-0 truncate text-workbench-foreground underline-offset-4 hover:underline"
             >
               {port.label}:{port.port}
             </a>
             {status ? (
-              <Badge variant={statusVariant(status.status)}>
+              <span
+                className={cn(
+                  "ml-auto flex items-center gap-1.5 text-[10px] uppercase",
+                  statusClass(status.status)
+                )}
+              >
+                <span className="size-1.5 rounded-full bg-current" />
                 {status.status}
-              </Badge>
+              </span>
             ) : null}
           </span>
         );

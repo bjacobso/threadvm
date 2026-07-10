@@ -1,29 +1,33 @@
 import type { ThreadVmModel } from "@threadvm/shared/domain";
-import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
-const stateVariant = (
-  state: ThreadVmModel["state"]
-): "default" | "secondary" | "destructive" | "outline" => {
+const stateClass = (state: ThreadVmModel["state"]) => {
   switch (state) {
     case "running":
     case "ready":
-      return "default";
+      return "text-status-running";
     case "blocked":
-    case "failed":
-      return "destructive";
-    case "stopped":
     case "destroying":
-      return "outline";
+    case "failed":
+      return "text-status-failed";
+    case "stopped":
+    case "unknown":
+      return "text-muted-foreground";
     default:
-      return "secondary";
+      return "text-status-blocked";
   }
 };
 
 export function ThreadVmStateBadge({ state }: { readonly state: ThreadVmModel["state"] }) {
   return (
-    <Badge variant={stateVariant(state)} className="text-[0.68rem] capitalize">
+    <span
+      className={cn(
+        "inline-flex min-w-0 items-center gap-1.5 text-[10px] uppercase tracking-normal",
+        stateClass(state)
+      )}
+    >
+      <span className="size-1.5 shrink-0 rounded-full bg-current" />
       {state}
-    </Badge>
+    </span>
   );
 }
-

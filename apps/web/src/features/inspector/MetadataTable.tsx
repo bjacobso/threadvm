@@ -15,11 +15,13 @@ export function MetadataTable({
     <Table>
       <TableBody>
         {rows.map(([label, value]) => (
-          <TableRow key={label} className="border-border/60">
-            <TableCell className="w-24 py-2 align-top text-xs text-muted-foreground">
+          <TableRow key={label} className="border-workbench-border/70">
+            <TableCell className="w-24 py-1.5 align-top text-[11px] text-workbench-muted">
               {label}
             </TableCell>
-            <TableCell className="break-words py-2 text-xs">{value}</TableCell>
+            <TableCell className="break-words py-1.5 text-[11px] text-workbench-foreground">
+              {value}
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>
