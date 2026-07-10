@@ -4,7 +4,7 @@ ThreadVM is a local web app for spinning up one isolated development VM per codi
 
 Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want persistent panes or agent sessions.
 
-Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, built React UI, and browser terminal bridge are implemented. Workspace creation currently requests the VM create/clone operation; full repo bootstrap and dev-server automation are next.
+Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, and browser terminal bridge are implemented. Workspace creation currently requests the VM create/clone operation; full repo bootstrap and dev-server automation are next.
 
 ## What It Does
 
@@ -63,13 +63,13 @@ Clicking an existing `ThreadVM` should attach to the VM shell without rebuilding
 Install dependencies:
 
 ```sh
-npm install
+pnpm install
 ```
 
-Run the development server:
+Run the web app and local API server:
 
 ```sh
-npm run dev
+pnpm dev
 ```
 
 The Vite client runs at:
@@ -87,8 +87,8 @@ http://127.0.0.1:3333
 Build and run the production bundle:
 
 ```sh
-npm run build
-npm start
+pnpm build
+pnpm start
 ```
 
 The production server serves the built UI and API from:
@@ -100,7 +100,7 @@ http://127.0.0.1:3333
 Useful checks:
 
 ```sh
-npm run typecheck
+pnpm typecheck
 curl http://127.0.0.1:3333/api/threadvms
 curl http://127.0.0.1:3333/docs/openapi.json
 ```
@@ -119,6 +119,15 @@ Local ThreadVM server
   | Effect services
   v
 exe.dev + SSH + remote VM shell
+```
+
+The codebase is a small pnpm/Turborepo workspace:
+
+```text
+apps/web        Vite + React + shadcn/Tailwind UI
+apps/server     local Effect Platform server
+apps/cli        CLI entrypoint for launching the server
+packages/shared typed API, domain schemas, and Effect services
 ```
 
 The backend is organized around Effect services:
@@ -255,7 +264,9 @@ Implemented:
 - Typed `HttpApi` for projects, ThreadVMs, and terminal attach.
 - Generated OpenAPI JSON at `/docs/openapi.json`.
 - exe.dev VM reflection through raw `ssh exe.dev ls`.
-- React/xterm web UI with ThreadVM sidebar, inspector, and attach button.
+- Vite/React/xterm web UI with ThreadVM sidebar, inspector, quick switcher, and attach button.
+- shadcn/Tailwind 4 UI tokens with JetBrains Mono across app chrome and terminal.
+- Effect Atom client state for inventory, project config, reconciliation, selection, terminal status, and clipboard notices.
 - Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.
 - Example project config in `examples/projects.yaml`.
 

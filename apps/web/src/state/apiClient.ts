@@ -1,12 +1,23 @@
 import type {
+  ProjectModel,
   TerminalAttachResponseModel,
   ThreadVmModel
 } from "@threadvm/shared/domain";
+import {
+  Project,
+  TerminalAttachResponse,
+  ThreadVm
+} from "@threadvm/shared/domain";
+import { Schema } from "effect";
 
-const apiJson = async <A>(
+const decodeProjects = Schema.decodeUnknownPromise(Schema.Array(Project));
+const decodeThreadVms = Schema.decodeUnknownPromise(Schema.Array(ThreadVm));
+const decodeTerminalAttach = Schema.decodeUnknownPromise(TerminalAttachResponse);
+
+const apiJson = async (
   input: RequestInfo | URL,
   init?: RequestInit
-): Promise<A> => {
+): Promise<unknown> => {
   const response = await fetch(input, {
     ...init,
     headers: {
@@ -19,15 +30,22 @@ const apiJson = async <A>(
     throw new Error(await response.text());
   }
 
-  return (await response.json()) as A;
+  return await response.json();
 };
 
 export const threadVmApi = {
-  listThreadVms: () => apiJson<ReadonlyArray<ThreadVmModel>>("/api/threadvms"),
-  attachTerminal: (threadVmId: string, restart = false) =>
-    apiJson<TerminalAttachResponseModel>("/api/terminal/attach", {
-      method: "POST",
-      body: JSON.stringify({ threadVmId, restart })
-    })
+  listProjects: async (): Promise<ReadonlyArray<ProjectModel>> =>
+    await decodeProjects(await apiJson("/api/projects")),
+  listThreadVms: async (): Promise<ReadonlyArray<ThreadVmModel>> =>
+    await decodeThreadVms(await apiJson("/api/threadvms")),
+  attachTerminal: async (
+    threadVmId: string,
+    restart = false
+  ): Promise<TerminalAttachResponseModel> =>
+    await decodeTerminalAttach(
+      await apiJson("/api/terminal/attach", {
+        method: "POST",
+        body: JSON.stringify({ threadVmId, restart })
+      })
+    )
 };
-

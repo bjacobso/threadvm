@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import {
   ResizableHandle,
@@ -8,14 +8,34 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InspectorPanel } from "@/features/inspector/InspectorPanel";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
-import { refreshThreadVms, ThreadVmList } from "@/features/threadvms/ThreadVmList";
-import { useSelectedThreadVm } from "@/state/atoms";
+import { ThreadVmCommandPalette } from "@/features/threadvms/ThreadVmCommandPalette";
+import { ThreadVmList } from "@/features/threadvms/ThreadVmList";
+import {
+  loadProjectConfigAtom,
+  refreshThreadVmsAtom,
+  useSelectedThreadVm
+} from "@/state/atoms";
 
 export function App() {
   const selected = useSelectedThreadVm();
+  const [commandOpen, setCommandOpen] = useState(false);
 
   useEffect(() => {
-    void refreshThreadVms();
+    void loadProjectConfigAtom.run();
+    void refreshThreadVmsAtom.run();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "k" || (!event.metaKey && !event.ctrlKey)) {
+        return;
+      }
+      event.preventDefault();
+      setCommandOpen((open) => !open);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   return (
@@ -23,7 +43,7 @@ export function App() {
       <main className="h-svh min-h-0 bg-background text-foreground">
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           <ResizablePanel defaultSize="18%" minSize="14%" maxSize="28%">
-            <ThreadVmList />
+            <ThreadVmList onOpenQuickSwitch={() => setCommandOpen(true)} />
           </ResizablePanel>
           <ResizableHandle />
           <ResizablePanel defaultSize="62%" minSize="36%">
@@ -35,6 +55,7 @@ export function App() {
           </ResizablePanel>
         </ResizablePanelGroup>
       </main>
+      <ThreadVmCommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
       <Toaster richColors position="bottom-right" />
     </TooltipProvider>
   );

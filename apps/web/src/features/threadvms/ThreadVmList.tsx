@@ -1,40 +1,29 @@
-import { RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon, SearchIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "@/components/ui/tooltip";
+import {
   inventoryErrorAtom,
   inventoryLoadingAtom,
+  refreshThreadVmsAtom,
   selectedThreadVmIdAtom,
   setSelectedThreadVmId,
   threadVmsAtom,
   useAtomRef
 } from "@/state/atoms";
-import { threadVmApi } from "@/state/apiClient";
 import { ThreadVmRow } from "./ThreadVmRow";
 
-export const refreshThreadVms = async () => {
-  inventoryLoadingAtom.set(true);
-  inventoryErrorAtom.set(undefined);
-  try {
-    const nextThreadVms = await threadVmApi.listThreadVms();
-    threadVmsAtom.set(nextThreadVms);
-    const selectedId = selectedThreadVmIdAtom.value;
-    const preferred = selectedId ?? nextThreadVms[0]?.id;
-    setSelectedThreadVmId(
-      nextThreadVms.some((threadVm) => threadVm.id === preferred)
-        ? preferred
-        : nextThreadVms[0]?.id
-    );
-  } catch (cause) {
-    inventoryErrorAtom.set(cause instanceof Error ? cause.message : String(cause));
-  } finally {
-    inventoryLoadingAtom.set(false);
-  }
-};
+interface ThreadVmListProps {
+  readonly onOpenQuickSwitch: () => void;
+}
 
-export function ThreadVmList() {
+export function ThreadVmList({ onOpenQuickSwitch }: ThreadVmListProps) {
   const threadVms = useAtomRef(threadVmsAtom);
   const selectedId = useAtomRef(selectedThreadVmIdAtom);
   const loading = useAtomRef(inventoryLoadingAtom);
@@ -49,16 +38,32 @@ export function ThreadVmList() {
             exe.dev reflected workspaces
           </p>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={loading}
-          onClick={() => void refreshThreadVms()}
-        >
-          <RefreshCwIcon data-icon="inline-start" />
-          Refresh
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-sm"
+                onClick={onOpenQuickSwitch}
+                aria-label="Open ThreadVM switcher"
+              >
+                <SearchIcon />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Open ThreadVM switcher</TooltipContent>
+          </Tooltip>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={loading}
+            onClick={() => void refreshThreadVmsAtom.run()}
+          >
+            <RefreshCwIcon data-icon="inline-start" />
+            Refresh
+          </Button>
+        </div>
       </header>
 
       {error ? (
