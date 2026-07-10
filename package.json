@@ -9,8 +9,9 @@
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
-    "probe:terminal": "pnpm build && pnpm probe:boundaries && node scripts/terminal_probe.mjs && pnpm probe:terminal-ui",
+    "probe:terminal": "pnpm build && pnpm probe:boundaries && pnpm probe:web-style && node scripts/terminal_probe.mjs && pnpm probe:terminal-ui",
     "probe:boundaries": "pnpm exec tsx scripts/workspace_boundary_probe.ts",
+    "probe:web-style": "pnpm exec tsx scripts/web_style_probe.ts",
     "probe:terminal-ui": "pnpm exec tsx --tsconfig apps/web/tsconfig.json scripts/terminal_ui_probe.ts",
     "start": "pnpm --filter @threadvm/server start"
   },

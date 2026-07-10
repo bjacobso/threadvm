@@ -102,6 +102,7 @@ Useful checks:
 ```sh
 pnpm typecheck
 pnpm probe:boundaries
+pnpm probe:web-style
 pnpm probe:terminal
 curl http://127.0.0.1:3333/api/threadvms
 curl http://127.0.0.1:3333/docs/openapi.json
@@ -287,6 +288,7 @@ Implemented:
 - Stop/remove lifecycle endpoints and inspector actions backed by exe.dev.
 - Terminal bridge with native `node-pty` first and child-process `ssh -tt` fallback.
 - Workspace boundary probe preventing circular app/server/shared imports: `pnpm probe:boundaries`.
+- Web style probe preventing raw color utility drift outside shadcn/Tailwind tokens: `pnpm probe:web-style`.
 - Scripted terminal probe for attach, reconnect reuse, resize, and close: `pnpm probe:terminal`.
 - Example project config in `examples/projects.yaml`.
 
