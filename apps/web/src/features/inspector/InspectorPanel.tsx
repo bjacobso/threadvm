@@ -45,6 +45,24 @@ export function InspectorPanel() {
                     )
                   ],
                   [
+                    "Steps",
+                    selected.provisioningSteps?.length ? (
+                      <ol className="flex flex-col gap-1">
+                        {selected.provisioningSteps.map((step) => (
+                          <li key={step.id} className="flex flex-col gap-0.5">
+                            <span>{step.label}</span>
+                            <span className="text-muted-foreground">
+                              {step.status}
+                              {step.message ? ` - ${step.message}` : ""}
+                            </span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      "none"
+                    )
+                  ],
+                  [
                     "Raw",
                     <span className="whitespace-pre-wrap">{selected.raw ?? "none"}</span>
                   ]

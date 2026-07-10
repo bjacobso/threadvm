@@ -49,6 +49,17 @@ export const ThreadVmState = Schema.Literals([
   "unknown"
 ]);
 
+export class ProvisioningStep extends Schema.Class<ProvisioningStep>(
+  "ProvisioningStep"
+)({
+  id: Schema.String,
+  label: Schema.String,
+  status: Schema.Literals(["pending", "running", "succeeded", "failed"]),
+  startedAt: Schema.optional(Schema.Number),
+  finishedAt: Schema.optional(Schema.Number),
+  message: Schema.optional(Schema.String)
+}) {}
+
 export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({
   id: Schema.String,
   name: Schema.String,
@@ -65,6 +76,7 @@ export class ThreadVm extends Schema.Class<ThreadVm>("ThreadVm")({
   devPidPath: Schema.optional(Schema.String),
   devLogPath: Schema.optional(Schema.String),
   lastProvisioningError: Schema.optional(Schema.String),
+  provisioningSteps: Schema.optional(Schema.Array(ProvisioningStep)),
   createdAt: Schema.optional(Schema.Number),
   updatedAt: Schema.optional(Schema.Number),
   raw: Schema.optional(Schema.String)
@@ -125,6 +137,7 @@ export class ThreadVmMetadata extends Schema.Class<ThreadVmMetadata>(
   devPidPath: Schema.optional(Schema.String),
   devLogPath: Schema.optional(Schema.String),
   lastProvisioningError: Schema.optional(Schema.String),
+  provisioningSteps: Schema.optional(Schema.Array(ProvisioningStep)),
   createdAt: Schema.Number,
   updatedAt: Schema.Number
 }) {}
@@ -177,6 +190,7 @@ export class ApiError extends Schema.TaggedErrorClass<ApiError>()(
 ) {}
 
 export type ProjectModel = typeof Project.Type;
+export type ProvisioningStepModel = typeof ProvisioningStep.Type;
 export type ThreadVmModel = typeof ThreadVm.Type;
 export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
 export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;

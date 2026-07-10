@@ -4,6 +4,7 @@ import {
   CreateThreadVmRequest,
   CreateThreadVmResponse,
   Port,
+  ProvisioningStep,
   Project,
   ThreadVm,
   ThreadVmLifecycleResponse,
@@ -117,6 +118,7 @@ export const WorkspaceServiceLive = Layer.effect(
             devPidPath: metadata.devPidPath,
             devLogPath: metadata.devLogPath,
             lastProvisioningError: metadata.lastProvisioningError,
+            provisioningSteps: metadata.provisioningSteps,
             createdAt: metadata.createdAt,
             updatedAt: metadata.updatedAt
           });
@@ -143,6 +145,7 @@ export const WorkspaceServiceLive = Layer.effect(
         metadataPath: posix.join(workspaceMetadataDir, "threadvm.json"),
         devPidPath: `/tmp/threadvm/${threadVm.id}/dev.pid`,
         devLogPath: `/tmp/threadvm/${threadVm.id}/dev.log`,
+        provisioningSteps: [],
         createdAt: now,
         updatedAt: now
       });
@@ -190,9 +193,11 @@ export const WorkspaceServiceLive = Layer.effect(
           repo: metadata.repo,
           branch: metadata.branch,
           ports: metadata.ports,
+          metadataPath,
           devPidPath: metadata.devPidPath,
           devLogPath: metadata.devLogPath,
           lastProvisioningError: metadata.lastProvisioningError,
+          provisioningSteps: metadata.provisioningSteps,
           createdAt: metadata.createdAt,
           updatedAt: metadata.updatedAt
         },
@@ -298,6 +303,91 @@ export const WorkspaceServiceLive = Layer.effect(
         300_000
       );
 
+    const withProvisioningStep = (
+      metadata: ThreadVmMetadata,
+      step: ProvisioningStep
+    ) => {
+      const existingSteps = metadata.provisioningSteps ?? [];
+      return updateMetadata(metadata, {
+        provisioningSteps: [
+          ...existingSteps.filter((candidate) => candidate.id !== step.id),
+          step
+        ]
+      });
+    };
+
+    const setProvisioningStep = (
+      metadata: ThreadVmMetadata,
+      id: string,
+      label: string,
+      status: ProvisioningStep["status"],
+      message?: string
+    ) => {
+      const existing = (metadata.provisioningSteps ?? []).find(
+        (step) => step.id === id
+      );
+      const now = Date.now();
+      return withProvisioningStep(
+        metadata,
+        new ProvisioningStep({
+          id,
+          label,
+          status,
+          startedAt:
+            status === "running" ? now : existing?.startedAt ?? metadata.updatedAt,
+          finishedAt:
+            status === "succeeded" || status === "failed" ? now : undefined,
+          message
+        })
+      );
+    };
+
+    const persistProvisioningMetadata = (
+      threadVm: ThreadVm,
+      project: Project,
+      metadata: ThreadVmMetadata
+    ) =>
+      rememberThreadVm(metadata).pipe(
+        Effect.andThen(
+          writeRemoteMetadata(threadVm, project, metadata).pipe(
+            Effect.catch(() => Effect.void)
+          )
+        )
+      );
+
+    const runProvisioningStep = (
+      threadVm: ThreadVm,
+      project: Project,
+      metadata: ThreadVmMetadata,
+      id: string,
+      label: string,
+      work: Effect.Effect<unknown, WorkspaceError>
+    ) => {
+      const running = setProvisioningStep(metadata, id, label, "running");
+      return persistProvisioningMetadata(threadVm, project, running).pipe(
+        Effect.andThen(work),
+        Effect.andThen(() => {
+          const succeeded = setProvisioningStep(running, id, label, "succeeded");
+          return persistProvisioningMetadata(threadVm, project, succeeded).pipe(
+            Effect.as(succeeded)
+          );
+        }),
+        Effect.catch((cause) => {
+          const message = commandFailureMessage(cause);
+          const failed = setProvisioningStep(
+            running,
+            id,
+            label,
+            "failed",
+            message
+          );
+          return persistProvisioningMetadata(threadVm, project, failed).pipe(
+            Effect.andThen(Effect.fail(cause))
+          );
+        })
+      );
+    };
+
     const runBootstrap = (threadVm: ThreadVm, project: Project) =>
       Effect.forEach(
         project.bootstrap,
@@ -385,13 +475,48 @@ export const WorkspaceServiceLive = Layer.effect(
         });
         yield* rememberThreadVm(bootstrapping);
 
-        yield* prepareRepo(threadVm, project, metadata.branch);
-        yield* writeRemoteMetadata(threadVm, project, bootstrapping);
-        yield* runBootstrap(threadVm, project);
-        yield* startDevServer(threadVm, project, bootstrapping);
-        yield* probeConfiguredPorts(threadVm, project);
+        let current = yield* runProvisioningStep(
+          threadVm,
+          project,
+          bootstrapping,
+          "prepare-repo",
+          "Prepare repository and branch",
+          prepareRepo(threadVm, project, metadata.branch)
+        );
+        current = yield* runProvisioningStep(
+          threadVm,
+          project,
+          current,
+          "write-metadata",
+          "Write VM metadata",
+          writeRemoteMetadata(threadVm, project, current)
+        );
+        current = yield* runProvisioningStep(
+          threadVm,
+          project,
+          current,
+          "bootstrap",
+          "Run bootstrap commands",
+          runBootstrap(threadVm, project)
+        );
+        current = yield* runProvisioningStep(
+          threadVm,
+          project,
+          current,
+          "start-dev",
+          "Start dev command",
+          startDevServer(threadVm, project, current)
+        );
+        current = yield* runProvisioningStep(
+          threadVm,
+          project,
+          current,
+          "probe-ports",
+          "Probe configured ports",
+          probeConfiguredPorts(threadVm, project)
+        );
 
-        const ready = updateMetadata(bootstrapping, {
+        const ready = updateMetadata(current, {
           state: "ready",
           lastProvisioningError: undefined
         });
