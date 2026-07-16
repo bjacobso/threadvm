@@ -40,8 +40,8 @@ const SectionHeader = ({
   readonly title: string;
   readonly children?: React.ReactNode;
 }) => (
-  <div className="flex h-7 items-center justify-between gap-2 border-b border-workbench-border text-[11px] uppercase text-workbench-muted">
-    <span className="font-semibold">{title}</span>
+  <div className="flex h-8 items-center justify-between gap-2 text-xs text-muted-foreground">
+    <span className="font-medium">{title}</span>
     {children ? <div className="flex items-center gap-1">{children}</div> : null}
   </div>
 );
@@ -63,13 +63,13 @@ export function InspectorPanel() {
     portStatus.status === "loading" && portStatus.threadVmId === selected?.id;
 
   return (
-    <aside className="flex h-full w-full min-h-0 min-w-0 flex-col border-l border-workbench-border bg-workbench-background text-workbench-foreground">
-      <header className="flex h-9 items-center justify-between border-b border-workbench-border bg-workbench-tab px-3">
-        <h2 className="truncate text-xs font-semibold uppercase tracking-normal text-workbench-muted">
-          Inspector
+    <aside className="flex h-full w-full min-h-0 min-w-0 flex-col bg-overlay text-overlay-foreground">
+      <header className="flex h-14 items-center justify-between border-b px-4">
+        <h2 className="truncate text-sm font-semibold">
+          Workspace details
         </h2>
       </header>
-      <div className="flex h-10 min-w-0 items-center gap-2 border-b border-workbench-border px-3">
+      <div className="flex min-h-14 min-w-0 items-center gap-3 border-b px-4 py-3">
         {selected ? (
           <>
             <CircleIcon
@@ -77,26 +77,26 @@ export function InspectorPanel() {
               aria-hidden="true"
             />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium">{selected.name}</div>
-              <div className="flex min-w-0 items-center gap-2 text-[10px] text-workbench-muted">
+              <div className="truncate text-sm font-medium">{selected.name}</div>
+              <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
                 <ServerIcon className="size-3 shrink-0" aria-hidden="true" />
                 <span className="truncate">{selected.host}</span>
               </div>
             </div>
           </>
         ) : (
-          <span className="text-xs text-workbench-muted">No ThreadVM selected</span>
+          <span className="text-sm text-muted-foreground">No task selected</span>
         )}
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <div className="flex flex-col gap-3 p-3">
+        <div className="flex flex-col gap-4 p-4">
           {selected ? (
             <>
-              <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <div className="flex flex-wrap items-center gap-2 text-xs">
                 <ThreadVmStateBadge state={selected.state} />
-                <span className="text-workbench-muted">{selected.source}</span>
+                <span className="text-muted-foreground">{selected.source}</span>
                 {selected.branch ? (
-                  <span className="flex min-w-0 items-center gap-1.5 text-workbench-muted">
+                  <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
                     <GitBranchIcon className="size-3 shrink-0" aria-hidden="true" />
                     <span className="truncate">{selected.branch}</span>
                   </span>
@@ -169,7 +169,7 @@ export function InspectorPanel() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-6 rounded-none px-1.5 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
+                      className="text-muted-foreground"
                       disabled={selected.ports.length === 0 || loadingPortStatus}
                       onClick={() => void portStatusActionAtom.load(selected.id)}
                     >
@@ -263,7 +263,7 @@ export function InspectorPanel() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 rounded-none px-1.5 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
+                        className="text-muted-foreground"
                         disabled={!selected.devLogPath || loadingDevLog}
                         onClick={() => void devLogActionAtom.load(selected.id)}
                       >
@@ -298,7 +298,9 @@ export function InspectorPanel() {
               </Tabs>
             </>
           ) : (
-            <p className="text-sm text-muted-foreground">Select a ThreadVM.</p>
+            <p className="text-sm text-muted-foreground">
+              Choose a task to see its workspace details.
+            </p>
           )}
         </div>
       </ScrollArea>

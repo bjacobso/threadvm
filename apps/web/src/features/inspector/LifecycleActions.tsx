@@ -60,12 +60,12 @@ export function LifecycleActions({ threadVm }: LifecycleActionsProps) {
 
   return (
     <section className="flex flex-col gap-2 pt-2">
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 rounded-none px-2 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
+          className="text-muted-foreground"
           disabled={stopDisabled}
           onClick={() => void stopThreadVm()}
         >
@@ -79,7 +79,7 @@ export function LifecycleActions({ threadVm }: LifecycleActionsProps) {
               type="button"
               variant="ghost"
               size="sm"
-              className="h-7 rounded-none px-2 text-[11px] text-destructive hover:bg-destructive/10"
+              className="text-destructive hover:bg-destructive/10"
               disabled={pendingForThisVm}
             >
               <Trash2Icon data-icon="inline-start" />
@@ -93,8 +93,8 @@ export function LifecycleActions({ threadVm }: LifecycleActionsProps) {
               </AlertDialogMedia>
               <AlertDialogTitle>Remove {threadVm.name}?</AlertDialogTitle>
               <AlertDialogDescription>
-                This sends an exe.dev remove request for the selected VM. The
-                local inventory will drop it after the request is accepted.
+                This permanently removes the workspace for this task. This
+                action cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

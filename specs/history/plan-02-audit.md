@@ -1,19 +1,19 @@
-# PLAN_2 Implementation Audit
+# Plan 2 Implementation Audit
 
 Date: 2026-07-09
 
 > Terminal architecture note (2026-07-10): Plan 2's SSE output plus POST
 > input/resize bridge was replaced by the durable tmux and WebSocket design in
-> `PLAN_3.md`. The Plan 2 evidence below remains a record of that completed
+> [Plan 3](./plan-03-durable-terminal.md). The Plan 2 evidence below remains a record of that completed
 > phase; it is not a description of the current terminal transport.
 
-This audit checks `PLAN_2.md` against the current repository state. It is meant
+This audit checks [Plan 2](./plan-02-ui-monorepo.md) against the repository state at the time. It is meant
 to keep completion claims concrete: each item below cites the file or command
 that proves the implementation.
 
 ## Summary
 
-`PLAN_2.md` is implemented for the current phase.
+[Plan 2](./plan-02-ui-monorepo.md) is implemented for the current phase.
 
 The project is now a pnpm/Turborepo monorepo with:
 

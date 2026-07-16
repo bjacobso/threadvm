@@ -491,4 +491,3 @@ Exit criteria:
 - Do not make Herdr mandatory.
 - Do not build a marketing landing page.
 - Do not create decorative UI that competes with the terminal.
-

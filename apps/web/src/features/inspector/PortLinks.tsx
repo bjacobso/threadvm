@@ -23,7 +23,7 @@ export function PortLinks({
   readonly statuses?: ReadonlyArray<ThreadVmPortStatusModel>;
 }) {
   if (ports.length === 0) {
-    return <span className="text-[11px] text-workbench-muted">none</span>;
+    return <span className="text-xs text-muted-foreground">None yet</span>;
   }
 
   const statusByPort = new Map(statuses?.map((status) => [status.port, status]));
@@ -35,18 +35,18 @@ export function PortLinks({
         return (
           <span
             key={`${port.label}-${port.port}`}
-            className="flex min-h-7 items-center gap-2 border-b border-workbench-border/70 text-[11px]"
+            className="flex min-h-8 items-center gap-2 border-b text-xs"
           >
             <a
               href={port.url}
-              className="min-w-0 truncate text-workbench-foreground underline-offset-4 hover:underline"
+              className="min-w-0 truncate text-foreground underline-offset-4 hover:underline"
             >
               {port.label}:{port.port}
             </a>
             {status ? (
               <span
                 className={cn(
-                  "ml-auto flex items-center gap-1.5 text-[10px] uppercase",
+                  "ml-auto flex items-center gap-1.5 text-xs capitalize",
                   statusClass(status.status)
                 )}
               >

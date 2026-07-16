@@ -5,9 +5,8 @@ import {
   MoreVerticalIcon,
   PinIcon,
   RadarIcon,
-  ServerIcon
+  MessageSquareIcon
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +14,11 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import {
+  SidebarMenuAction,
+  SidebarMenuButton,
+  SidebarMenuItem
+} from "@/components/ui/sidebar";
 import { ThreadVmStateDot } from "./ThreadVmStateBadge";
 import { firstPreviewUrl } from "./threadVmActions";
 
@@ -40,77 +43,67 @@ export function ThreadVmRow({
   const description = threadVm.branch ?? threadVm.project ?? threadVm.host;
 
   return (
-    <div
-      className={cn(
-        "group grid h-5 w-full grid-cols-[minmax(0,1fr)_auto] border-l-2 border-transparent",
-        "text-workbench-foreground hover:bg-workbench-hover",
-        selected && "border-l-workbench-accent bg-workbench-hover"
-      )}
-    >
-      <Button
+    <SidebarMenuItem>
+      <SidebarMenuButton
         type="button"
-        variant="ghost"
+        isActive={selected}
+        tooltip={`${threadVm.name} - ${description}`}
         onClick={onSelect}
         aria-current={selected ? "true" : undefined}
-        title={`${threadVm.name} - ${description}`}
-        className={cn(
-          "h-5 min-w-0 justify-start rounded-none border-0 py-0 pr-2 pl-3 text-left text-[11px] font-normal",
-          "hover:bg-transparent hover:text-workbench-foreground"
-        )}
+        className="h-9 font-normal"
       >
         <span className="flex min-w-0 flex-1 items-center gap-1.5">
           <span className="relative flex w-4 shrink-0 justify-center">
             {threadVm.pinned ? (
-              <PinIcon className="size-2.5 text-workbench-muted" />
+              <PinIcon className="text-muted-foreground" />
             ) : (
-              <ServerIcon className="size-2.5 text-workbench-muted" />
+              <MessageSquareIcon className="text-muted-foreground" />
             )}
             <ThreadVmStateDot
               state={threadVm.state}
-              className="absolute -right-0.5 -bottom-0.5 ring-1 ring-workbench-background"
+              className="absolute -right-0.5 -bottom-0.5 ring-2 ring-sidebar"
             />
           </span>
           <span className="min-w-0 truncate">{threadVm.name}</span>
-          <span className="hidden min-w-0 truncate text-[10px] text-workbench-muted 2xl:inline">
+          <span className="hidden min-w-0 truncate text-xs text-muted-foreground 2xl:inline">
             {description}
           </span>
         </span>
-      </Button>
+      </SidebarMenuButton>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button
+          <SidebarMenuAction
             type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="h-5 rounded-none text-workbench-muted opacity-0 hover:bg-workbench-hover hover:text-workbench-foreground group-hover:opacity-100 data-[state=open]:opacity-100"
+            showOnHover
+            className="text-muted-foreground data-[state=open]:opacity-100"
             aria-label={`Open actions for ${threadVm.name}`}
           >
             <MoreVerticalIcon />
-          </Button>
+          </SidebarMenuAction>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={onCopyHost}>
               <ClipboardCopyIcon data-icon="inline-start" />
-              Copy Host
+              Copy address
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={previewUrl === undefined}
               onClick={onOpenPreview}
             >
               <ExternalLinkIcon data-icon="inline-start" />
-              Open Preview
+              Open preview
             </DropdownMenuItem>
             <DropdownMenuItem
               disabled={threadVm.ports.length === 0}
               onClick={onCheckPorts}
             >
               <RadarIcon data-icon="inline-start" />
-              Check Ports
+              Check ports
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </SidebarMenuItem>
   );
 }

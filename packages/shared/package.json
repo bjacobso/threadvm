@@ -4,6 +4,11 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./config": {
+      "development": "./src/config/HarnessConfig.ts",
+      "types": "./dist/config/HarnessConfig.d.ts",
+      "import": "./dist/config/HarnessConfig.js"
+    },
     "./api": {
       "development": "./src/api/ThreadVmApi.ts",
       "types": "./dist/api/ThreadVmApi.d.ts",

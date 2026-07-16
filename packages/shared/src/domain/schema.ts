@@ -7,6 +7,7 @@ export class Project extends Schema.Class<Project>("Project")({
   baseDevbox: Schema.optional(Schema.String),
   image: Schema.optional(Schema.String),
   workdir: Schema.String,
+  workspaceRoot: Schema.optional(Schema.String),
   branchPrefix: Schema.optional(Schema.String),
   bootstrap: Schema.Array(Schema.String),
   dev: Schema.Struct({
@@ -27,7 +28,8 @@ export class Project extends Schema.Class<Project>("Project")({
         cwd: Schema.optional(Schema.String)
       })
     )
-  })
+  }),
+  configKind: Schema.optional(Schema.Literals(["legacy", "harness"]))
 }) {}
 
 export class Port extends Schema.Class<Port>("Port")({
@@ -127,6 +129,17 @@ export class ThreadVmDevLogResponse extends Schema.Class<ThreadVmDevLogResponse>
   path: Schema.String,
   content: Schema.String,
   truncated: Schema.Boolean,
+  observedAt: Schema.Number
+}) {}
+
+export class ThreadVmPlanResponse extends Schema.Class<ThreadVmPlanResponse>(
+  "ThreadVmPlanResponse"
+)({
+  threadVmId: Schema.String,
+  path: Schema.String,
+  exists: Schema.Boolean,
+  content: Schema.String,
+  revision: Schema.optional(Schema.String),
   observedAt: Schema.Number
 }) {}
 
@@ -297,6 +310,7 @@ export type CreateThreadVmRequestModel = typeof CreateThreadVmRequest.Type;
 export type CreateThreadVmResponseModel = typeof CreateThreadVmResponse.Type;
 export type ThreadVmLifecycleResponseModel = typeof ThreadVmLifecycleResponse.Type;
 export type ThreadVmDevLogResponseModel = typeof ThreadVmDevLogResponse.Type;
+export type ThreadVmPlanResponseModel = typeof ThreadVmPlanResponse.Type;
 export type ThreadVmPortStatusModel = typeof ThreadVmPortStatus.Type;
 export type ThreadVmPortsResponseModel = typeof ThreadVmPortsResponse.Type;
 export type ThreadVmReconciliationEventModel =

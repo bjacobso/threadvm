@@ -1,6 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "globalPassThroughEnv": ["THREADVM_PORT", "THREADVM_WEB_PORT"],
+  "globalPassThroughEnv": [
+    "HARNESS_CONFIG",
+    "THREADVM_PORT",
+    "THREADVM_PROJECT_DIR",
+    "THREADVM_PROJECTS_FILE",
+    "THREADVM_WEB_PORT"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

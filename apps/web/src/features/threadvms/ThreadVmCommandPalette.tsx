@@ -41,13 +41,13 @@ export function ThreadVmCommandPalette({
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Switch ThreadVM"
-      description="Search reflected exe.dev workspaces."
+      title="Find a task"
+      description="Jump to any workspace."
     >
       <Command>
-        <CommandInput placeholder="Search ThreadVMs..." />
+        <CommandInput placeholder="Search tasks..." />
         <CommandList>
-          <CommandEmpty>No ThreadVMs found.</CommandEmpty>
+          <CommandEmpty>No tasks found.</CommandEmpty>
           <CommandGroup heading="Inventory">
             <CommandItem
               value="refresh inventory"
@@ -62,7 +62,7 @@ export function ThreadVmCommandPalette({
             </CommandItem>
           </CommandGroup>
           <CommandSeparator />
-          <CommandGroup heading="ThreadVMs">
+          <CommandGroup heading="Tasks">
             {threadVms.map((threadVm) => {
               const project =
                 threadVm.project === undefined

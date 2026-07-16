@@ -1,4 +1,5 @@
 import { Context, Effect, Layer, Schema } from "effect";
+import { createHash } from "node:crypto";
 import { posix } from "node:path";
 import {
   CreateThreadVmRequest,
@@ -10,6 +11,7 @@ import {
   ThreadVmDevLogResponse,
   ThreadVmLifecycleResponse,
   ThreadVmMetadata,
+  ThreadVmPlanResponse,
   ThreadVmPortStatus,
   ThreadVmPortsResponse
 } from "../domain/schema.js";
@@ -66,6 +68,9 @@ export class WorkspaceService extends Context.Service<
     readonly readDevLog: (
       id: string
     ) => Effect.Effect<ThreadVmDevLogResponse, WorkspaceError>;
+    readonly readPlan: (
+      id: string
+    ) => Effect.Effect<ThreadVmPlanResponse, WorkspaceError>;
     readonly checkPorts: (
       id: string
     ) => Effect.Effect<ThreadVmPortsResponse, WorkspaceError>;
@@ -782,6 +787,14 @@ export const WorkspaceServiceLive = Layer.effect(
             "tail -c \"$limit\" \"$path\""
           ].join("\n"),
           30_000
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new WorkspaceError(
+                `Failed to read ${path}: ${commandFailureMessage(cause)}`,
+                cause
+              )
+          )
         );
 
         const markerEnd = result.stdout.indexOf("\n");
@@ -796,6 +809,120 @@ export const WorkspaceServiceLive = Layer.effect(
           content,
           truncated: marker === "THREADVM_LOG_TRUNCATED",
           observedAt: Date.now()
+        });
+      });
+
+    const resolveProjectForThreadVm = (threadVm: ThreadVm) =>
+      threadVm.project
+        ? config
+            .getProject(threadVm.project)
+            .pipe(Effect.mapError(toWorkspaceError("Project lookup failed")))
+        : config.listProjects.pipe(
+            Effect.mapError(toWorkspaceError("Failed to load project config")),
+            Effect.flatMap((projects) => {
+              const project = projects.find(
+                (candidate) =>
+                  threadVm.name === candidate.id ||
+                  threadVm.name.startsWith(`${candidate.id}-`)
+              );
+              return project
+                ? Effect.succeed(project)
+                : Effect.fail(
+                    new WorkspaceError(
+                      `No project is associated with ${threadVm.name}`
+                    )
+                  );
+            })
+          );
+
+    const readPlan = (id: string) =>
+      Effect.gen(function* () {
+        const threadVm = yield* getThreadVm(id);
+        const project = yield* resolveProjectForThreadVm(threadVm);
+        const path = posix.join(
+          project.workspaceRoot ?? project.workdir,
+          "PLAN.md"
+        );
+        const byteLimit = 256 * 1024;
+        const result = yield* runRemote(
+          threadVm,
+          [
+            "set -euo pipefail",
+            `path=${shellQuote(path)}`,
+            `limit=${byteLimit}`,
+            "if [ ! -e \"$path\" ]; then",
+            "  printf 'THREADVM_PLAN_MISSING\\n'",
+            "elif [ ! -f \"$path\" ]; then",
+            "  printf 'THREADVM_PLAN_NOT_FILE\\n'",
+            "else",
+            "  size=$(wc -c < \"$path\" | tr -d ' ')",
+            "  if [ \"$size\" -gt \"$limit\" ]; then",
+            "    printf 'THREADVM_PLAN_TOO_LARGE\\n'",
+            "  elif [ -s \"$path\" ] && ! LC_ALL=C grep -Iq . \"$path\"; then",
+            "    printf 'THREADVM_PLAN_BINARY\\n'",
+            "  else",
+            "    printf 'THREADVM_PLAN_FULL\\n'",
+            "    cat -- \"$path\"",
+            "  fi",
+            "fi",
+          ].join("\n"),
+          30_000
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new WorkspaceError(
+                `Failed to read ${path}: ${commandFailureMessage(cause)}`,
+                cause
+              )
+          )
+        );
+
+        const markerEnd = result.stdout.indexOf("\n");
+        const marker =
+          markerEnd === -1
+            ? result.stdout.trim()
+            : result.stdout.slice(0, markerEnd);
+        const content =
+          markerEnd === -1 ? "" : result.stdout.slice(markerEnd + 1);
+        const observedAt = Date.now();
+
+        if (marker === "THREADVM_PLAN_MISSING") {
+          return new ThreadVmPlanResponse({
+            threadVmId: id,
+            path,
+            exists: false,
+            content: "",
+            observedAt
+          });
+        }
+        if (marker === "THREADVM_PLAN_NOT_FILE") {
+          return yield* Effect.fail(
+            new WorkspaceError(`${path} exists but is not a regular file`)
+          );
+        }
+        if (marker === "THREADVM_PLAN_TOO_LARGE") {
+          return yield* Effect.fail(
+            new WorkspaceError(`${path} exceeds the 256 KiB viewer limit`)
+          );
+        }
+        if (marker === "THREADVM_PLAN_BINARY") {
+          return yield* Effect.fail(
+            new WorkspaceError(`${path} is not supported UTF-8 Markdown`)
+          );
+        }
+        if (marker !== "THREADVM_PLAN_FULL") {
+          return yield* Effect.fail(
+            new WorkspaceError(`Unexpected PLAN.md response from ${threadVm.name}`)
+          );
+        }
+
+        return new ThreadVmPlanResponse({
+          threadVmId: id,
+          path,
+          exists: true,
+          content,
+          revision: createHash("sha256").update(content).digest("hex"),
+          observedAt
         });
       });
 
@@ -895,6 +1022,14 @@ export const WorkspaceServiceLive = Layer.effect(
           .getProject(request.project)
           .pipe(Effect.mapError(toWorkspaceError("Project lookup failed")));
 
+        if (project.configKind === "harness") {
+          return yield* Effect.fail(
+            new WorkspaceError(
+              "This project uses harness.yaml. Base and multi-repository provisioning must be implemented before task creation is enabled."
+            )
+          );
+        }
+
         const slug = slugify(request.summary);
         const vmName = `${project.id}-${slug}`;
         const baseDevbox = request.baseDevbox ?? project.baseDevbox;
@@ -992,6 +1127,7 @@ export const WorkspaceServiceLive = Layer.effect(
       listThreadVms,
       getThreadVm,
       readDevLog,
+      readPlan,
       checkPorts,
       createThreadVm,
       stopThreadVm,

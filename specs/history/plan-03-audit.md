@@ -4,7 +4,7 @@ Audit date: 2026-07-10
 
 ## Result
 
-The durable terminal architecture in `PLAN_3.md` is implemented. Remote
+The durable terminal architecture in [Plan 3](./plan-03-durable-terminal.md) is implemented. Remote
 `tmux` owns terminal state, each browser attachment uses one WebSocket and one
 fresh SSH PTY, and reconnecting replaces the disposable browser attachment.
 The former SSE, POST input/resize, replay cursor, ANSI mouse-mode inference,

@@ -11,6 +11,7 @@
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "probe:terminal": "pnpm build && pnpm probe:boundaries && pnpm probe:web-style && node scripts/terminal_probe.mjs && pnpm probe:terminal-ui",
+    "probe:config": "pnpm exec tsx scripts/config_probe.ts",
     "probe:boundaries": "pnpm exec tsx scripts/workspace_boundary_probe.ts",
     "probe:dev": "node scripts/dev_probe.mjs",
     "probe:web-style": "pnpm exec tsx scripts/web_style_probe.ts",

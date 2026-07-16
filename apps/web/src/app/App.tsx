@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
-import { PanelRightOpenIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup
-} from "@/components/ui/resizable";
+  SidebarInset,
+  SidebarProvider
+} from "@/components/ui/sidebar";
 import {
   Sheet,
   SheetContent,
@@ -17,32 +14,23 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InspectorPanel } from "@/features/inspector/InspectorPanel";
 import { ProjectRegistryDialog } from "@/features/projects/ProjectRegistryDialog";
-import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { NewThreadVmDialog } from "@/features/threadvms/NewThreadVmDialog";
 import { ThreadVmCommandPalette } from "@/features/threadvms/ThreadVmCommandPalette";
 import { ThreadVmList } from "@/features/threadvms/ThreadVmList";
-import { cn } from "@/lib/utils";
+import { WorkspacePane } from "@/features/workspace/WorkspacePane";
 import {
   focusedPanelAtom,
   loadProjectConfigAtom,
   provisioningStreamAtom,
   reconciliationStreamAtom,
   refreshThreadVmsAtom,
-  useAtomRef,
   useSelectedThreadVm
 } from "@/state/atoms";
 
-type FocusedPanel = "inventory" | "terminal" | "inspector";
-
-const panelFrame = (panel: FocusedPanel, focusedPanel: FocusedPanel) =>
-  cn(
-    "size-full min-h-0 min-w-0 outline-none",
-    panel === focusedPanel && "ring-1 ring-inset ring-ring/50"
-  );
+type FocusedPanel = "inventory" | "terminal";
 
 export function App() {
   const selected = useSelectedThreadVm();
-  const focusedPanel = useAtomRef(focusedPanelAtom);
   const [commandOpen, setCommandOpen] = useState(false);
   const [newThreadVmOpen, setNewThreadVmOpen] = useState(false);
   const [projectRegistryOpen, setProjectRegistryOpen] = useState(false);
@@ -80,62 +68,47 @@ export function App() {
 
   return (
     <TooltipProvider>
-      <main className="relative h-svh min-h-0 bg-background text-foreground">
-        <ResizablePanelGroup orientation="horizontal" className="h-full">
-          <ResizablePanel defaultSize="18%" minSize="14%" maxSize="28%">
-            <div
-              className={panelFrame("inventory", focusedPanel)}
-              onFocusCapture={() => markFocusedPanel("inventory")}
-              onPointerDownCapture={() => markFocusedPanel("inventory")}
-            >
-              <ThreadVmList
-                onOpenQuickSwitch={() => setCommandOpen(true)}
-                onOpenNewThreadVm={() => setNewThreadVmOpen(true)}
-                onOpenProjectRegistry={() => setProjectRegistryOpen(true)}
-              />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel defaultSize="62%" minSize="36%">
-            <div
-              className={panelFrame("terminal", focusedPanel)}
-              onFocusCapture={() => markFocusedPanel("terminal")}
-              onPointerDownCapture={() => markFocusedPanel("terminal")}
-            >
-              <TerminalPane selected={selected} />
-            </div>
-          </ResizablePanel>
-          <ResizableHandle />
-          <ResizablePanel defaultSize="20%" minSize="16%" maxSize="30%">
-            <div
-              className={panelFrame("inspector", focusedPanel)}
-              onFocusCapture={() => markFocusedPanel("inspector")}
-              onPointerDownCapture={() => markFocusedPanel("inspector")}
-            >
-              <InspectorPanel />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          className="absolute top-3 right-3 xl:hidden"
-          onClick={() => {
-            markFocusedPanel("inspector");
-            setInspectorSheetOpen(true);
-          }}
-          aria-label="Open inspector"
+      <SidebarProvider
+        className="h-svh min-h-0 bg-background text-foreground"
+        style={
+          {
+            "--sidebar-width": "280px",
+            "--sidebar-width-mobile": "18rem"
+          } as React.CSSProperties
+        }
+      >
+        <div
+          className="contents"
+          onFocusCapture={() => markFocusedPanel("inventory")}
+          onPointerDownCapture={() => markFocusedPanel("inventory")}
         >
-          <PanelRightOpenIcon />
-        </Button>
-      </main>
+          <ThreadVmList
+            onOpenQuickSwitch={() => setCommandOpen(true)}
+            onOpenNewThreadVm={() => setNewThreadVmOpen(true)}
+            onOpenProjectRegistry={() => setProjectRegistryOpen(true)}
+          />
+        </div>
+        <SidebarInset className="h-svh min-h-0 min-w-0 overflow-hidden">
+          <div
+            className="size-full min-h-0 min-w-0 outline-none"
+            onFocusCapture={() => markFocusedPanel("terminal")}
+            onPointerDownCapture={() => markFocusedPanel("terminal")}
+          >
+            <WorkspacePane
+              selected={selected}
+              onOpenDetails={() => {
+                setInspectorSheetOpen(true);
+              }}
+            />
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
       <Sheet open={inspectorSheetOpen} onOpenChange={setInspectorSheetOpen}>
         <SheetContent side="right" className="w-[min(92vw,420px)] p-0">
           <SheetHeader className="sr-only">
-            <SheetTitle>Inspector</SheetTitle>
+            <SheetTitle>Workspace details</SheetTitle>
             <SheetDescription>
-              ThreadVM metadata, port checks, actions, and logs.
+              Status, previews, actions, and logs for this workspace.
             </SheetDescription>
           </SheetHeader>
           <InspectorPanel />

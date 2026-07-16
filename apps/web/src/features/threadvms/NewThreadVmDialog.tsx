@@ -110,7 +110,7 @@ export function NewThreadVmDialog({
       onOpenChange(false);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
-      toast.error("ThreadVM creation failed", {
+      toast.error("Workspace creation failed", {
         description: message
       });
     }
@@ -121,9 +121,9 @@ export function NewThreadVmDialog({
       <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-[560px]">
         <form onSubmit={onSubmit}>
           <DialogHeader>
-            <DialogTitle>New ThreadVM</DialogTitle>
+            <DialogTitle>New task</DialogTitle>
             <DialogDescription>
-              Create an isolated exe.dev workspace from a configured project.
+              Start a fresh, isolated workspace for a task.
             </DialogDescription>
           </DialogHeader>
 
@@ -131,7 +131,7 @@ export function NewThreadVmDialog({
             {projectConfig.error ? (
               <Alert variant="destructive">
                 <CircleAlertIcon />
-                <AlertTitle>Project registry failed</AlertTitle>
+                <AlertTitle>Couldn&apos;t load projects</AlertTitle>
                 <AlertDescription className="break-words">
                   {projectConfig.error}
                 </AlertDescription>
@@ -176,7 +176,7 @@ export function NewThreadVmDialog({
               <FieldError
                 errors={
                   projectInvalid
-                    ? [{ message: "Choose a project registry entry." }]
+                    ? [{ message: "Choose a project." }]
                     : undefined
                 }
               />
@@ -273,7 +273,7 @@ export function NewThreadVmDialog({
               </Button>
             </DialogClose>
             <Button type="submit" disabled={creating}>
-              {creating ? "Creating..." : "Create ThreadVM"}
+              {creating ? "Starting..." : "Start task"}
             </Button>
           </DialogFooter>
         </form>

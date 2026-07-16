@@ -1,8 +1,14 @@
 import { Context, Effect, Layer } from "effect";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { dirname, posix } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import {
+  HarnessConfigError,
+  readHarnessConfig,
+  resolveHarnessConfig,
+  type ResolvedHarnessConfig
+} from "../config/HarnessConfig.js";
 import { Project, type ProjectModel } from "../domain/schema.js";
 
 interface RawProjectsFile {
@@ -70,21 +76,82 @@ const rawFromProjects = (
   )
 });
 
+const projectFromHarnessConfig = (resolved: ResolvedHarnessConfig) => {
+  const config = resolved.config;
+  const primaryRepository =
+    config.repositories.find((repository) => repository.branch.mode === "task") ??
+    config.repositories[0];
+  if (!primaryRepository) {
+    throw new ConfigError("Harness config must contain at least one repository");
+  }
+
+  const repositoryWorkdir = posix.join(
+    config.workspace.root,
+    primaryRepository.path
+  );
+  const workspaceCwd =
+    posix.relative(repositoryWorkdir, config.workspace.root) || ".";
+
+  return new Project({
+    id: config.project.id,
+    repo: primaryRepository.url,
+    defaultBranch: primaryRepository.defaultBranch,
+    baseDevbox: config.base.name,
+    image: config.workspace.sourceImage,
+    workdir: repositoryWorkdir,
+    workspaceRoot: config.workspace.root,
+    branchPrefix:
+      primaryRepository.branch.mode === "task"
+        ? primaryRepository.branch.prefix
+        : undefined,
+    bootstrap: [],
+    dev: {
+      command: config.tasks.dev.command,
+      cwd: workspaceCwd,
+      ports: config.tasks.dev.ports.map((port) => port.port)
+    },
+    herdr: {
+      install: "manual",
+      sessionPrefix: config.terminal.sessionPrefix
+    },
+    agents: config.agents,
+    configKind: "harness"
+  });
+};
+
 export const ConfigServiceLive = Layer.effect(
   ConfigService,
-  Effect.sync(() => {
-    const configPath =
+  Effect.gen(function* () {
+    const projectDirectory = process.env.THREADVM_PROJECT_DIR ?? process.cwd();
+    const resolvedHarnessConfig = yield* Effect.tryPromise({
+      try: () =>
+        resolveHarnessConfig({
+          cwd: projectDirectory,
+          environmentPath: process.env.HARNESS_CONFIG
+        }),
+      catch: (cause) =>
+        new ConfigError(
+          cause instanceof HarnessConfigError
+            ? cause.message
+            : "Failed to resolve Harness config",
+          cause
+        )
+    });
+
+    const legacyConfigPath =
       process.env.THREADVM_PROJECTS_FILE ??
-      fileURLToPath(new URL("../../../../examples/projects.yaml", import.meta.url));
+      fileURLToPath(
+        new URL("../../../../examples/single-project/projects.yaml", import.meta.url)
+      );
 
     const readRawProjects = Effect.tryPromise({
-      try: () => readFile(configPath, "utf8"),
+      try: () => readFile(legacyConfigPath, "utf8"),
       catch: (cause) => {
         if (isNodeError(cause) && cause.code === "ENOENT") {
           return new ConfigError("Project config file does not exist", cause);
         }
         return new ConfigError(
-          `Failed to read project config at ${configPath}`,
+          `Failed to read project config at ${legacyConfigPath}`,
           cause
         );
       }
@@ -104,29 +171,59 @@ export const ConfigServiceLive = Layer.effect(
           return Effect.fail(error);
         }
         return Effect.fail(
-          new ConfigError(`Failed to parse project config at ${configPath}`, error)
+          new ConfigError(
+            `Failed to parse project config at ${legacyConfigPath}`,
+            error
+          )
         );
       })
     );
 
-    const readProjects = readRawProjects.pipe(Effect.map(projectsFromRaw));
+    const readHarnessProjects = resolvedHarnessConfig
+      ? Effect.tryPromise({
+          try: () =>
+            readHarnessConfig(
+              resolvedHarnessConfig.path,
+              resolvedHarnessConfig.source
+            ),
+          catch: (cause) =>
+            new ConfigError(
+              cause instanceof HarnessConfigError
+                ? cause.message
+                : "Failed to read Harness config",
+              cause
+            )
+        }).pipe(Effect.map((resolved) => [projectFromHarnessConfig(resolved)]))
+      : undefined;
+
+    const readProjects =
+      readHarnessProjects ?? readRawProjects.pipe(Effect.map(projectsFromRaw));
 
     const writeProjects = (projects: ReadonlyArray<Project>) =>
-      Effect.tryPromise({
-        try: async () => {
-          await mkdir(dirname(configPath), { recursive: true });
-          await writeFile(
-            configPath,
-            YAML.stringify(rawFromProjects(projects), {
-              lineWidth: 0,
-              sortMapEntries: true
-            }),
-            "utf8"
-          );
-        },
-        catch: (cause) =>
-          new ConfigError(`Failed to write project config at ${configPath}`, cause)
-      }).pipe(Effect.andThen(Effect.succeed(projects)));
+      resolvedHarnessConfig
+        ? Effect.fail(
+            new ConfigError(
+              `Project ${resolvedHarnessConfig.config.project.id} is managed by ${resolvedHarnessConfig.path}; edit that file directly`
+            )
+          )
+        : Effect.tryPromise({
+            try: async () => {
+              await mkdir(dirname(legacyConfigPath), { recursive: true });
+              await writeFile(
+                legacyConfigPath,
+                YAML.stringify(rawFromProjects(projects), {
+                  lineWidth: 0,
+                  sortMapEntries: true
+                }),
+                "utf8"
+              );
+            },
+            catch: (cause) =>
+              new ConfigError(
+                `Failed to write project config at ${legacyConfigPath}`,
+                cause
+              )
+          }).pipe(Effect.andThen(Effect.succeed(projects)));
 
     const getProject = (id: string) =>
       Effect.flatMap(readProjects, (projects) => {

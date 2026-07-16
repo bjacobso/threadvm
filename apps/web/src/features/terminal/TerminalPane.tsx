@@ -21,6 +21,7 @@ import { terminalFontStack, xtermTheme } from "./xtermTheme";
 
 interface TerminalPaneProps {
   readonly selected: ThreadVmModel | undefined;
+  readonly onOpenDetails: () => void;
 }
 
 const isEditableTarget = (target: EventTarget | null) => {
@@ -34,7 +35,7 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
-export function TerminalPane({ selected }: TerminalPaneProps) {
+export function TerminalPane({ selected, onOpenDetails }: TerminalPaneProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -179,7 +180,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
       return;
     }
 
-    replaceTerminal("Select a ThreadVM and attach a VM terminal.");
+    replaceTerminal("Choose a task to open its terminal.");
 
     const observer = new ResizeObserver(() => {
       window.requestAnimationFrame(fitAndSync);
@@ -209,7 +210,7 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     if (selected) {
       replaceTerminal(`Ready to attach ${selected.name}.`);
     } else {
-      replaceTerminal("Select a ThreadVM and attach a VM terminal.");
+      replaceTerminal("Choose a task to open its terminal.");
     }
   }, [replaceTerminal, selected?.id, selected?.name]);
 
@@ -273,11 +274,12 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
   }, [attachTerminal, selected, sessionAtom]);
 
   return (
-    <section className="grid size-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-terminal-background">
+    <section className="grid size-full min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)] bg-background">
       <TerminalToolbar
         selected={selected}
         session={session}
         clipboardNotice={clipboardNotice}
+        onOpenDetails={onOpenDetails}
         onAttach={(restart) => void attachTerminal(restart)}
         onCopyPendingClipboard={() => {
           const notice = clipboardNoticeAtom.value;
@@ -286,25 +288,27 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
           }
         }}
       />
-      <div
-        ref={elementRef}
-        className="terminal-surface"
-        onMouseDown={(event) =>
-          forwardSurfaceMouseEventToTerminal(
-            event.nativeEvent,
-            terminalRef.current,
-            elementRef.current
-          )
-        }
-        onMouseUp={(event) =>
-          forwardSurfaceMouseEventToTerminal(
-            event.nativeEvent,
-            terminalRef.current,
-            elementRef.current
-          )
-        }
-        onPointerDownCapture={() => focusTerminalPane(terminalRef.current)}
-      />
+      <div className="min-h-0 min-w-0 px-3 pt-2 pb-3">
+        <div
+          ref={elementRef}
+          className="terminal-surface rounded-xl border border-border/75"
+          onMouseDown={(event) =>
+            forwardSurfaceMouseEventToTerminal(
+              event.nativeEvent,
+              terminalRef.current,
+              elementRef.current
+            )
+          }
+          onMouseUp={(event) =>
+            forwardSurfaceMouseEventToTerminal(
+              event.nativeEvent,
+              terminalRef.current,
+              elementRef.current
+            )
+          }
+          onPointerDownCapture={() => focusTerminalPane(terminalRef.current)}
+        />
+      </div>
     </section>
   );
 }

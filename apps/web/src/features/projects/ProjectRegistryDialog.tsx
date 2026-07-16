@@ -289,9 +289,9 @@ export function ProjectRegistryDialog({
         <DialogContent className="max-h-[calc(100svh-2rem)] overflow-y-auto sm:max-w-[720px]">
           <form onSubmit={onSubmit}>
             <DialogHeader>
-              <DialogTitle>Project Registry</DialogTitle>
+              <DialogTitle>Projects</DialogTitle>
               <DialogDescription>
-                Edit local project templates used when creating ThreadVMs.
+                Manage the project templates available for new tasks.
               </DialogDescription>
             </DialogHeader>
 
@@ -299,7 +299,7 @@ export function ProjectRegistryDialog({
               {projectConfig.error ? (
                 <Alert variant="destructive">
                   <CircleAlertIcon />
-                  <AlertTitle>Project registry failed</AlertTitle>
+                  <AlertTitle>Couldn&apos;t load projects</AlertTitle>
                   <AlertDescription className="break-words">
                     {projectConfig.error}
                   </AlertDescription>
@@ -591,7 +591,7 @@ export function ProjectRegistryDialog({
             <AlertDialogTitle>Remove project?</AlertDialogTitle>
             <AlertDialogDescription>
               This removes {selectedProject?.id ?? "the project"} from the local
-              registry. Existing ThreadVMs are not deleted.
+              project list. Existing workspaces are not deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

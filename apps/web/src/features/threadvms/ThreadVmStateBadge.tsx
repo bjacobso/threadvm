@@ -20,7 +20,7 @@ const stateDotClass = (state: ThreadVmModel["state"]) => {
 
 export function ThreadVmStateBadge({ state }: { readonly state: ThreadVmModel["state"] }) {
   return (
-    <span className="inline-flex min-w-0 items-center gap-1.5 text-[10px] text-workbench-muted">
+    <span className="inline-flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
       <span
         className={cn(
           "size-1.5 shrink-0 rounded-full bg-current",

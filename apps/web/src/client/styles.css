@@ -7,50 +7,44 @@
 
 :root {
   color-scheme: dark;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.93 0 0);
-  --card: oklch(0.18 0 0);
+  --background: oklch(0.22 0 0);
+  --foreground: oklch(0.94 0 0);
+  --card: oklch(0.245 0 0);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.18 0 0);
+  --popover: oklch(0.245 0 0);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.84 0 0);
+  --overlay: oklch(0.255 0 0);
+  --overlay-foreground: var(--foreground);
+  --primary: oklch(0.93 0 0);
   --primary-foreground: oklch(0.16 0 0);
-  --secondary: oklch(0.24 0 0);
+  --secondary: oklch(0.27 0 0);
   --secondary-foreground: oklch(0.92 0 0);
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.68 0 0);
-  --accent: oklch(0.25 0 0);
+  --muted: oklch(0.26 0 0);
+  --muted-foreground: oklch(0.66 0 0);
+  --accent: oklch(0.285 0 0);
   --accent-foreground: oklch(0.94 0 0);
   --destructive: oklch(0.63 0.22 27);
-  --border: oklch(0.27 0 0);
-  --input: oklch(0.24 0 0);
-  --ring: oklch(0.58 0.12 252);
+  --border: oklch(0.29 0 0);
+  --input: oklch(0.31 0 0);
+  --ring: oklch(0.7 0 0);
   --chart-1: oklch(0.64 0.13 252);
   --chart-2: oklch(0.66 0.12 152);
   --chart-3: oklch(0.72 0.14 72);
   --chart-4: oklch(0.62 0.16 306);
   --chart-5: oklch(0.63 0.18 27);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.17 0 0);
+  --radius: 0.625rem;
+  --sidebar: var(--background);
   --sidebar-foreground: var(--foreground);
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-accent: oklch(0.275 0 0);
   --sidebar-accent-foreground: var(--foreground);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
-  --terminal-background: oklch(0.11 0 0);
+  --terminal-background: oklch(0.09 0 0);
   --terminal-foreground: oklch(0.91 0 0);
   --terminal-selection: oklch(0.32 0.06 252);
-  --terminal-chrome: oklch(0.15 0 0);
-  --workbench-background: oklch(0.18 0 0);
-  --workbench-tab: oklch(0.21 0 0);
-  --workbench-hover: oklch(0.25 0 0);
-  --workbench-border: oklch(0.26 0 0);
-  --workbench-accent: oklch(0.62 0.14 245);
-  --workbench-icon: oklch(0.72 0.13 230);
-  --workbench-foreground: oklch(0.82 0 0);
-  --workbench-muted: oklch(0.64 0 0);
+  --terminal-chrome: var(--background);
   --status-running: oklch(0.72 0.17 145);
   --status-attached: oklch(0.7 0.13 210);
   --status-blocked: oklch(0.72 0.14 72);
@@ -59,23 +53,47 @@
 
 @theme inline {
   --font-sans:
-    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", monospace;
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono:
     "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-overlay: var(--overlay);
+  --color-overlay-foreground: var(--overlay-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
   --color-terminal-background: var(--terminal-background);
   --color-terminal-foreground: var(--terminal-foreground);
   --color-terminal-selection: var(--terminal-selection);
   --color-terminal-chrome: var(--terminal-chrome);
-  --color-workbench-background: var(--workbench-background);
-  --color-workbench-tab: var(--workbench-tab);
-  --color-workbench-hover: var(--workbench-hover);
-  --color-workbench-border: var(--workbench-border);
-  --color-workbench-accent: var(--workbench-accent);
-  --color-workbench-icon: var(--workbench-icon);
-  --color-workbench-foreground: var(--workbench-foreground);
-  --color-workbench-muted: var(--workbench-muted);
   --color-status-running: var(--status-running);
   --color-status-attached: var(--status-attached);
   --color-status-blocked: var(--status-blocked);
@@ -84,6 +102,7 @@
 
 * {
   box-sizing: border-box;
+  border-color: var(--border);
 }
 
 html,
@@ -99,8 +118,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family:
-    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", monospace;
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button,
@@ -121,6 +139,7 @@ select {
 .terminal-surface .xterm {
   width: 100%;
   height: 100%;
+  padding: 0.75rem 0.875rem;
   font-family:
     "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", monospace;

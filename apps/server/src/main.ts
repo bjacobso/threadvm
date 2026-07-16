@@ -16,8 +16,33 @@ import { RemoteTerminalSessionLive } from "@threadvm/shared/services/RemoteTermi
 import { SshServiceLive } from "@threadvm/shared/services/SshService";
 import { TerminalBridgeLive } from "@threadvm/shared/services/TerminalBridge";
 import { WorkspaceServiceLive } from "@threadvm/shared/services/WorkspaceService";
+import {
+  HarnessConfigError,
+  resolveHarnessConfig
+} from "@threadvm/shared/config";
 import { ReconciliationRoutesLive } from "./reconciliationRoutes.js";
 import { TerminalRoutesLive } from "./terminalRoutes.js";
+
+const projectDirectory = process.env.THREADVM_PROJECT_DIR ?? process.cwd();
+try {
+  const resolvedConfig = await resolveHarnessConfig({
+    cwd: projectDirectory,
+    environmentPath: process.env.HARNESS_CONFIG
+  });
+  if (resolvedConfig) {
+    process.env.HARNESS_CONFIG = resolvedConfig.path;
+    console.info(
+      `Loaded Harness config from ${resolvedConfig.path} (${resolvedConfig.source})`
+    );
+  }
+} catch (cause) {
+  console.error(
+    cause instanceof HarnessConfigError
+      ? cause.message
+      : `Failed to resolve Harness config: ${String(cause)}`
+  );
+  process.exit(1);
+}
 
 const port = Number(process.env.THREADVM_PORT ?? "3333");
 const webPort = Number(process.env.THREADVM_WEB_PORT ?? "5173");

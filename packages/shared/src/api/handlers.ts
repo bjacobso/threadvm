@@ -5,11 +5,23 @@ import { ConfigService } from "../services/ConfigService.js";
 import { WorkspaceService } from "../services/WorkspaceService.js";
 import { ThreadVmApi } from "./ThreadVmApi.js";
 
+const errorDetail = (cause: unknown) => {
+  if (cause instanceof Error) {
+    return cause.message;
+  }
+  if (
+    typeof cause === "object" &&
+    cause !== null &&
+    "message" in cause &&
+    typeof cause.message === "string"
+  ) {
+    return cause.message;
+  }
+  return String(cause);
+};
+
 const toApiError = (message: string) => (cause: unknown) =>
-  new ApiError({
-    message,
-    detail: cause instanceof Error ? cause.message : String(cause)
-  });
+  new ApiError({ message, detail: errorDetail(cause) });
 
 export const ProjectsApiLive = HttpApiBuilder.group(
   ThreadVmApi,
@@ -77,6 +89,14 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           const workspaces = yield* WorkspaceService;
           return yield* workspaces.readDevLog(id).pipe(
             Effect.mapError(toApiError(`Failed to read dev log for ${id}`))
+          );
+        })
+      )
+      .handle("plan", ({ params: { id } }) =>
+        Effect.gen(function* () {
+          const workspaces = yield* WorkspaceService;
+          return yield* workspaces.readPlan(id).pipe(
+            Effect.mapError(toApiError(`Failed to read PLAN.md for ${id}`))
           );
         })
       )

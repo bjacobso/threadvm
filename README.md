@@ -112,6 +112,7 @@ Useful checks:
 
 ```sh
 pnpm typecheck
+pnpm probe:config
 pnpm probe:boundaries
 pnpm probe:dev
 pnpm probe:web-style
@@ -217,6 +218,24 @@ Local cache can speed up the UI, but list/detail views should reconcile against 
 
 ## Example Project Config
 
+The current runtime reads the project registry shape below. A versioned
+current-directory consumer project—with multiple repositories, a managed base
+development image, and mise bootstrap—is available in
+[`examples/multi-repo-mise`](examples/multi-repo-mise/README.md).
+
+Validate it through the built CLI:
+
+```sh
+pnpm --filter @threadvm/cli... build
+node apps/cli/dist/main.js config check \
+  --config examples/multi-repo-mise/harness.yaml
+```
+
+Discovery checks `--config`, then `HARNESS_CONFIG`, then `harness.yaml` or
+`harness.yml` in the invocation directory. The new format is currently
+read-only in the web UI; task creation remains disabled until base and
+multi-repository provisioning are implemented.
+
 ```yaml
 projects:
   onboarded:
@@ -316,14 +335,16 @@ Implemented:
 - Workspace boundary probe preventing circular app/server/shared imports: `pnpm probe:boundaries`.
 - Web style probe preventing raw color utility drift outside shadcn/Tailwind tokens: `pnpm probe:web-style`.
 - Scripted terminal probe for attach, ordered input/resize, repeated tmux reconnect reuse, mouse-mode renegotiation, restart, and cleanup: `pnpm probe:terminal`.
-- Example project config in `examples/projects.yaml`.
+- Example project config in `examples/single-project/projects.yaml`.
 
 Next:
 
 - Add optional Herdr install/start/layout automation after the plain VM terminal path is solid.
 
-See [PLAN.md](./PLAN.md) for the broader product plan and
-[PLAN_3.md](./PLAN_3.md) for the durable terminal architecture.
+See the [specifications index](./specs/README.md) for the current product and
+engineering design, the [roadmap](./specs/roadmap.md) for remaining work, and
+the [historical plans](./specs/history/README.md) for earlier implementation
+records.
 
 ## License
 

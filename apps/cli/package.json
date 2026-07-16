@@ -12,7 +12,8 @@
     "lint": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@threadvm/server": "workspace:*"
+    "@threadvm/server": "workspace:*",
+    "@threadvm/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.10.1"

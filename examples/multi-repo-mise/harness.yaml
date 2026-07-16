@@ -1,0 +1,72 @@
+version: 1
+
+project:
+  id: acme-platform
+  displayName: Acme Platform
+
+workspace:
+  root: /work/acme-platform
+  sourceImage: exeuntu
+
+base:
+  name: acme-platform-base
+  bootstrap:
+    provider: mise
+    config: ./mise.toml
+    trust: true
+    command: mise bootstrap --yes
+  setup:
+    command: mise run base:setup
+    verify: mise run base:check
+    auth:
+      - github
+      - codex
+      - claude
+
+repositories:
+  - id: api
+    url: git@github.com:acme/api.git
+    path: services/api
+    defaultBranch: main
+    branch:
+      mode: task
+      prefix: harness/
+
+  - id: web
+    url: git@github.com:acme/web.git
+    path: apps/web
+    defaultBranch: main
+    branch:
+      mode: task
+      prefix: harness/
+
+  - id: contracts
+    url: git@github.com:acme/contracts.git
+    path: packages/contracts
+    defaultBranch: main
+    branch:
+      mode: default
+
+tasks:
+  afterClone:
+    - mise run workspace:prepare
+  dev:
+    command: mise run dev
+    ports:
+      - label: web
+        port: 3000
+      - label: api
+        port: 4000
+
+terminal:
+  sessionPrefix: harness
+
+agents:
+  default: codex
+  panes:
+    - label: agent
+      command: codex
+    - label: web
+      command: mise run dev:web
+    - label: api
+      command: mise run dev:api

@@ -1,0 +1,45 @@
+min_version = "2026.7.0"
+
+[tools]
+node = "24"
+pnpm = "10.20.0"
+yq = "4"
+
+[env]
+ACME_WORKSPACE_ROOT = "{{ config_root }}"
+
+[tasks.bootstrap]
+description = "Install dependencies in every repository included in the base image"
+run = [
+  "pnpm --dir services/api install --frozen-lockfile",
+  "pnpm --dir apps/web install --frozen-lockfile",
+  "pnpm --dir packages/contracts install --frozen-lockfile",
+]
+
+[tasks."base:setup"]
+description = "Interactively authenticate the tools included in the personal base"
+run = "./scripts/setup-base.sh setup"
+
+[tasks."base:check"]
+description = "Verify base authentication without printing account or token details"
+run = "./scripts/setup-base.sh check"
+
+[tasks."workspace:prepare"]
+description = "Reconcile a cloned task workspace after its branches are checked out"
+run = [
+  "pnpm --dir services/api install --frozen-lockfile",
+  "pnpm --dir apps/web install --frozen-lockfile",
+  "pnpm --dir packages/contracts install --frozen-lockfile",
+]
+
+[tasks.dev]
+description = "Run the API and web development servers"
+depends = ["dev:api", "dev:web"]
+
+[tasks."dev:api"]
+dir = "services/api"
+run = "pnpm dev"
+
+[tasks."dev:web"]
+dir = "apps/web"
+run = "pnpm dev"
