@@ -1,3 +1,6 @@
 [submodule ".context/effect-v4"]
 	path = .context/effect-v4
 	url = https://github.com/Effect-TS/effect-smol
+[submodule "vendor/foldworks"]
+	path = vendor/foldworks
+	url = https://github.com/bjacobso/foldworks

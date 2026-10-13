@@ -1,0 +1,40 @@
+{
+  "name": "@threadvm/outline",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run \"/^dev:/\"",
+    "dev:worker": "mkdir -p dist && ALCHEMY_LOCAL_STATE=1 alchemy dev --env-file .env.dev",
+    "dev:client": "vite",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "deploy": "vite build && alchemy deploy --stage prod",
+    "destroy": "alchemy destroy --stage prod"
+  },
+  "dependencies": {
+    "@foldkit/ui": "catalog:",
+    "@foldworks/agent": "workspace:*",
+    "@foldworks/diff-viewer": "workspace:*",
+    "@foldworks/history": "workspace:*",
+    "@foldworks/outliner": "workspace:*",
+    "@foldworks/text-intelligence": "workspace:*",
+    "@foldworks/ui": "workspace:*",
+    "@lucide/icons": "catalog:",
+    "@stylexjs/stylex": "catalog:",
+    "effect": "catalog:",
+    "foldkit": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "4.0.0-rc.112",
+    "@foldkit/devtools": "catalog:",
+    "@foldkit/vite-plugin": "catalog:",
+    "@stylexjs/unplugin": "catalog:",
+    "@types/node": "catalog:",
+    "alchemy": "2.0.0-beta.76",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

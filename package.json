@@ -20,6 +20,7 @@
   "devDependencies": {
     "tsx": "^4.23.0",
     "turbo": "^2.10.4",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "tsup": "^8.5.1"
   }
 }
