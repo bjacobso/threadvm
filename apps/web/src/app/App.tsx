@@ -158,7 +158,6 @@ function VmInventoryApp() {
         open={projectRegistryOpen}
         onOpenChange={setProjectRegistryOpen}
       />
-      <Toaster richColors position="bottom-right" />
     </TooltipProvider>
   );
 }
@@ -192,6 +191,7 @@ export function App() {
       <TabsContent value="inventory" className="min-h-0 overflow-hidden">
         <VmInventoryApp />
       </TabsContent>
+      <Toaster richColors position="bottom-right" />
     </Tabs>
   );
 }
