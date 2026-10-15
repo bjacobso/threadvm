@@ -17,6 +17,7 @@ import { SshServiceLive } from "@threadvm/shared/services/SshService";
 import { TerminalBridgeLive } from "@threadvm/shared/services/TerminalBridge";
 import { WorkspaceServiceLive } from "@threadvm/shared/services/WorkspaceService";
 import { ReconciliationRoutesLive } from "./reconciliationRoutes.js";
+import { OutlineServicesLive } from "@threadvm/shared/services/OutlineServices";
 import { TerminalRoutesLive } from "./terminalRoutes.js";
 
 const port = Number(process.env.THREADVM_PORT ?? "3333");
@@ -119,6 +120,7 @@ const WorkspaceServiceComposed = WorkspaceServiceLive.pipe(
 );
 
 const AppServicesLive = Layer.mergeAll(
+  OutlineServicesLive(),
   ConfigServiceLive,
   ExeDevServiceComposed,
   LocalStoreLive,

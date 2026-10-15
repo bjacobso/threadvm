@@ -306,3 +306,5 @@ export type ThreadVmMetadataModel = typeof ThreadVmMetadata.Type;
 export type ThreadVmMetadataFileModel = typeof ThreadVmMetadataFile.Type;
 export type TerminalClientMessageModel = typeof TerminalClientMessage.Type;
 export type TerminalServerMessageModel = typeof TerminalServerMessage.Type;
+
+export * from "./outline.js";

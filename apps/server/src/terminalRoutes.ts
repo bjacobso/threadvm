@@ -7,6 +7,7 @@ import { Socket } from "effect/unstable/socket";
 import { Effect, Fiber, Layer, Queue, Result, Schema, Stream } from "effect";
 import { randomUUID } from "node:crypto";
 import {
+  ThreadVm,
   TerminalClientMessage,
   TerminalErrorMessage,
   TerminalOutputMessage,
@@ -20,6 +21,7 @@ import {
   TerminalBridge,
   type TerminalAttachment
 } from "@threadvm/shared/services/TerminalBridge";
+import { LocalRunSubstrate } from "@threadvm/shared/services/LocalRunSubstrate";
 import { WorkspaceService } from "@threadvm/shared/services/WorkspaceService";
 
 const ThreadVmParams = Schema.Struct({
@@ -185,6 +187,13 @@ const terminalSocketRoute = HttpRouter.add(
     const bridge = yield* TerminalBridge;
     const openedResult = yield* Effect.result(
       Effect.gen(function* () {
+        if (socketRequest.threadVmId.startsWith("run-")) {
+          if (socketRequest.restart) return yield* Effect.fail(new Error("Start a new run explicitly from the outline"));
+          const localRuns = yield* LocalRunSubstrate;
+          const prepared = yield* localRuns.prepare(socketRequest.threadVmId.slice(4));
+          const vm = new ThreadVm({ id: socketRequest.threadVmId, name: "Local run", host: "localhost", state: "running", source: "cache", ports: [] });
+          return yield* bridge.open(vm, { ...socketRequest, attachmentId, prepared });
+        }
         const vm = yield* workspaces.getThreadVm(socketRequest.threadVmId);
         return yield* bridge.open(vm, { ...socketRequest, attachmentId });
       })

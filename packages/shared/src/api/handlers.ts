@@ -3,6 +3,11 @@ import { Effect, Layer } from "effect";
 import { ApiError, ProjectRegistryResponse } from "../domain/schema.js";
 import { ConfigService } from "../services/ConfigService.js";
 import { WorkspaceService } from "../services/WorkspaceService.js";
+import { OutlineView } from "../domain/outline.js";
+import { OutlineStore } from "../services/OutlineStore.js";
+import { ThoughtsRepo } from "../services/ThoughtsRepo.js";
+import { RunEventLog } from "../services/RunEventLog.js";
+import { LocalRunSubstrate } from "../services/LocalRunSubstrate.js";
 import { ThreadVmApi } from "./ThreadVmApi.js";
 
 const toApiError = (message: string) => (cause: unknown) =>
@@ -114,7 +119,35 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
       )
 );
 
+export const OutlineApiLive = HttpApiBuilder.group(ThreadVmApi, "outline", (handlers) => handlers
+  .handle("read", () => Effect.gen(function* () {
+    const store = yield* OutlineStore;
+    const runs = yield* LocalRunSubstrate;
+    const events = yield* RunEventLog;
+    const repo = yield* ThoughtsRepo;
+    return new OutlineView({ projectDir: repo.projectDir, snapshot: yield* store.read,
+      runs: yield* runs.list, events: yield* events.read });
+  }).pipe(Effect.mapError(toApiError("Failed to read outline; run threadvm init first"))))
+  .handle("apply", ({ payload }) => Effect.gen(function* () {
+    return yield* (yield* OutlineStore).apply(payload);
+  }).pipe(Effect.mapError(toApiError("Failed to apply outline batch"))))
+  .handle("propose", ({ payload }) => Effect.gen(function* () {
+    if (payload.runId) yield* (yield* LocalRunSubstrate).authorize(payload.runId, payload.capability);
+    return yield* (yield* OutlineStore).propose(payload.batch, payload.runId);
+  }).pipe(Effect.mapError(toApiError("Failed to submit proposal"))))
+  .handle("review", ({ payload }) => Effect.gen(function* () {
+    return yield* (yield* OutlineStore).review(payload);
+  }).pipe(Effect.mapError(toApiError("Failed to review proposal"))))
+  .handle("run", ({ payload }) => Effect.gen(function* () {
+    return yield* (yield* LocalRunSubstrate).start(payload.nodeId, payload.agent);
+  }).pipe(Effect.mapError(toApiError("Failed to start local run"))))
+  .handle("observe", ({ payload }) => Effect.gen(function* () {
+    yield* (yield* LocalRunSubstrate).observe(payload);
+  }).pipe(Effect.mapError(toApiError("Failed to record observation"))))
+);
+
 export const ThreadVmApiHandlersLive = Layer.mergeAll(
+  OutlineApiLive,
   ProjectsApiLive,
   ThreadVmsApiLive
 );
