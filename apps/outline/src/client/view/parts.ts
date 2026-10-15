@@ -14,7 +14,7 @@ import {
 import { Icon } from "@foldworks/ui";
 import type { Html, HtmlBuilder } from "foldkit/html";
 
-import { AGENTS } from "../../shared/agents.ts";
+import { agentInfo } from "../../shared/agents.ts";
 import { pendingOps, type AgentId, type StepKind, type Thread } from "../../shared/protocol.ts";
 import type { Message } from "../message.ts";
 
@@ -25,10 +25,10 @@ export const avatar = (agent: AgentId, h: H, size: "sm" | "md" = "sm"): Html =>
     [
       h.Class(`agent-avatar agent-avatar--${size}`),
       h.DataAttribute("agent", agent),
-      h.Title(`${AGENTS[agent].name} · ${AGENTS[agent].harness}`),
+      h.Title(`${agentInfo(agent).name} · ${agentInfo(agent).harness}`),
       h.AriaHidden(true),
     ],
-    [AGENTS[agent].initials],
+    [agentInfo(agent).initials],
   );
 
 /** What a thread is doing, in a few words. */

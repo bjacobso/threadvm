@@ -1,3 +1,4 @@
+import { McpRoutesLive } from "./mcpRoutes.js";
 import { HttpApiBuilder, HttpApiScalar } from "effect/unstable/httpapi";
 import {
   HttpMiddleware,
@@ -166,6 +167,7 @@ const AppServicesLive = Layer.mergeAll(
 const RoutesLive = Layer.mergeAll(
   ApiRoutesLive,
   OutlineRoutesLive,
+  McpRoutesLive,
   DocsRouteLive,
   ReconciliationRoutesLive,
   TerminalRoutesLive,

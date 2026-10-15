@@ -173,7 +173,10 @@ export const latestByNode = (
   threads: Readonly<Record<string, Thread>>,
 ): ReadonlyMap<string, Thread> => {
   const latest = new Map<string, Thread>();
-  for (const thread of byCreation(threads)) latest.set(thread.nodeId, thread);
+  for (const thread of byCreation(threads)) {
+    if(latest.get(thread.nodeId)?.execution && !thread.execution) continue;
+    latest.set(thread.nodeId, thread);
+  }
   return latest;
 };
 

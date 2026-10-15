@@ -1,5 +1,6 @@
 import {
   Cause,
+  Fiber,
   Context,
   Deferred,
   Effect,
@@ -8,8 +9,12 @@ import {
   Schema,
   Scope,
   Stream,
+  Stdio,
+  Sink,
 } from "effect";
-import { ChildProcess, ChildProcessSpawner } from "effect/process";
+import type { AgentProfile } from "@threadvm/shared/domain";
+import type { Sandbox } from "./Sandbox.ts";
+import { AcpProcessExitedError, AcpTransportError } from "./acp/errors.ts";
 import * as Acp from "./acp/client.ts";
 import type * as Protocol from "./acp/compat.ts";
 import { randomUUID } from "node:crypto";
@@ -46,6 +51,7 @@ export class AgentError extends Schema.TaggedError<AgentError>()("AgentError", {
 }) {}
 export interface AgentSession {
   readonly id: string;
+  readonly ready: Effect.Effect<void, AgentError>;
   readonly capabilities: unknown;
   readonly events: Stream.Stream<AgentEvent>;
   readonly prompt: (text: string) => Effect.Effect<void, AgentError>;
@@ -64,9 +70,10 @@ export class AgentDriver extends Context.Service<
   AgentDriver,
   {
     readonly open: (options: {
-      command: string;
-      args: ReadonlyArray<string>;
-      cwd: string;
+      profile: AgentProfile;
+      sandbox: Sandbox;
+      sessionId?: string;
+      mcpServers?: ReadonlyArray<Protocol.McpServer>;
     }) => Effect.Effect<AgentSession, AgentError, Scope.Scope>;
   }
 >()("AgentDriver") {}
@@ -75,16 +82,18 @@ const failure = (e: unknown) => new AgentError({ message: String(e) });
 export const AcpDriverLive = Layer.effect(
   AgentDriver,
   Effect.gen(function* () {
-    const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
     return {
       open: (options) =>
         Effect.gen(function* () {
-          const handle = yield* spawner.spawn(
-            ChildProcess.make(options.command, [...options.args], {
-              cwd: options.cwd,
-              env: process.env,
-              extendEnv: true,
-            }),
+          const { profile, sandbox } = options;
+          if (!profile.command)
+            return yield* Effect.fail(
+              new AgentError({ message: "ACP profile needs a command" }),
+            );
+          const handle = yield* sandbox.spawn(
+            profile.command,
+            profile.args ?? [],
+            { env: profile.env },
           );
           // stderr is diagnostic output; stdout is exclusively JSON-RPC.
           yield* handle.stderr.pipe(
@@ -94,11 +103,156 @@ export const AcpDriverLive = Layer.effect(
             ),
             Effect.forkScoped,
           );
-          const context = yield* Layer.buildWithScope(
-            Acp.layerChildProcess(handle),
-            yield* Scope.Scope,
+          const client = yield* Acp.make(
+            Stdio.make({
+              args: Effect.succeed([]),
+              stdin: handle.stdout,
+              stdout: () =>
+                Sink.mapInput(handle.stdin, (chunk: string | Uint8Array) =>
+                  typeof chunk === "string"
+                    ? new TextEncoder().encode(chunk)
+                    : chunk,
+                ),
+              stderr: () => Sink.drain,
+            }),
+            {},
+            Effect.match(handle.exitCode, {
+              onFailure: (cause) =>
+                new AcpTransportError({
+                  operation: "read-process-exit-status",
+                  cause,
+                }),
+              onSuccess: (code) => new AcpProcessExitedError({ code }),
+            }),
           );
-          const client = Context.get(context, Acp.AcpClient);
+          const scope = yield* Scope.Scope;
+          const transportFailure = (cause: unknown) =>
+            new AcpTransportError({ operation: "call-rpc", cause });
+          yield* client.handleReadTextFile((r) =>
+            sandbox.readFile(r.path).pipe(
+              Effect.map((text) => ({
+                content: text
+                  .split("\n")
+                  .slice(
+                    (r.line ?? 1) - 1,
+                    r.limit !== undefined && r.limit !== null
+                      ? (r.line ?? 1) - 1 + r.limit
+                      : undefined,
+                  )
+                  .join("\n"),
+              })),
+              Effect.mapError(transportFailure),
+            ),
+          );
+          yield* client.handleWriteTextFile((r) =>
+            sandbox
+              .writeFile(r.path, r.content)
+              .pipe(Effect.as({}), Effect.mapError(transportFailure)),
+          );
+          const terminals = new Map<
+            string,
+            {
+              handle: typeof handle;
+              output: Buffer;
+              drained: Deferred.Deferred<void>;
+              truncated: boolean;
+              limit: number;
+              exitCode?: number;
+            }
+          >();
+          yield* client.handleCreateTerminal((r) =>
+            Effect.gen(function* () {
+              const env = Object.fromEntries(
+                (r.env ?? []).map((e) => [e.name, e.value]),
+              );
+              const handle = yield* sandbox
+                .spawn(r.command, r.args ?? [], {
+                  cwd: r.cwd ?? undefined,
+                  env,
+                })
+                .pipe(Effect.provideService(Scope.Scope, scope));
+              const drained = yield* Deferred.make<void>();
+              const id = randomUUID(),
+                terminal = {
+                  handle,
+                  output: Buffer.alloc(0),
+                  drained,
+                  truncated: false,
+                  limit: r.outputByteLimit ?? 65536,
+                  exitCode: undefined as number | undefined,
+                };
+              terminals.set(id, terminal);
+              yield* Stream.merge(handle.stdout, handle.stderr).pipe(
+                Stream.runForEach((chunk) =>
+                  Effect.sync(() => {
+                    terminal.output = Buffer.concat([terminal.output, chunk]);
+                    if (terminal.output.length > terminal.limit) {
+                      terminal.output =
+                        terminal.limit === 0
+                          ? Buffer.alloc(0)
+                          : terminal.output.subarray(-terminal.limit);
+                      terminal.truncated = true;
+                    }
+                  }),
+                ),
+                Effect.ensuring(Deferred.succeed(drained, undefined)),
+                Effect.forkIn(scope),
+              );
+              yield* handle.exitCode.pipe(
+                Effect.tap((code) =>
+                  Effect.sync(() => {
+                    terminal.exitCode = code;
+                  }),
+                ),
+                Effect.ignore,
+                Effect.forkIn(scope),
+              );
+              return { terminalId: id };
+            }).pipe(Effect.mapError(transportFailure)),
+          );
+          const terminal = (id: string) =>
+            Effect.fromNullishOr(terminals.get(id)).pipe(
+              Effect.mapError(transportFailure),
+            );
+          yield* client.handleTerminalOutput((r) =>
+            terminal(r.terminalId).pipe(
+              Effect.map((t) => ({
+                output: t.output.toString("utf8"),
+                truncated: t.truncated,
+                ...(t.exitCode === undefined
+                  ? {}
+                  : { exitStatus: { exitCode: t.exitCode } }),
+              })),
+            ),
+          );
+          yield* client.handleTerminalWaitForExit((r) =>
+            terminal(r.terminalId).pipe(
+              Effect.flatMap((t) =>
+                t.handle.exitCode.pipe(
+                  Effect.tap(() => Deferred.await(t.drained)),
+                ),
+              ),
+              Effect.map((exitCode) => ({ exitCode })),
+              Effect.mapError(transportFailure),
+            ),
+          );
+          yield* client.handleTerminalKill((r) =>
+            terminal(r.terminalId).pipe(
+              Effect.flatMap((t) => t.handle.kill()),
+              Effect.as({}),
+              Effect.mapError(transportFailure),
+            ),
+          );
+          yield* client.handleTerminalRelease((r) =>
+            terminal(r.terminalId).pipe(
+              Effect.flatMap((t) => t.handle.kill().pipe(Effect.ignore)),
+              Effect.tap(() =>
+                Effect.sync(() => terminals.delete(r.terminalId)),
+              ),
+              Effect.as({}),
+              Effect.mapError(transportFailure),
+            ),
+          );
           const queue = yield* Queue.bounded<AgentEvent, Cause.Done<void>>(512);
           const emit = (event: AgentEvent) =>
             Queue.offer(queue, event).pipe(Effect.asVoid);
@@ -247,23 +401,62 @@ export const AcpDriverLive = Layer.effect(
           const initialized = yield* client.agent.initialize({
             protocolVersion: 1,
             clientInfo: { name: "threadvm", version: "0.0.0" },
-            clientCapabilities: { elicitation: { form: {} } },
+            clientCapabilities: {
+              elicitation: { form: {} },
+              fs: { readTextFile: true, writeTextFile: true },
+              terminal: true,
+            },
           });
           yield* emit(
             new AgentEvent({ type: "initialized", payload: initialized }),
           );
-          const created = yield* client.agent.createSession({
-            cwd: options.cwd,
-            mcpServers: [],
-          });
+          if (options.sessionId && !initialized.agentCapabilities?.loadSession)
+            return yield* Effect.fail(
+              new AgentError({
+                message: "Agent cannot load the persisted ACP session",
+              }),
+            );
+          if (
+            options.mcpServers?.some(
+              (server) => "type" in server && server.type === "http",
+            ) &&
+            !initialized.agentCapabilities?.mcpCapabilities?.http
+          )
+            return yield* Effect.fail(
+              new AgentError({
+                message:
+                  "This agent does not support the HTTP MCP transport required by the remote sandbox",
+              }),
+            );
+          const sessionOptions = {
+            cwd: sandbox.workdir,
+            mcpServers: options.mcpServers ?? [],
+          };
+          const created = options.sessionId
+            ? { sessionId: options.sessionId }
+            : yield* client.agent.createSession(sessionOptions);
           const id = created.sessionId;
-          yield* emit(
+          const sessionEvent = emit(
             new AgentEvent({
               type: "session",
               sessionId: id,
               payload: created,
             }),
           );
+          // session/load may replay more updates than the bounded event queue holds.
+          // Return the stream before awaiting replay; the caller drains it while ready waits.
+          const loading = yield* (
+            options.sessionId
+              ? client.agent
+                  .loadSession({ ...sessionOptions, sessionId: id })
+                  .pipe(
+                    Effect.asVoid,
+                    Effect.andThen(sessionEvent),
+                    Effect.mapError(failure),
+                  )
+              : sessionEvent
+          ).pipe(Effect.forkScoped);
+          const ready = Fiber.join(loading);
           let active = false;
           const cancel = Effect.gen(function* () {
             yield* client.agent.cancel({ sessionId: id });
@@ -286,12 +479,16 @@ export const AcpDriverLive = Layer.effect(
           );
           return {
             id,
+            ready,
             capabilities: initialized.agentCapabilities,
             events: Stream.fromQueue(queue),
             prompt: (text: string) =>
-              Effect.sync(() => {
-                active = true;
-              }).pipe(
+              ready.pipe(
+                Effect.andThen(
+                  Effect.sync(() => {
+                    active = true;
+                  }),
+                ),
                 Effect.andThen(
                   emit(
                     new AgentEvent({

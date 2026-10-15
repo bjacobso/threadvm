@@ -1,6 +1,6 @@
 // What needs a person, and where. Counts roll up through every ancestor, so a
 // question five levels down still shows on the folded branch you can see.
-import { AGENTS } from "../shared/agents.ts";
+import { agentInfo } from "../shared/agents.ts";
 import {
   isActive,
   pendingOps,
@@ -92,7 +92,8 @@ export const totals = (
     EMPTY,
   );
 
-export const agentName = (thread: Thread): string => AGENTS[thread.agent].name;
+export const agentName = (thread: Thread): string =>
+  agentInfo(thread.agent).name;
 
 /** Announced when a thread starts wanting something. */
 export const announcementFor = (

@@ -1,7 +1,10 @@
+import { Sandboxes, SandboxProvidersLive, type SandboxRef } from "./Sandbox.ts";
+import type { AgentProfile } from "@threadvm/shared/domain";
+import type { McpServer } from "./acp/compat.ts";
 import { Effect, Fiber, Queue, Schema, Stream } from "effect";
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { readFile, readdir, unlink } from "node:fs/promises";
+import { readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { AcpDriverLive, AgentDriver, type AgentEvent } from "./AgentDriver.ts";
@@ -12,6 +15,10 @@ const Configuration = Schema.Struct({
   command: Schema.String,
   args: Schema.Array(Schema.String),
   persistent: Schema.optional(Schema.Boolean),
+  profile: Schema.optional(Schema.Unknown),
+  sandboxRef: Schema.optional(Schema.Unknown),
+  sessionId: Schema.optional(Schema.String),
+  mcpServers: Schema.optional(Schema.Array(Schema.Unknown)),
 });
 const Control = Schema.Struct({
   action: Schema.Literals(["permission", "cancel", "answer", "prompt"]),
@@ -28,8 +35,30 @@ const program = Effect.gen(function* () {
       JSON.parse(await readFile(join(runDir, "acp.json"), "utf8")),
     ),
   );
+  yield* io(() => writeFile(join(runDir, "worker.pid"), String(process.pid)));
   const driver = yield* AgentDriver;
-  const session = yield* driver.open({ ...config, cwd: process.cwd() });
+  const registry = yield* Sandboxes;
+  const ref = (config.sandboxRef as SandboxRef | undefined) ?? {
+    provider: "local",
+    id: runId,
+    projectDir: project,
+    workdir: process.cwd(),
+    branch: "",
+    sessionName: `threadvm-run-${runId}`,
+  };
+  const sandbox = yield* registry.provider(ref.provider).attach(ref);
+  const profile = (config.profile as AgentProfile | undefined) ?? {
+    id: "acp",
+    kind: "acp",
+    command: config.command,
+    args: config.args,
+  };
+  const session = yield* driver.open({
+    profile,
+    sandbox,
+    sessionId: config.sessionId,
+    mcpServers: config.mcpServers as ReadonlyArray<McpServer> | undefined,
+  });
   const record = (event: AgentEvent) =>
     io(async () => {
       // The same capability-scoped write path that vendor agents use. It owns locking and recovery.
@@ -64,6 +93,7 @@ const program = Effect.gen(function* () {
     Stream.runForEach(record),
     Effect.forkScoped,
   );
+  yield* session.ready;
   const prompts = yield* Queue.unbounded<string>();
   // Commands are durable files, scoped to this run; the server never owns the ACP process.
   const controls = Effect.gen(function* () {
@@ -103,7 +133,7 @@ const program = Effect.gen(function* () {
     readFile(process.env.THREADVM_CONTEXT_FILE!, "utf8"),
   );
   const turns = Effect.gen(function* () {
-    yield* session.prompt(context);
+    if (!config.sessionId) yield* session.prompt(context);
     if (config.persistent)
       while (true) yield* session.prompt(yield* Queue.take(prompts));
   });
@@ -111,8 +141,20 @@ const program = Effect.gen(function* () {
   yield* session.endEvents;
   yield* Fiber.join(writer);
 }).pipe(
+  Effect.tapError((error) =>
+    io(async () => {
+      await new Promise<void>((resolve) => {
+        execFile(
+          "threadvm",
+          ["observe", runId, String(error), "--kind", "failed"],
+          () => resolve(),
+        );
+      });
+    }).pipe(Effect.ignore),
+  ),
   Effect.scoped,
   Effect.provide(AcpDriverLive),
+  Effect.provide(SandboxProvidersLive),
   Effect.provide(NodeServices.layer),
 );
 NodeRuntime.runMain(program);

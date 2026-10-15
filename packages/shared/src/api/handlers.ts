@@ -7,7 +7,7 @@ import { OutlineView } from "../domain/outline.js";
 import { OutlineStore } from "../services/OutlineStore.js";
 import { ThoughtsRepo } from "../services/ThoughtsRepo.js";
 import { RunEventLog } from "../services/RunEventLog.js";
-import { LocalRunSubstrate } from "../services/LocalRunSubstrate.js";
+import { AgentRuns } from "../services/AgentRuns.js";
 import { ThreadVmApi } from "./ThreadVmApi.js";
 
 const toApiError = (message: string) => (cause: unknown) =>
@@ -132,13 +132,13 @@ export const OutlineApiLive = HttpApiBuilder.group(
     handlers
       .handle("control", ({ payload }) =>
         Effect.gen(function* () {
-          yield* (yield* LocalRunSubstrate).control(payload);
+          yield* (yield* AgentRuns).control(payload);
         }).pipe(Effect.mapError(toApiError("Failed to control ACP session")))
       )
       .handle("read", () =>
         Effect.gen(function* () {
           const store = yield* OutlineStore;
-          const runs = yield* LocalRunSubstrate;
+          const runs = yield* AgentRuns;
           const events = yield* RunEventLog;
           const repo = yield* ThoughtsRepo;
           return new OutlineView({
@@ -161,7 +161,7 @@ export const OutlineApiLive = HttpApiBuilder.group(
       .handle("propose", ({ payload }) =>
         Effect.gen(function* () {
           if (payload.runId)
-            yield* (yield* LocalRunSubstrate).authorize(
+            yield* (yield* AgentRuns).authorize(
               payload.runId,
               payload.capability
             );
@@ -178,15 +178,16 @@ export const OutlineApiLive = HttpApiBuilder.group(
       )
       .handle("run", ({ payload }) =>
         Effect.gen(function* () {
-          return yield* (yield* LocalRunSubstrate).start(
+          return yield* (yield* AgentRuns).start(
             payload.nodeId,
-            payload.agent
+            payload.agent,
+            {sandbox:payload.sandbox}
           );
         }).pipe(Effect.mapError(toApiError("Failed to start local run")))
       )
       .handle("observe", ({ payload }) =>
         Effect.gen(function* () {
-          yield* (yield* LocalRunSubstrate).observe(payload);
+          yield* (yield* AgentRuns).observe(payload);
         }).pipe(Effect.mapError(toApiError("Failed to record observation")))
       )
 );

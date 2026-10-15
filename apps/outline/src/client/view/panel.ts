@@ -11,7 +11,7 @@ import { Button, Icon, TreeDiff, type TreeDiffNode } from "@foldworks/ui";
 import type { Html } from "foldkit/html";
 import { Option } from "effect";
 
-import { AGENTS } from "../../shared/agents.ts";
+import { agentInfo } from "../../shared/agents.ts";
 import {
   isActive,
   pendingOps,
@@ -102,6 +102,7 @@ const inboxCard = (items: Items, thread: Thread, kind: Kind, h: H): Html =>
                 h.button(
                   [
                     h.Class("option-chip"),
+                    h.Disabled(thread.question?.response === "expired"),
                     h.Type("button"),
                     h.OnClick(
                       Message.AnsweredQuestion({
@@ -137,6 +138,7 @@ const inboxCard = (items: Items, thread: Thread, kind: Kind, h: H): Html =>
                   h.button(
                     [
                       h.Class("option-chip"),
+                      h.Disabled(thread.question?.response === "expired"),
                       h.Type("button"),
                       h.OnClick(
                         Message.SelectedThread({ threadId: thread.id }),
@@ -283,7 +285,7 @@ const reviewCard = (items: Items, thread: Thread, h: H): Html | null => {
         [
           TreeDiff.view(
             {
-              label: `${AGENTS[thread.agent].name}'s suggested changes`,
+              label: `${agentInfo(thread.agent).name}'s suggested changes`,
               before: toDiffNodes(before),
               after: toDiffNodes(afterNode === undefined ? [] : [afterNode]),
               context: 1,
@@ -378,15 +380,28 @@ const questionCard = (thread: Thread, h: H): Html | null =>
         [
           h.header(
             [h.Class("card__header")],
-            [h.h3([], [`${AGENTS[thread.agent].name} is asking`])],
+            [h.h3([], [`${agentInfo(thread.agent).name} is asking`])],
           ),
           h.p([h.Class("card__question")], [thread.question.prompt]),
+          ...(thread.question.response && thread.question.response !== "live"
+            ? [
+                h.p(
+                  [h.Class("card__hint")],
+                  [
+                    thread.question.response === "message"
+                      ? "The agent disconnected. Your answer resumes its conversation as a message; new tool calls require new permission."
+                      : "This request expired when the agent disconnected. Start a new run to continue.",
+                  ],
+                ),
+              ]
+            : []),
           h.div(
             [h.Class("card__options")],
             thread.question.options.map((option) =>
               h.button(
                 [
                   h.Class("option-chip option-chip--large"),
+                  h.Disabled(thread.question?.response === "expired"),
                   h.Type("button"),
                   h.OnClick(
                     Message.AnsweredQuestion({
@@ -448,7 +463,7 @@ const contextView = (items: Items, thread: Thread, h: H): Html => {
       h.summary(
         [],
         [
-          `What ${AGENTS[thread.agent].name} can see · ${thread.contextSize} bullets`,
+          `What ${agentInfo(thread.agent).name} can see · ${thread.contextSize} bullets`,
         ],
       ),
       h.pre([], [toText(nested)]),
@@ -491,7 +506,7 @@ const activityList = (thread: Thread, h: H): Html =>
 
 const composer = (model: Model, thread: Thread, h: H): Html => {
   const value = model.drafts[thread.id] ?? "";
-  const name = AGENTS[thread.agent].name;
+  const name = agentInfo(thread.agent).name;
   const placeholder =
     thread.status === "NeedsInput"
       ? `Answer ${name}…`
@@ -508,6 +523,7 @@ const composer = (model: Model, thread: Thread, h: H): Html => {
         [
           h.Id(`composer-${thread.id}`),
           h.Class("composer__input"),
+          h.Disabled(thread.question?.response === "expired"),
           h.Rows(2),
           h.Value(value),
           h.Placeholder(placeholder),
@@ -529,7 +545,8 @@ const composer = (model: Model, thread: Thread, h: H): Html => {
           ariaLabel: "Send",
           variant: "primary",
           size: "icon",
-          isDisabled: value.trim() === "",
+          isDisabled:
+            value.trim() === "" || thread.question?.response === "expired",
           attributes: [h.Type("submit")],
         },
         h,
@@ -540,7 +557,7 @@ const composer = (model: Model, thread: Thread, h: H): Html => {
 
 const threadView = (model: Model, thread: Thread, h: H): Html => {
   const items = realItems(model.outline.items);
-  const agent = AGENTS[thread.agent];
+  const agent = agentInfo(thread.agent);
   const runs = byCreation(model.threads).filter(
     (other) => other.nodeId === thread.nodeId,
   );
@@ -701,7 +718,9 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
             ),
           ]
         : []),
-      composer(model, thread, h),
+      ...(thread.execution?.transport === "terminal"
+        ? []
+        : [composer(model, thread, h)]),
     ],
   );
 };

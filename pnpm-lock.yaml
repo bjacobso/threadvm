@@ -264,6 +264,9 @@ importers:
       '@effect/platform-node':
         specifier: 4.0.4
         version: 4.0.4(effect@4.0.4)(redis@6.3.0)
+      '@threadvm/shared':
+        specifier: workspace:*
+        version: link:../shared
       effect:
         specifier: 4.0.4
         version: 4.0.4

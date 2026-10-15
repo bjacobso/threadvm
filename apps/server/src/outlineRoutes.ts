@@ -1,10 +1,9 @@
-import { Effect, Layer, Queue, Stream, Cause } from "effect";
+import { Effect, Queue, Stream, Cause } from "effect";
 import {
   HttpRouter,
   HttpServerRequest,
   HttpServerResponse,
 } from "effect/unstable/http";
-import { Socket } from "effect/unstable/socket";
 import { decodeClient, encodeServer } from "@threadvm/outline-protocol";
 import { OutlineRoom } from "./OutlineRoom.js";
 

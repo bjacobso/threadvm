@@ -1,8 +1,14 @@
+import { PendingRequest } from "../domain/runtime.js";
 import { Context, Effect, Layer, Schema } from "effect";
-import { appendFile, readFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Run, RunEvent } from "../domain/outline.js";
-import { ThoughtsRepo, OutlineError, outlineIO } from "./ThoughtsRepo.js";
+import {
+  ThoughtsRepo,
+  OutlineError,
+  outlineIO,
+  atomicWrite,
+} from "./ThoughtsRepo.js";
 
 export const projectRuns = (events: ReadonlyArray<RunEvent>): Run[] => {
   const runs = new Map<string, Run>();
@@ -13,21 +19,75 @@ export const projectRuns = (events: ReadonlyArray<RunEvent>): Run[] => {
       throw new OutlineError(`Event references unknown run ${event.runId}`);
     if (event.nodeId !== run.nodeId)
       throw new OutlineError("Run event node mismatch");
+    const signal = event.agent;
+    let projected = run;
+    if (signal?.type === "initialized")
+      projected = new Run({
+        ...projected,
+        agentCapabilities: (signal.payload as { agentCapabilities?: unknown })
+          ?.agentCapabilities,
+      });
+    if (signal?.type === "session")
+      projected = new Run({ ...projected, acpSessionId: signal.sessionId });
+    if (
+      (signal?.type === "permission" || signal?.type === "question") &&
+      signal.requestId
+    )
+      projected = new Run({
+        ...projected,
+        pendingRequests: [
+          ...(projected.pendingRequests ?? []).filter(
+            (r) => r.id !== signal.requestId,
+          ),
+          new PendingRequest({
+            id: signal.requestId,
+            kind: signal.type,
+            title: signal.title ?? "Agent requests input",
+            options: signal.options ?? [],
+            payload: signal.payload,
+            response: "live",
+          }),
+        ],
+      });
+    if (
+      signal?.type === "permission_resolved" ||
+      signal?.type === "question_resolved"
+    )
+      projected = new Run({
+        ...projected,
+        pendingRequests: (projected.pendingRequests ?? []).filter(
+          (r) => r.id !== signal.requestId,
+        ),
+      });
+    if (signal?.type === "cancelled")
+      projected = new Run({ ...projected, pendingRequests: [] });
+    runs.set(run.id, projected);
     if (event.kind === "started")
-      runs.set(run.id, new Run({ ...run, status: "running" }));
+      runs.set(run.id, new Run({ ...projected, status: "running" }));
     if (event.kind === "finished" || event.kind === "failed")
       runs.set(
         run.id,
         new Run({
-          ...run,
+          ...projected,
+          pendingRequests: (projected.pendingRequests ?? []).map(
+            (request) =>
+              new PendingRequest({
+                ...request,
+                response: (
+                  projected.agentCapabilities as { loadSession?: boolean }
+                )?.loadSession
+                  ? "message"
+                  : "expired",
+              }),
+          ),
           status:
             event.kind === "failed" ||
             (event.exitCode !== undefined && event.exitCode !== 0)
               ? "failed"
               : "finished",
           endedAt: event.time,
-          exitCode: event.exitCode
-        })
+          exitCode: event.exitCode,
+        }),
       );
   }
   return [...runs.values()];
@@ -64,11 +124,12 @@ export const RunEventLogLive = Layer.effect(
             const events = parse(text);
             if (events.some((e) => e.id === event.id)) return;
             const previous = projectRuns(events).find(
-              (run) => run.id === event.runId
+              (run) => run.id === event.runId,
             );
             if (
-              previous?.status === "finished" ||
-              previous?.status === "failed"
+              (previous?.status === "finished" ||
+                previous?.status === "failed") &&
+              !(event.kind === "starting" && event.run?.status === "starting")
             ) {
               if (event.kind === "finished" || event.kind === "failed") return;
               throw new OutlineError("Run has already finished");
@@ -77,8 +138,18 @@ export const RunEventLogLive = Layer.effect(
             if (!text.endsWith("\n") && text.length)
               await writeFile(path, text.slice(0, text.lastIndexOf("\n") + 1));
             await appendFile(path, `${JSON.stringify(event)}\n`);
-          })
-        )
+            const current = projectRuns([...events, event]).find(
+              (r) => r.id === event.runId,
+            )!;
+            await mkdir(join(repo.dir, "runs", event.runId), {
+              recursive: true,
+            });
+            await atomicWrite(
+              join(repo.dir, "runs", event.runId, "state.json"),
+              JSON.stringify(current),
+            );
+          }),
+        ),
     };
-  })
+  }),
 );

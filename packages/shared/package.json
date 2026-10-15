@@ -83,6 +83,31 @@
       "development": "./src/services/OutlineServices.ts",
       "types": "./dist/services/OutlineServices.d.ts",
       "import": "./dist/services/OutlineServices.js"
+    },
+    "./services/SshTransport": {
+      "development": "./src/services/SshTransport.ts",
+      "types": "./dist/services/SshTransport.d.ts",
+      "import": "./dist/services/SshTransport.js"
+    },
+    "./services/SshBridge": {
+      "development": "./src/services/SshBridge.ts",
+      "types": "./dist/services/SshBridge.d.ts",
+      "import": "./dist/services/SshBridge.js"
+    },
+    "./services/AgentConfiguration": {
+      "development": "./src/services/AgentConfiguration.ts",
+      "types": "./dist/services/AgentConfiguration.d.ts",
+      "import": "./dist/services/AgentConfiguration.js"
+    },
+    "./services/AgentRuns": {
+      "development": "./src/services/AgentRuns.ts",
+      "types": "./dist/services/AgentRuns.d.ts",
+      "import": "./dist/services/AgentRuns.js"
+    },
+    "./services/OutlineMcp": {
+      "development": "./src/services/OutlineMcp.ts",
+      "types": "./dist/services/OutlineMcp.d.ts",
+      "import": "./dist/services/OutlineMcp.js"
     }
   },
   "scripts": {

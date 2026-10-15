@@ -1,10 +1,11 @@
+import { AgentProfile, SandboxRef, PendingRequest } from "./runtime.js";
 import { Schema } from "effect";
 
 export const OutlineId = Schema.String.check(
   Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$/),
 );
 const Revision = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
-export const Agent = Schema.Literals(["codex", "claude", "shell", "acp"]);
+export const Agent = Schema.String;
 
 export class NodeDraft extends Schema.Class<NodeDraft>("NodeDraft")({
   id: OutlineId,
@@ -107,6 +108,11 @@ export class Run extends Schema.Class<Run>("Run")({
   instruction: Schema.optional(Schema.String),
   contextNodes: Schema.optional(Schema.Array(Node)),
   persistent: Schema.optional(Schema.Boolean),
+  agentProfile: Schema.optional(AgentProfile),
+  sandboxRef: Schema.optional(SandboxRef),
+  acpSessionId: Schema.optional(Schema.String),
+  agentCapabilities: Schema.optional(Schema.Unknown),
+  pendingRequests: Schema.optional(Schema.Array(PendingRequest)),
 }) {}
 /** JSON boundary with the independently versioned ACP process. */
 export class AgentSignal extends Schema.Class<AgentSignal>("AgentSignal")({
@@ -198,6 +204,7 @@ export class StartRunRequest extends Schema.Class<StartRunRequest>(
 )({
   nodeId: OutlineId,
   agent: Agent,
+  sandbox: Schema.optional(Schema.String),
 }) {}
 export class ObserveRequest extends Schema.Class<ObserveRequest>(
   "ObserveRequest",

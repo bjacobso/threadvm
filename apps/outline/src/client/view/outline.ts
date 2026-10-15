@@ -19,7 +19,7 @@ import { Mentions } from "@foldworks/text-intelligence";
 import { Button, Icon } from "@foldworks/ui";
 import type { Html } from "foldkit/html";
 
-import { AGENTS, AGENT_IDS, mentionedAgent } from "../../shared/agents.ts";
+import { agentInfo, AGENT_IDS, mentionedAgent } from "../../shared/agents.ts";
 import {
   isActive,
   type Items,
@@ -202,9 +202,9 @@ const threadChip = (thread: Thread, h: H): Html =>
       h.Class("thread-chip"),
       h.Type("button"),
       h.DataAttribute("status", statusTone(thread)),
-      h.Title(`${AGENTS[thread.agent].name}: ${thread.headline}`),
+      h.Title(`${agentInfo(thread.agent).name}: ${thread.headline}`),
       h.AriaLabel(
-        `Open ${AGENTS[thread.agent].name}'s thread: ${statusLabel(thread)}`,
+        `Open ${agentInfo(thread.agent).name}'s thread: ${statusLabel(thread)}`,
       ),
       h.OnClick(Message.SelectedThread({ threadId: thread.id })),
     ],
@@ -241,7 +241,7 @@ const countdownChip = (
           h.span(
             [h.Class("thread-chip__label")],
             [
-              `Sending to ${AGENTS[agent].name} in ${Math.ceil(remaining / 1000)}s`,
+              `Sending to ${agentInfo(agent).name} in ${Math.ceil(remaining / 1000)}s`,
             ],
           ),
         ],
@@ -270,7 +270,7 @@ const draftChip = (nodeId: string, agent: Thread["agent"], h: H): Html =>
       avatar(agent, h),
       h.span(
         [h.Class("thread-chip__label")],
-        [`Send to ${AGENTS[agent].name}`],
+        [`Send to ${agentInfo(agent).name}`],
       ),
       Icon.view({ icon: SendHorizontal, size: 12 }, h),
     ],
@@ -308,6 +308,7 @@ const questionAccessory = (thread: Thread, h: H): Html =>
         h.button(
           [
             h.Class("option-chip"),
+            h.Disabled(thread.question?.response === "expired"),
             h.Type("button"),
             h.Title(option),
             h.OnClick(
@@ -354,7 +355,7 @@ const accessory = (scene: Scene, row: Row, h: H): Html | null => {
 
   const countdown = scene.model.countdowns[row.id];
   const thread = scene.latest.get(row.id);
-  const agent = mentionedAgent(row.text);
+  const agent = mentionedAgent(row.text, scene.model.backend?.available);
   if (countdown !== undefined)
     parts.push(countdownChip(row.id, countdown.remaining, countdown.agent, h));
   else if (
@@ -394,9 +395,9 @@ const hoverFor =
                 h.div(
                   [],
                   [
-                    h.strong([], [AGENTS[agent].name]),
-                    h.span([], [AGENTS[agent].harness]),
-                    h.p([], [AGENTS[agent].description]),
+                    h.strong([], [agentInfo(agent).name]),
+                    h.span([], [agentInfo(agent).harness]),
+                    h.p([], [agentInfo(agent).description]),
                   ],
                 ),
               ],
@@ -465,7 +466,7 @@ const toolbar = (model: Model, h: H): Html =>
           [
             h.Class("agent-tag"),
             h.DataAttribute("agent", agent),
-            h.Title(AGENTS[agent].description),
+            h.Title(agentInfo(agent).description),
           ],
           [`@${agent}`],
         ),

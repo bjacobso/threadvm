@@ -9,7 +9,7 @@ import { Option } from "effect";
 import { Update } from "foldkit";
 import { Outliner, reparented, type Policy } from "@foldworks/outliner";
 
-import { AGENTS, mentionedAgent } from "../shared/agents.ts";
+import { agentInfo, mentionedAgent, sandboxOf } from "../shared/agents.ts";
 import {
   isActive,
   pendingOps,
@@ -199,7 +199,10 @@ const refreshCountdowns = (model: Model): Model => {
   const countdowns = { ...model.countdowns };
   for (const nodeId of Object.keys(edited)) {
     const node = find(real, nodeId);
-    const agent = node === undefined ? undefined : mentionedAgent(node.text);
+    const agent =
+      node === undefined
+        ? undefined
+        : mentionedAgent(node.text, model.backend?.available);
     if (node === undefined) delete edited[nodeId];
     if (
       agent === undefined ||
@@ -241,7 +244,7 @@ const dispatch = (
     contextSize: contextOf(real, nodeId).size,
     parentThreadId: options.parentThreadId ?? null,
     status: "Queued",
-    headline: `Starting ${AGENTS[agent].harness}`,
+    headline: `Starting ${agentInfo(agent).harness}`,
     createdAt: at,
     updatedAt: at,
     sandbox: null,
@@ -262,7 +265,7 @@ const dispatch = (
       nextThreadNumber: model.nextThreadNumber + 1,
       edited,
       countdowns,
-      announcement: `Sent to ${AGENTS[agent].name}.`,
+      announcement: `Sent to ${agentInfo(agent).name}.`,
     },
     outbox: [
       {
@@ -270,6 +273,7 @@ const dispatch = (
         threadId,
         nodeId,
         agent,
+        sandbox: sandboxOf(node.text),
         instruction: options.instruction ?? "",
         parentThreadId: options.parentThreadId ?? null,
       },
@@ -332,6 +336,13 @@ const updateThread = (
 const answer = (model: Model, threadId: string, text: string): Step => {
   const thread = model.threads[threadId];
   if (thread?.question == null || text.trim() === "") return { model };
+  if (thread.question.response === "expired")
+    return {
+      model: {
+        ...model,
+        error: "This request expired when the agent disconnected.",
+      },
+    };
   const questionId = thread.question.id;
   return {
     model: updateThread(model, threadId, (current) => ({
@@ -369,7 +380,7 @@ const resolveOps = (
   const outbox: ReadonlyArray<ClientMessage> = [
     { _tag: "Resolve", threadId, opIds: ids, state },
   ];
-  const name = AGENTS[thread.agent].name;
+  const name = agentInfo(thread.agent).name;
   if (state === "Rejected")
     return {
       model: {
@@ -631,7 +642,10 @@ const reduce = (model: Model, message: Message): Step =>
     TickedCountdowns: ({ elapsed }) => tick(model, elapsed),
     ClickedSendNow: ({ nodeId }) => {
       const node = find(realItems(model.outline.items), nodeId);
-      const agent = node === undefined ? undefined : mentionedAgent(node.text);
+      const agent =
+        node === undefined
+          ? undefined
+          : mentionedAgent(node.text, model.backend?.available);
       return agent === undefined ? { model } : dispatch(model, nodeId, agent);
     },
     ClickedHoldCountdown: ({ nodeId }) => {

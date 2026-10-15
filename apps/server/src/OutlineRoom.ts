@@ -1,11 +1,13 @@
+import { AgentConfiguration } from "@threadvm/shared/services/AgentConfiguration";
 import {
   Context,
   Effect,
   Layer,
-  Queue,
   Semaphore,
   Stream,
   Schema,
+  Scope,
+  Fiber,
 } from "effect";
 import { readFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -21,7 +23,7 @@ import {
   atomicWrite,
   OutlineError,
 } from "@threadvm/shared/services/ThoughtsRepo";
-import { LocalRunSubstrate } from "@threadvm/shared/services/LocalRunSubstrate";
+import { AgentRuns } from "@threadvm/shared/services/AgentRuns";
 import { RunEventLog } from "@threadvm/shared/services/RunEventLog";
 import {
   OperationBatch,
@@ -32,7 +34,6 @@ import {
   type Proposal,
 } from "@threadvm/shared/domain";
 import {
-  encodeServer,
   type ClientMessage,
   type ServerMessage,
   type Thread,
@@ -182,9 +183,11 @@ export const OutlineRoomLive = Layer.effect(
   Effect.gen(function* () {
     const store = yield* OutlineStore,
       repo = yield* ThoughtsRepo,
-      runs = yield* LocalRunSubstrate,
+      runs = yield* AgentRuns,
+      profiles = yield* AgentConfiguration,
       log = yield* RunEventLog;
     const mutex = yield* Semaphore.make(1);
+    const scope = yield* Scope.Scope;
     const listeners = new Set<(message: ServerMessage) => void>();
     let state: RoomState = {
         collapsed: {},
@@ -207,32 +210,6 @@ export const OutlineRoomLive = Layer.effect(
     const broadcast = (message: ServerMessage) => {
       for (const listener of listeners) listener(message);
     };
-    const configuration = (agent: AgentId) =>
-      outlineIO(async () => {
-        const paths = [
-          join(
-            repo.dir,
-            `acp-${agent === "conductor" ? "claude" : agent}.json`,
-          ),
-          ...(agent === "claude" || agent === "conductor"
-            ? [join(repo.dir, "acp.json")]
-            : []),
-        ];
-        for (const path of paths) {
-          try {
-            const config = JSON.parse(await readFile(path, "utf8"));
-            if (
-              typeof config.command !== "string" ||
-              !Array.isArray(config.args)
-            )
-              throw new Error(`Invalid ACP configuration ${path}`);
-            return config as { command: string; args: string[] };
-          } catch (e) {
-            if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
-          }
-        }
-        return undefined;
-      });
     const makeOps = (
       proposals: ReadonlyArray<Proposal>,
       nodes: ReadonlyArray<import("@threadvm/shared/domain").Node>,
@@ -355,9 +332,7 @@ export const OutlineRoomLive = Layer.effect(
             children: prefs(n.children),
           }));
         items = prefs(toItems(snapshot.nodes));
-        const available: AgentId[] = ["shell", "codex"];
-        if (yield* configuration("claude"))
-          available.push("claude", "conductor");
+        const available: AgentId[] = [...(yield* profiles.names)];
         backend = {
           kind: "local",
           revision: snapshot.revision,
@@ -379,21 +354,15 @@ export const OutlineRoomLive = Layer.effect(
           const cancelled =
             state.cancelled.includes(run.id) ||
             own.some((e) => e.agent?.type === "cancelled");
-          const questionEvent =
-            cancelled || run.status === "failed" || run.status === "finished"
-              ? undefined
-              : own.find(
-                  (event) =>
-                    (event.agent?.type === "permission" ||
-                      event.agent?.type === "question") &&
-                    !state.answers.includes(event.agent.requestId ?? "") &&
-                    !own.some(
-                      (answer) =>
-                        (answer.agent?.type === "permission_resolved" ||
-                          answer.agent?.type === "question_resolved") &&
-                        answer.agent.requestId === event.agent?.requestId,
-                    ),
-                );
+          const pendingRequest = cancelled
+            ? undefined
+            : [...(run.pendingRequests ?? [])]
+                .filter((r) => !state.answers.includes(r.id))
+                .sort(
+                  (a, b) =>
+                    Number(b.response === "live") -
+                    Number(a.response === "live"),
+                )[0];
           const lastTurn = own
             .filter(
               (e) =>
@@ -402,7 +371,15 @@ export const OutlineRoomLive = Layer.effect(
             )
             .at(-1);
           const idle = lastTurn?.agent?.type === "turn_complete";
-          const question = questionEvent?.agent;
+          const question = pendingRequest
+            ? {
+                requestId: pendingRequest.id,
+                type: pendingRequest.kind,
+                title: pendingRequest.title,
+                options: pendingRequest.options,
+                payload: pendingRequest.payload,
+              }
+            : undefined;
           const activity = eventActivity(own);
           const report = [...activity]
             .reverse()
@@ -421,10 +398,10 @@ export const OutlineRoomLive = Layer.effect(
             parentThreadId: run.parentThreadId ?? null,
             status: cancelled
               ? "Cancelled"
-              : run.status === "failed"
-                ? "Failed"
-                : question
-                  ? "NeedsInput"
+              : question
+                ? "NeedsInput"
+                : run.status === "failed"
+                  ? "Failed"
                   : pending && (idle || run.status === "finished")
                     ? "Review"
                     : idle || run.status === "finished"
@@ -452,6 +429,7 @@ export const OutlineRoomLive = Layer.effect(
             question: question
               ? {
                   id: question.requestId!,
+                  response: pendingRequest?.response,
                   prompt: question.title ?? "Agent requests input",
                   options: question.options?.map((o) => o.name) ?? [],
                   kind:
@@ -500,7 +478,7 @@ export const OutlineRoomLive = Layer.effect(
           threads.push({
             id: `proposal-${p.id}`,
             nodeId,
-            agent: "claude",
+            agent: "cli",
             prompt: find(items, nodeId)?.text ?? "CLI proposal",
             contextSize: contextOf(items, nodeId).size,
             parentThreadId: null,
@@ -554,12 +532,10 @@ export const OutlineRoomLive = Layer.effect(
           depth++;
           parent = threads.find((t) => t.id === parent)?.parentThreadId ?? null;
         }
-        const config = yield* configuration(message.agent);
-        const unavailable =
-          message.agent === "cursor" ||
-          ((message.agent === "claude" || message.agent === "conductor") &&
-            !config) ||
-          depth > 2;
+        const configured = yield* profiles
+          .resolve(message.agent, message.sandbox)
+          .pipe(Effect.result);
+        const unavailable = configured._tag === "Failure" || depth > 2;
         if (unavailable) {
           state.failed[message.threadId] = {
             id: message.threadId,
@@ -601,20 +577,16 @@ export const OutlineRoomLive = Layer.effect(
           message.agent === "conductor"
             ? `${message.instruction || node.text}\nBreak this down into delegated sub-bullets as an outline proposal. Use @claude or @codex on implementation bullets. Do not launch agents yourself; acceptance launches them, at most two levels deep.`
             : message.instruction || node.text;
-        yield* runs.start(
-          node.id,
-          message.agent === "shell" ? "shell" : config ? "acp" : "codex",
-          {
-            ...(config ? { acp: config } : {}),
-            threadId: message.threadId,
-            executor: message.agent,
-            parentThreadId: message.parentThreadId,
-            instruction,
-            persistent: !!config,
-          },
-        );
+        yield* runs.start(node.id, message.agent, {
+          sandbox: message.sandbox,
+          threadId: message.threadId,
+          executor: message.agent,
+          parentThreadId: message.parentThreadId,
+          instruction,
+          persistent: message.agent !== "shell",
+        });
       });
-    const handle = (message: ClientMessage) =>
+    const handleWork = (message: ClientMessage) =>
       mutex.withPermits(1)(
         Effect.gen(function* () {
           yield* refresh();
@@ -680,10 +652,9 @@ export const OutlineRoomLive = Layer.effect(
                 for (const op of selected)
                   if (op._tag === "Insert")
                     for (const node of walk(op.items)) {
-                      const agent =
-                        /(?:^|\s)@(claude|codex|conductor|cursor|shell)\b/.exec(
-                          node.text,
-                        )?.[1] as AgentId | undefined;
+                      const agent = /(?:^|\s)@([a-z][a-z0-9_-]*)\b/.exec(
+                        node.text,
+                      )?.[1] as AgentId | undefined;
                       if (agent)
                         yield* dispatch({
                           _tag: "Dispatch",
@@ -781,6 +752,11 @@ export const OutlineRoomLive = Layer.effect(
           }
           yield* refresh();
         }),
+      );
+    const handle = (message: ClientMessage) =>
+      handleWork(message).pipe(
+        Effect.forkIn(scope),
+        Effect.flatMap(Fiber.join),
       );
     yield* Stream.tick("300 millis").pipe(
       Stream.runForEach(() =>

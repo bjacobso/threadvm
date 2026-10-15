@@ -308,3 +308,4 @@ export type TerminalClientMessageModel = typeof TerminalClientMessage.Type;
 export type TerminalServerMessageModel = typeof TerminalServerMessage.Type;
 
 export * from "./outline.js";
+export * from "./runtime.js";

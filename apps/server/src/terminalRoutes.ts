@@ -21,7 +21,7 @@ import {
   TerminalBridge,
   type TerminalAttachment
 } from "@threadvm/shared/services/TerminalBridge";
-import { LocalRunSubstrate } from "@threadvm/shared/services/LocalRunSubstrate";
+import { AgentRuns } from "@threadvm/shared/services/AgentRuns";
 import { WorkspaceService } from "@threadvm/shared/services/WorkspaceService";
 
 const ThreadVmParams = Schema.Struct({
@@ -189,7 +189,7 @@ const terminalSocketRoute = HttpRouter.add(
       Effect.gen(function* () {
         if (socketRequest.threadVmId.startsWith("run-")) {
           if (socketRequest.restart) return yield* Effect.fail(new Error("Start a new run explicitly from the outline"));
-          const localRuns = yield* LocalRunSubstrate;
+          const localRuns = yield* AgentRuns;
           const prepared = yield* localRuns.prepare(socketRequest.threadVmId.slice(4));
           const vm = new ThreadVm({ id: socketRequest.threadVmId, name: "Local run", host: "localhost", state: "running", source: "cache", ports: [] });
           return yield* bridge.open(vm, { ...socketRequest, attachmentId, prepared });

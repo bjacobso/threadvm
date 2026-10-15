@@ -22,13 +22,7 @@ export const Item: S.Codec<Item> = S.suspend(() =>
 export const Items = S.Array(Item);
 export type Items = ReadonlyArray<Item>;
 
-export const AgentId = S.Literals([
-  "claude",
-  "cursor",
-  "conductor",
-  "codex",
-  "shell",
-]);
+export const AgentId = S.String;
 export type AgentId = typeof AgentId.Type;
 
 export const ThreadStatus = S.Literals([
@@ -79,6 +73,7 @@ export const Question = S.Struct({
   prompt: S.String,
   options: S.Array(S.String),
   kind: S.optional(S.Literals(["permission", "question"])),
+  response: S.optional(S.Literals(["live", "message", "expired"])),
   details: S.optional(S.String),
 });
 export type Question = typeof Question.Type;
@@ -200,6 +195,7 @@ export const ClientMessage = S.Union([
     agent: AgentId,
     /** A follow-up instruction. Empty means the bullet's own text. */
     instruction: S.String,
+    sandbox: S.optional(S.String),
     parentThreadId: S.NullOr(S.String),
   }),
   S.TaggedStruct("Answer", {

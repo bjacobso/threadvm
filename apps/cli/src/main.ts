@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { serveMcp } from "./mcp.js";
+import { AgentConfiguration } from "@threadvm/shared/services/AgentConfiguration";
 import { Effect, Schema } from "effect";
 import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -8,17 +10,17 @@ import {
   RunControlRequest,
   ObserveRequest,
   ReviewRequest,
-  Agent
+  Agent,
 } from "@threadvm/shared/domain";
 import {
   OutlineStore,
-  renderMarkdown
+  renderMarkdown,
 } from "@threadvm/shared/services/OutlineStore";
 import {
   ThoughtsRepo,
-  OutlineError
+  OutlineError,
 } from "@threadvm/shared/services/ThoughtsRepo";
-import { LocalRunSubstrate } from "@threadvm/shared/services/LocalRunSubstrate";
+import { AgentRuns } from "@threadvm/shared/services/AgentRuns";
 import { RunEventLog } from "@threadvm/shared/services/RunEventLog";
 import { OutlineServicesLive } from "@threadvm/shared/services/OutlineServices";
 
@@ -32,7 +34,7 @@ const option = (name: string) => {
   return value;
 };
 const projectDir = resolve(
-  option("--dir") ?? process.env.THREADVM_PROJECT_DIR ?? process.cwd()
+  option("--dir") ?? process.env.THREADVM_PROJECT_DIR ?? process.cwd(),
 );
 const agentOption = option("--agent") ?? "shell";
 const dataOption = option("--data");
@@ -53,16 +55,17 @@ const jsonInput = async (file: string | undefined) => {
 };
 const print = (value: unknown) =>
   console.log(
-    typeof value === "string" ? value : JSON.stringify(value, null, 2)
+    typeof value === "string" ? value : JSON.stringify(value, null, 2),
   );
 const denied = () => {
   throw new Error(
-    "Agent runs may only read the outline, propose changes, and observe their own run. Human approval is required for this command."
+    "Agent runs may only read the outline, propose changes, and observe their own run. Human approval is required for this command.",
   );
 };
 
 try {
-  if (runId && !["outline", "propose", "observe"].includes(command)) denied();
+  if (runId && !["outline", "propose", "observe", "mcp"].includes(command))
+    denied();
   if (command === "web" || command === "dev" || command === "open") {
     process.env.THREADVM_PROJECT_DIR =
       command === "open" ? resolve(args[0] ?? projectDir) : projectDir;
@@ -73,7 +76,7 @@ try {
         const browser = spawn(
           process.platform === "darwin" ? "open" : "xdg-open",
           [url],
-          { stdio: "ignore", detached: true }
+          { stdio: "ignore", detached: true },
         );
         browser.on("error", () => console.log(`Open ${url} in your browser`));
         browser.unref();
@@ -84,10 +87,19 @@ try {
     const work = Effect.gen(function* () {
       const store = yield* OutlineStore;
       const repo = yield* ThoughtsRepo;
-      const runs = yield* LocalRunSubstrate;
+      const runs = yield* AgentRuns;
       switch (command) {
+        case "mcp": {
+          const target = option("--run") ?? runId;
+          if (!target || (runId && target !== runId))
+            throw new Error("MCP needs its own --run ID");
+          yield* serveMcp(target, capability);
+          break;
+        }
         case "init": {
-          print(yield* store.init);
+          const snapshot = yield* store.init;
+          yield* (yield* AgentConfiguration).init;
+          print(snapshot);
           break;
         }
         case "outline": {
@@ -100,26 +112,26 @@ try {
                 projectDir: repo.projectDir,
                 snapshot,
                 runs: yield* runs.list,
-                events: yield* (yield* RunEventLog).read
+                events: yield* (yield* RunEventLog).read,
               });
           } else if (verb === "apply") {
             if (runId) denied();
             const batch = yield* Effect.tryPromise(() => jsonInput(args[0]));
             print(
               yield* store.apply(
-                yield* Schema.decodeUnknownEffect(OperationBatch)(batch)
-              )
+                yield* Schema.decodeUnknownEffect(OperationBatch)(batch),
+              ),
             );
           } else
             throw new Error(
-              "Usage: threadvm outline show [--markdown] | apply <batch.json|->"
+              "Usage: threadvm outline show [--markdown] | apply <batch.json|->",
             );
           break;
         }
         case "propose": {
           if (runId) yield* runs.authorize(runId, capability);
           const batch = yield* Schema.decodeUnknownEffect(OperationBatch)(
-            yield* Effect.tryPromise(() => jsonInput(args[0]))
+            yield* Effect.tryPromise(() => jsonInput(args[0])),
           );
           print(yield* store.propose(batch, runId));
           break;
@@ -128,7 +140,7 @@ try {
           const decision = args.shift();
           if (decision !== "accept" && decision !== "reject")
             throw new Error(
-              "Usage: threadvm proposal accept|reject <proposalId> [nodeId ...]"
+              "Usage: threadvm proposal accept|reject <proposalId> [nodeId ...]",
             );
           const proposalId = args.shift();
           print(
@@ -136,15 +148,20 @@ try {
               yield* Schema.decodeUnknownEffect(ReviewRequest)({
                 proposalId,
                 decision,
-                nodeIds: args.length ? args : undefined
-              })
-            )
+                nodeIds: args.length ? args : undefined,
+              }),
+            ),
           );
           break;
         }
         case "run": {
           const agent = yield* Schema.decodeUnknownEffect(Agent)(agentOption);
-          print(yield* runs.start(args[0], agent));
+          print(
+            yield* runs.start(args[0], agent, {
+              sandbox: option("--sandbox"),
+              persistent: args.includes("--persistent"),
+            }),
+          );
           break;
         }
         case "cancel":
@@ -154,8 +171,8 @@ try {
               runId: args[0],
               action: command === "cancel" ? "cancel" : "permission",
               requestId: args[1],
-              optionId: args[2]
-            })
+              optionId: args[2],
+            }),
           );
           print({ queued: true });
           break;
@@ -166,7 +183,10 @@ try {
           const token =
             capability ??
             (yield* Effect.tryPromise(() =>
-              readFile(resolve(repo.dir, "runs", args[0], "capability"), "utf8")
+              readFile(
+                resolve(repo.dir, "runs", args[0], "capability"),
+                "utf8",
+              ),
             ));
           const request = yield* Schema.decodeUnknownEffect(ObserveRequest)({
             runId: args[0],
@@ -181,7 +201,7 @@ try {
                   : JSON.parse(dataOption),
             codeSha: kind === "commit" ? args[1] : undefined,
             exitCode:
-              exitCodeOption === undefined ? undefined : Number(exitCodeOption)
+              exitCodeOption === undefined ? undefined : Number(exitCodeOption),
           });
           yield* runs.observe(request);
           print({ recorded: true });
@@ -199,15 +219,15 @@ try {
         default:
           return yield* Effect.fail(
             new OutlineError(
-              "Usage: threadvm init|open|web|outline|propose|proposal|observe|run|cancel|permission|remote add|push"
-            )
+              "Usage: threadvm init|open|web|outline|propose|proposal|observe|run|cancel|permission|remote add|push",
+            ),
           );
       }
     });
     const dir =
       command === "init" ? resolve(args[0] ?? projectDir) : projectDir;
     await Effect.runPromise(
-      work.pipe(Effect.provide(OutlineServicesLive(dir)))
+      work.pipe(Effect.provide(OutlineServicesLive(dir))),
     );
   }
 } catch (cause) {
