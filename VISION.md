@@ -1,6 +1,20 @@
 # Vision
 
-ThreadVM is the development-environment control plane for agentic software work.
+ThreadVM is a filesystem-native, Git-versioned outline meta-harness for agentic
+software work. Humans author intent. Agents execute work and propose how the
+thinking should evolve. The outline is where both meet.
+
+Every outline node has a stable ID. Delegating a node gives it runs and isolated
+workspaces; a thread is a delegated node, not a separate kind of document.
+Human edits and accepted agent proposals version thought history in the nested
+`.threadvm/` repository. Append-only events retain execution history, while the
+project's Git repository retains code history. The three histories link by IDs
+and commit SHAs. Markdown is a projection of the canonical snapshot and operations.
+
+The outliner becomes the primary surface, with proposals inline and terminals
+beneath delegated nodes. Existing exe.dev environments remain reachable; local
+Git worktrees and tmux provide the first execution substrate. The environment
+control plane described below supports this outline-centered direction.
 
 It should feel less like a VM launcher and more like the `pi`, `opencode`, or `codex` of development environments: a focused agent UX where every task gets a live, inspectable, disposable workspace with terminals, ports, metadata, logs, and lifecycle controls.
 
