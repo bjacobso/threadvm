@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 type WorkspaceName =
+  | "@threadvm/outline-protocol"
   | "@threadvm/agent"
   | "@threadvm/outline"
   | "@threadvm/cli"
@@ -35,6 +36,7 @@ interface ArchitectureViolation {
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const workspaces: ReadonlyArray<Workspace> = [
+  { name: "@threadvm/outline-protocol", root: path.join(repoRoot, "packages/outline-protocol"), src: path.join(repoRoot, "packages/outline-protocol/src") },
   {
     name: "@threadvm/agent",
     root: path.join(repoRoot, "packages/agent"),
@@ -68,10 +70,11 @@ const workspaces: ReadonlyArray<Workspace> = [
 ];
 
 const allowedImports: Record<WorkspaceName, ReadonlySet<WorkspaceName>> = {
+  "@threadvm/outline-protocol": new Set(["@threadvm/shared"]),
   "@threadvm/agent": new Set(),
-  "@threadvm/outline": new Set(["@threadvm/shared"]),
+  "@threadvm/outline": new Set(["@threadvm/shared", "@threadvm/outline-protocol"]),
   "@threadvm/web": new Set(["@threadvm/shared"]),
-  "@threadvm/server": new Set(["@threadvm/shared"]),
+  "@threadvm/server": new Set(["@threadvm/shared", "@threadvm/outline-protocol"]),
   "@threadvm/cli": new Set(["@threadvm/server", "@threadvm/shared"]),
   "@threadvm/shared": new Set()
 };

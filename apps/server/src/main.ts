@@ -23,6 +23,8 @@ import { TerminalBridgeLive } from "@threadvm/shared/services/TerminalBridge";
 import { WorkspaceServiceLive } from "@threadvm/shared/services/WorkspaceService";
 import { ReconciliationRoutesLive } from "./reconciliationRoutes.js";
 import { OutlineServicesLive } from "@threadvm/shared/services/OutlineServices";
+import { OutlineRoomLive } from "./OutlineRoom.js";
+import { OutlineRoutesLive } from "./outlineRoutes.js";
 import { TerminalRoutesLive } from "./terminalRoutes.js";
 
 const port = Number(process.env.THREADVM_PORT ?? "3333");
@@ -148,8 +150,10 @@ const WorkspaceServiceComposed = WorkspaceServiceLive.pipe(
   )
 );
 
+const OutlineServices = OutlineServicesLive();
 const AppServicesLive = Layer.mergeAll(
-  OutlineServicesLive(),
+  OutlineRoomLive.pipe(Layer.provide(OutlineServices)),
+  OutlineServices,
   ConfigServiceLive,
   ExeDevServiceComposed,
   LocalStoreLive,
@@ -161,6 +165,7 @@ const AppServicesLive = Layer.mergeAll(
 
 const RoutesLive = Layer.mergeAll(
   ApiRoutesLive,
+  OutlineRoutesLive,
   DocsRouteLive,
   ReconciliationRoutesLive,
   TerminalRoutesLive,

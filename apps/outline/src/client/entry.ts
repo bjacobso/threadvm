@@ -16,7 +16,11 @@ const randomId = (length: number): string =>
 /** Each outline lives at `/o/<id>`; the root starts a fresh one. */
 const flags = Effect.sync((): Flags => {
   const match = /^\/o\/([A-Za-z0-9_-]{1,64})\/?$/u.exec(location.pathname);
-  const outlineId = match?.[1] ?? randomId(10);
+  const outlineId =
+    match?.[1] ??
+    (document.querySelector('meta[name="threadvm-local"]')
+      ? "local"
+      : randomId(10));
   if (match === null) history.replaceState(null, "", `/o/${outlineId}`);
   return { outlineId, sessionId: randomId(6) };
 });
@@ -30,11 +34,12 @@ const application = Runtime.makeApplication({
   subscriptions,
   managedResources,
   container: document.getElementById("root"),
-  devTools: { Message, show: "Development", position: "BottomLeft", excludeFromHistory: ["TickedCountdowns"] },
+  devTools: {
+    Message,
+    show: "Development",
+    position: "BottomLeft",
+    excludeFromHistory: ["TickedCountdowns"],
+  },
 });
 
-if (document.querySelector('meta[name="threadvm-local"]') || new URLSearchParams(location.search).has("local")) {
-  import("../local/state.ts").then(({ run }) => run());
-} else {
-  Runtime.run(application, { flags });
-}
+Runtime.run(application, { flags });

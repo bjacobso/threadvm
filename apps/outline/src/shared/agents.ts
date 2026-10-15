@@ -11,6 +11,7 @@ export type AgentProfile = Readonly<{
 }>;
 
 export const AGENTS: Readonly<Record<AgentId, AgentProfile>> = {
+  shell: { id: "shell", name: "Shell", harness: "Local tmux shell", description: "An interactive shell in an isolated worktree", initials: "Sh" },
   conductor: {
     id: "conductor",
     name: "Conductor",
@@ -57,6 +58,6 @@ export const mentionedAgent = (text: string): AgentId | undefined => {
 /** The bullet without its agent mentions, for writing about the task. */
 export const taskOf = (text: string): string =>
   text
-    .replace(/(^|\s)@(claude|cursor|conductor|codex)\b[:,]?/giu, "$1")
+    .replace(/(^|\s)@(claude|cursor|conductor|codex|shell)\b[:,]?/giu, "$1")
     .replace(/\s+/gu, " ")
     .trim();

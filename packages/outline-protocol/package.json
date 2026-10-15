@@ -1,0 +1,36 @@
+{
+  "name": "@threadvm/outline-protocol",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "development": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./document": {
+      "development": "./src/document.ts",
+      "types": "./dist/document.d.ts",
+      "import": "./dist/document.js"
+    },
+    "./tree": {
+      "development": "./src/tree.ts",
+      "types": "./dist/tree.d.ts",
+      "import": "./dist/tree.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "effect": "catalog:",
+    "@threadvm/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

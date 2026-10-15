@@ -1,4 +1,12 @@
-import { Check, ChevronsDownUp, ChevronsUpDown, Redo2, SendHorizontal, Undo2, X } from "@lucide/icons";
+import {
+  Check,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Redo2,
+  SendHorizontal,
+  Undo2,
+  X,
+} from "@lucide/icons";
 import { History } from "@foldworks/history";
 import {
   Outliner,
@@ -12,18 +20,32 @@ import { Button, Icon } from "@foldworks/ui";
 import type { Html } from "foldkit/html";
 
 import { AGENTS, AGENT_IDS, mentionedAgent } from "../../shared/agents.ts";
-import { isActive, type Items, type Op, type Thread } from "../../shared/protocol.ts";
+import {
+  isActive,
+  type Items,
+  type Op,
+  type Thread,
+} from "../../shared/protocol.ts";
 import { rollups, type Tally } from "../attention.ts";
 import { dataFor, describeAt, diagnosticsOf, spansOf } from "../mentions.ts";
 import { Message } from "../message.ts";
 import { COUNTDOWN_MS, type Model } from "../model.ts";
-import { ghostsOf, inlineSuggestions, latestByNode, realItems, type Ghost } from "../projection.ts";
+import {
+  ghostsOf,
+  inlineSuggestions,
+  latestByNode,
+  realItems,
+  type Ghost,
+} from "../projection.ts";
 import { policy } from "../update.ts";
 import { avatar, statusLabel, statusTone, type H } from "./parts.ts";
 
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.platform);
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/u.test(navigator.platform);
 
-const outlinerMessage = (message: Outliner.Message) => Message.GotOutlinerMessage({ message });
+const outlinerMessage = (message: Outliner.Message) =>
+  Message.GotOutlinerMessage({ message });
 
 /** Everything the rows need, computed once per render. */
 type Scene = Readonly<{
@@ -52,12 +74,25 @@ const sceneOf = (model: Model): Scene => {
 
 const plain = (text: string): ReadonlyArray<TextSpan> => [{ text }];
 
-const decorationFor = (scene: Scene, id: string, text: string, data: Mentions.Data): RowDecoration | undefined => {
+const decorationFor = (
+  scene: Scene,
+  id: string,
+  text: string,
+  data: Mentions.Data,
+): RowDecoration | undefined => {
   const ghost = scene.ghosts.get(id);
   if (ghost?._tag === "Question")
-    return { tone: "question", marker: "?", spans: [{ text, kind: "question" }] };
+    return {
+      tone: "question",
+      marker: "?",
+      spans: [{ text, kind: "question" }],
+    };
   if (ghost?._tag === "Inserted")
-    return { tone: "suggested", marker: "+", spans: spansOf(text, data) ?? plain(text) };
+    return {
+      tone: "suggested",
+      marker: "+",
+      spans: spansOf(text, data) ?? plain(text),
+    };
 
   const spans = spansOf(text, data);
   const diagnostics = diagnosticsOf(text, data);
@@ -65,6 +100,15 @@ const decorationFor = (scene: Scene, id: string, text: string, data: Mentions.Da
   const edit = suggestions.find((entry) => entry.op._tag === "Edit")?.op as
     | Extract<Op, { _tag: "Edit" }>
     | undefined;
+  const structural = suggestions.find(
+    (entry) => entry.op._tag === "Structural",
+  )?.op;
+  if (structural?._tag === "Structural")
+    return {
+      tone: "edited",
+      spans: spans ?? plain(text),
+      suffix: [{ text: `  ${structural.label}`, kind: "added" }],
+    };
   const completes = suggestions.some((entry) => entry.op._tag === "Complete");
   if (edit !== undefined)
     return {
@@ -80,8 +124,10 @@ const decorationFor = (scene: Scene, id: string, text: string, data: Mentions.Da
       diagnostics,
     };
   const thread = scene.latest.get(id);
-  const tone = thread === undefined ? undefined : `thread-${statusTone(thread)}`;
-  if (spans === undefined && diagnostics.length === 0 && tone === undefined) return undefined;
+  const tone =
+    thread === undefined ? undefined : `thread-${statusTone(thread)}`;
+  if (spans === undefined && diagnostics.length === 0 && tone === undefined)
+    return undefined;
   return {
     ...(spans === undefined ? {} : { spans }),
     ...(tone === undefined ? {} : { tone }),
@@ -89,7 +135,9 @@ const decorationFor = (scene: Scene, id: string, text: string, data: Mentions.Da
   };
 };
 
-const decorationsOf = (scene: Scene): Readonly<Record<string, RowDecoration>> => {
+const decorationsOf = (
+  scene: Scene,
+): Readonly<Record<string, RowDecoration>> => {
   const data = dataFor(scene.real);
   const result: Record<string, RowDecoration> = {};
   const visit = (items: Items) => {
@@ -106,7 +154,12 @@ const decorationsOf = (scene: Scene): Readonly<Record<string, RowDecoration>> =>
 // ---------------------------------------------------------------------------
 // Row accessories
 
-const reviewButtons = (thread: Thread, opIds: ReadonlyArray<string>, label: string, h: H): Html =>
+const reviewButtons = (
+  thread: Thread,
+  opIds: ReadonlyArray<string>,
+  label: string,
+  h: H,
+): Html =>
   h.span(
     [h.Class("row-review")],
     [
@@ -117,7 +170,11 @@ const reviewButtons = (thread: Thread, opIds: ReadonlyArray<string>, label: stri
           variant: "ghost",
           size: "xs",
           attributes: [h.DataAttribute("review", "accept"), h.Title("Accept")],
-          onClick: Message.ResolvedOps({ threadId: thread.id, opIds, state: "Accepted" }),
+          onClick: Message.ResolvedOps({
+            threadId: thread.id,
+            opIds,
+            state: "Accepted",
+          }),
         },
         h,
       ),
@@ -128,7 +185,11 @@ const reviewButtons = (thread: Thread, opIds: ReadonlyArray<string>, label: stri
           variant: "ghost",
           size: "xs",
           attributes: [h.DataAttribute("review", "reject"), h.Title("Reject")],
-          onClick: Message.ResolvedOps({ threadId: thread.id, opIds, state: "Rejected" }),
+          onClick: Message.ResolvedOps({
+            threadId: thread.id,
+            opIds,
+            state: "Rejected",
+          }),
         },
         h,
       ),
@@ -142,7 +203,9 @@ const threadChip = (thread: Thread, h: H): Html =>
       h.Type("button"),
       h.DataAttribute("status", statusTone(thread)),
       h.Title(`${AGENTS[thread.agent].name}: ${thread.headline}`),
-      h.AriaLabel(`Open ${AGENTS[thread.agent].name}'s thread: ${statusLabel(thread)}`),
+      h.AriaLabel(
+        `Open ${AGENTS[thread.agent].name}'s thread: ${statusLabel(thread)}`,
+      ),
       h.OnClick(Message.SelectedThread({ threadId: thread.id })),
     ],
     [
@@ -152,7 +215,12 @@ const threadChip = (thread: Thread, h: H): Html =>
     ],
   );
 
-const countdownChip = (nodeId: string, remaining: number, agent: Thread["agent"], h: H): Html =>
+const countdownChip = (
+  nodeId: string,
+  remaining: number,
+  agent: Thread["agent"],
+  h: H,
+): Html =>
   h.span(
     [h.Class("countdown")],
     [
@@ -163,14 +231,18 @@ const countdownChip = (nodeId: string, remaining: number, agent: Thread["agent"]
           h.DataAttribute("status", "sending"),
           h.Title("Send now"),
           h.OnClick(Message.ClickedSendNow({ nodeId })),
-          h.Style({ "--countdown": String(Math.max(0, remaining / COUNTDOWN_MS)) }),
+          h.Style({
+            "--countdown": String(Math.max(0, remaining / COUNTDOWN_MS)),
+          }),
         ],
         [
           avatar(agent, h),
           h.span([h.Class("countdown__ring"), h.AriaHidden(true)], []),
           h.span(
             [h.Class("thread-chip__label")],
-            [`Sending to ${AGENTS[agent].name} in ${Math.ceil(remaining / 1000)}s`],
+            [
+              `Sending to ${AGENTS[agent].name} in ${Math.ceil(remaining / 1000)}s`,
+            ],
           ),
         ],
       ),
@@ -196,7 +268,10 @@ const draftChip = (nodeId: string, agent: Thread["agent"], h: H): Html =>
     ],
     [
       avatar(agent, h),
-      h.span([h.Class("thread-chip__label")], [`Send to ${AGENTS[agent].name}`]),
+      h.span(
+        [h.Class("thread-chip__label")],
+        [`Send to ${AGENTS[agent].name}`],
+      ),
       Icon.view({ icon: SendHorizontal, size: 12 }, h),
     ],
   );
@@ -207,16 +282,19 @@ const tallyPills = (tally: Tally, h: H): ReadonlyArray<Html> => {
       ? []
       : [
           h.span(
+            [h.Class("tally"), h.DataAttribute("kind", kind), h.Title(label)],
             [
-              h.Class("tally"),
-              h.DataAttribute("kind", kind),
-              h.Title(label),
+              h.span([h.Class("tally__dot"), h.AriaHidden(true)], []),
+              String(count),
             ],
-            [h.span([h.Class("tally__dot"), h.AriaHidden(true)], []), String(count)],
           ),
         ];
   return [
-    ...pill("needs", tally.NeedsInput, `${tally.NeedsInput} waiting on you below`),
+    ...pill(
+      "needs",
+      tally.NeedsInput,
+      `${tally.NeedsInput} waiting on you below`,
+    ),
     ...pill("review", tally.Review, `${tally.Review} with suggestions below`),
     ...pill("working", tally.Working, `${tally.Working} working below`),
   ];
@@ -232,7 +310,9 @@ const questionAccessory = (thread: Thread, h: H): Html =>
             h.Class("option-chip"),
             h.Type("button"),
             h.Title(option),
-            h.OnClick(Message.AnsweredQuestion({ threadId: thread.id, text: option })),
+            h.OnClick(
+              Message.AnsweredQuestion({ threadId: thread.id, text: option }),
+            ),
           ],
           [option],
         ),
@@ -264,16 +344,19 @@ const accessory = (scene: Scene, row: Row, h: H): Html | null => {
 
   const parts: Html[] = [];
   const inline = scene.inline.get(row.id) ?? [];
-  for (const { thread, op } of inline) parts.push(reviewButtons(thread, [op.id], row.text, h));
+  for (const { thread, op } of inline)
+    parts.push(reviewButtons(thread, [op.id], row.text, h));
 
   // Only folded branches carry their descendants' flags; open ones show the rows themselves.
-  const tally = row.collapsed && row.hasChildren ? scene.tallies.get(row.id) : undefined;
+  const tally =
+    row.collapsed && row.hasChildren ? scene.tallies.get(row.id) : undefined;
   if (tally !== undefined) parts.push(...tallyPills(tally, h));
 
   const countdown = scene.model.countdowns[row.id];
   const thread = scene.latest.get(row.id);
   const agent = mentionedAgent(row.text);
-  if (countdown !== undefined) parts.push(countdownChip(row.id, countdown.remaining, countdown.agent, h));
+  if (countdown !== undefined)
+    parts.push(countdownChip(row.id, countdown.remaining, countdown.agent, h));
   else if (
     agent !== undefined &&
     scene.model.edited[row.id] === true &&
@@ -287,9 +370,15 @@ const accessory = (scene: Scene, row: Row, h: H): Html | null => {
 
 // ---------------------------------------------------------------------------
 
-const hoverFor = (scene: Scene, h: H) =>
+const hoverFor =
+  (scene: Scene, h: H) =>
   ({ text, offset, source }: HoverRequest) => {
-    const description = describeAt(scene.real, text, offset, source === "Keyboard");
+    const description = describeAt(
+      scene.real,
+      text,
+      offset,
+      source === "Keyboard",
+    );
     if (description === undefined) return null;
     const agent = AGENT_IDS.find((id) => id === description.entity.id);
     return {
@@ -317,7 +406,11 @@ const hoverFor = (scene: Scene, h: H) =>
 
 const toolbar = (model: Model, h: H): Html =>
   h.div(
-    [h.Class("outline-toolbar"), h.Role("toolbar"), h.AriaLabel("Outline tools")],
+    [
+      h.Class("outline-toolbar"),
+      h.Role("toolbar"),
+      h.AriaLabel("Outline tools"),
+    ],
     [
       Button.view(
         {
@@ -347,7 +440,9 @@ const toolbar = (model: Model, h: H): Html =>
           ariaLabel: "Collapse everything",
           variant: "ghost",
           size: "icon",
-          onClick: outlinerMessage(Outliner.Message.SetAllCollapsed({ collapsed: true })),
+          onClick: outlinerMessage(
+            Outliner.Message.SetAllCollapsed({ collapsed: true }),
+          ),
         },
         h,
       ),
@@ -357,7 +452,9 @@ const toolbar = (model: Model, h: H): Html =>
           ariaLabel: "Expand everything",
           variant: "ghost",
           size: "icon",
-          onClick: outlinerMessage(Outliner.Message.SetAllCollapsed({ collapsed: false })),
+          onClick: outlinerMessage(
+            Outliner.Message.SetAllCollapsed({ collapsed: false }),
+          ),
         },
         h,
       ),
@@ -365,7 +462,11 @@ const toolbar = (model: Model, h: H): Html =>
       h.span([h.Class("outline-toolbar__hint")], ["Mention"]),
       ...AGENT_IDS.map((agent) =>
         h.span(
-          [h.Class("agent-tag"), h.DataAttribute("agent", agent), h.Title(AGENTS[agent].description)],
+          [
+            h.Class("agent-tag"),
+            h.DataAttribute("agent", agent),
+            h.Title(AGENTS[agent].description),
+          ],
           [`@${agent}`],
         ),
       ),
@@ -399,7 +500,12 @@ export const outlinePane = (model: Model, h: H): Html => {
                 toParentMessage: outlinerMessage,
               }),
             ]
-          : [h.div([h.Class("outline-pane__loading")], ["Opening the outline…"])],
+          : [
+              h.div(
+                [h.Class("outline-pane__loading")],
+                ["Opening the outline…"],
+              ),
+            ],
       ),
       h.footer(
         [h.Class("outline-pane__footer")],

@@ -180,6 +180,9 @@ try {
       clickCount: 1,
       ...point,
     });
+    await evaluate(
+      "new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))",
+    );
   };
   const click = (selector) =>
     pointerClick(`document.querySelector(${JSON.stringify(selector)})`);
@@ -232,261 +235,215 @@ try {
   });
 
   await until(
-    () => evaluate("document.body.innerText.includes('Your first intention')"),
-    "Foldkit empty state",
+    () => evaluate("document.body.innerText.includes('Start writing')"),
+    "shared Foldkit empty state",
   );
-  await clickText("Your first intention");
+  await clickText("Start writing");
   await until(
     () => evaluate("!!document.querySelector('.fw-outliner__text')"),
-    "Foldworks editor mounted",
+    "editor mounted",
   );
-  await cdp("Input.insertText", {
-    text: "Build a protocol-independent agent harness",
-  });
+  await cdp("Input.insertText", { text: "Build the local harness" });
   await key("Enter");
   await until(
-    () =>
-      evaluate(
-        "document.activeElement?.tagName === 'TEXTAREA' && document.activeElement.value === ''",
-      ),
-    "caret moves into the new bullet",
+    () => evaluate("document.activeElement?.value === ''"),
+    "new bullet focused",
   );
-  await cdp("Input.insertText", { text: "Connect the local agent substrate" });
-  await key("Tab");
-  await until(async () => {
-    const s = await view();
-    return (
-      s.snapshot.nodes.length === 2 &&
-      s.snapshot.nodes.some((n) => n.parent !== null)
-    );
-  }, "human typing + Tab persisted as operations");
-  let state = await view();
-  const rootId = state.snapshot.nodes.find((n) => n.parent === null).id;
-  const delegatedId = state.snapshot.nodes.find((n) => n.parent !== null).id;
-  await key("Tab", 8);
-  await until(
-    async () =>
-      (await view()).snapshot.nodes.find((n) => n.id === delegatedId).parent ===
-      null,
-    "Shift-Tab outdent",
-  );
+  await cdp("Input.insertText", { text: "Inspect the worktree @shell" });
   await key("Tab");
   await until(
     async () =>
-      (await view()).snapshot.nodes.find((n) => n.id === delegatedId).parent ===
-      rootId,
-    "Tab indent",
+      (await view()).snapshot.nodes.length === 2 &&
+      (await view()).snapshot.nodes.some((n) => n.parent !== null),
+    "human batches persisted",
   );
-  await click(`[data-outline-row="${delegatedId}"] [role="checkbox"]`);
+  const delegatedId = (await view()).snapshot.nodes.find(
+    (n) => n.parent !== null,
+  ).id;
+  const rootId = (await view()).snapshot.nodes.find(
+    (n) => n.parent === null,
+  ).id;
+  await click(".fw-outliner__text");
   await until(
-    async () =>
-      (await view()).snapshot.nodes.find((n) => n.id === delegatedId).done,
-    "checked state persisted",
+    () => evaluate("document.body.innerText.includes('Keep as note')"),
+    "mention countdown",
   );
-  // /run opens explicit approval and is stripped from intent before launch.
-  await evaluate(
-    `(() => { const el = document.querySelector('[data-outline-row="${delegatedId}"] textarea'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); })()`,
-  );
-  await cdp("Input.insertText", { text: " /run" });
-  await key("Enter");
-  await until(
-    () =>
-      evaluate("document.body.innerText.includes('Delegate this intention')"),
-    "/run opens delegation controls",
-  );
-  // Start a real shell from the row. It has an actual worktree and tmux pane.
-  await until(
-    () =>
-      evaluate(
-        `![...document.querySelectorAll('[data-outline-row="${delegatedId}"] button')].find(e => e.textContent.trim() === 'Start shell run')?.disabled`,
-      ),
-    "saved before delegation",
-  );
-  await pointerClick(
-    `[...document.querySelectorAll('[data-outline-row="${delegatedId}"] button')].find(e => e.textContent.trim() === 'Start shell run')`,
-  );
-  await until(
-    async () => (await view()).runs.length === 1,
-    "real shell run starts from Foldkit",
-  );
+  await click('[title="Send now"]');
+  await until(async () => (await view()).runs.length === 1, "real shell run");
   run = (await view()).runs[0];
-  await clickText("Attach terminal");
   await until(
     () =>
-      evaluate(
-        "!!document.querySelector('iframe')?.contentDocument?.querySelector('.xterm')",
-      ),
-    "existing terminal mounted below bullet",
+      evaluate("!!document.querySelector('.thread-chip[data-status=working]')"),
+    "working node badge",
+  );
+  await click(".thread-chip[data-status=working]");
+  await clickText("Terminal").catch(() => click(".terminal-section summary"));
+  await until(
+    () => evaluate("!!document.querySelector('iframe')"),
+    "terminal in thread panel",
   );
   await until(
     () =>
       evaluate(
-        "document.querySelector('iframe').contentDocument.body.innerText.toLowerCase().includes('attached')",
+        "!!document.querySelector('iframe')?.contentDocument?.querySelector('.xterm-helper-textarea')",
       ),
-    "TerminalBridge connected",
+    "xterm mounted",
+  );
+  await until(
+    () =>
+      socketMessages.some(
+        (m) => m.type === "status" && m.status === "attached",
+      ),
+    "TerminalBridge attached",
   );
   await evaluate(
     "document.querySelector('iframe').contentDocument.querySelector('.xterm-helper-textarea').focus()",
   );
-  await cdp("Input.insertText", { text: "printf 'FOLDKIT_REAL_TMUX_OK\\n'" });
+  await cdp("Input.insertText", {
+    text: "printf 'shared-client-terminal-proof\\n'",
+  });
   await key("Enter");
   await until(
     async () =>
       (
         await exec("tmux", ["capture-pane", "-p", "-t", run.sessionName])
-      ).stdout.includes("FOLDKIT_REAL_TMUX_OK"),
-    "keyboard reaches real tmux",
+      ).stdout.includes("shared-client-terminal-proof"),
+    "keyboard input reaches durable tmux",
   );
-  await invoke(
-    "observe",
-    run.id,
-    "Terminal attached through the existing local harness",
+  await screenshot("align-probe-terminal.png");
+  await clickText("Inbox");
+  // A second window shares the exact room protocol. Human and CLI edits broadcast.
+  const peer = new WebSocket(
+    `${url.replace("http", "ws")}/api/outlines/local/socket`,
+  );
+  const frames = [];
+  peer.onmessage = (e) => frames.push(JSON.parse(e.data));
+  await until(
+    () => frames.some((m) => m._tag === "Snapshot"),
+    "second window snapshot",
+  );
+  const snapshot = frames.find((m) => m._tag === "Snapshot");
+  const peerItems = structuredClone(snapshot.items);
+  peerItems[0].text = "Two windows in sync";
+  peer.send(
+    JSON.stringify({
+      _tag: "SaveDocument",
+      items: peerItems,
+      baseItems: snapshot.items,
+      baseRevision: snapshot.backend.revision,
+      requestId: "probe-peer-save",
+    }),
   );
   await until(
     () =>
       evaluate(
-        "document.body.innerText.includes('Terminal attached through the existing local harness')",
+        "[...document.querySelectorAll('textarea')].some(e => e.value === 'Two windows in sync')",
       ),
-    "observations render",
+    "cross-window human edit",
   );
-  await screenshot("plan4-foldkit-running.png");
-  // Configure the explicitly labelled deterministic ACP peer, then exercise UI permissions.
   await writeFile(
     join(project, ".threadvm/acp.json"),
     JSON.stringify({
       command: process.execPath,
-      args: [join(root, "scripts/acp_fixture.mjs"), delegatedId],
+      args: [join(root, "scripts/acp_fixture.mjs"), rootId],
     }),
   );
-  await evaluate(
-    "(() => { const select = document.querySelector('[aria-label=Executor]'); select.value = 'acp'; select.dispatchEvent(new Event('change', { bubbles: true })); })()",
+  peer.send(
+    JSON.stringify({
+      _tag: "Dispatch",
+      threadId: "probe-acp",
+      nodeId: rootId,
+      agent: "claude",
+      parentThreadId: null,
+      instruction: "Exercise permissions and proposals",
+    }),
   );
-  await until(
-    () => evaluate("document.body.innerText.includes('Run acp')"),
-    "ACP executor selected",
-  );
-  await pointerClick(
-    `[...document.querySelectorAll('[data-outline-row="${delegatedId}"] button')].find(e => e.textContent.trim() === 'Run acp')`,
-  );
+  await until(async () => (await view()).runs.length === 2, "ACP started");
+  acpRun = (await view()).runs.find((r) => r.id !== run.id);
   await until(
     () => evaluate("document.body.innerText.includes('Allow once')"),
-    "ACP permission appears under delegated bullet",
+    "inline ACP permission and inbox",
   );
-  acpRun = (await view()).runs.find((r) => r.agent === "acp");
-  await screenshot("plan4-acp-permission.png");
-  const acpPanePid = (
-    await exec("tmux", [
-      "display-message",
-      "-p",
-      "-t",
-      acpRun.sessionName,
-      "#{pane_pid}",
-    ])
-  ).stdout;
+  assert.ok(
+    await evaluate(
+      "!!document.querySelector('.row-question') && !!document.querySelector('.inbox-card[data-kind=NeedsInput]')",
+    ),
+  );
+  await screenshot("align-probe-question.png");
+  // Persist a pending CLI suggestion while a permission is unanswered.
+  const proposalFile = join(project, "proposal.json");
+  await writeFile(
+    proposalFile,
+    JSON.stringify({
+      baseRevision: (await view()).snapshot.revision,
+      operations: [
+        {
+          type: "insert",
+          parent: rootId,
+          node: {
+            id: "external-suggestion",
+            text: "Review CLI suggestion",
+            done: false,
+          },
+        },
+      ],
+    }),
+  );
+  await invoke("propose", proposalFile);
+  await until(
+    () => evaluate("document.body.innerText.includes('Review CLI suggestion')"),
+    "CLI tracked change",
+  );
   await stopServer();
-  server = startServer("web");
+  server = startServer();
   await until(
     async () => (await fetch(`${url}/api/outline`)).ok,
-    "restart while ACP waits on permission",
+    "server restarted",
   );
   await cdp("Page.reload");
   await until(
-    () => evaluate("document.body.innerText.includes('Allow once')"),
-    "pending ACP permission recovered",
-  );
-  assert.equal(
-    (
-      await exec("tmux", [
-        "display-message",
-        "-p",
-        "-t",
-        acpRun.sessionName,
-        "#{pane_pid}",
-      ])
-    ).stdout,
-    acpPanePid,
+    () =>
+      evaluate(
+        "document.body.innerText.includes('Allow once') && document.body.innerText.includes('Review CLI suggestion')",
+      ),
+    "pending question and proposal recover",
   );
   await clickText("Allow once");
   await until(
     () => evaluate("document.body.innerText.includes('Review harness proof')"),
-    "agent CLI proposal renders inline",
+    "agent proposal projected",
   );
-  await screenshot("plan4-foldkit-proposal.png");
-  const proposal = (await view()).snapshot.proposals.find(
+  await screenshot("align-probe-suggestions.png");
+  const agentProposal = (await view()).snapshot.proposals.find(
     (p) => p.runId === acpRun.id,
   );
-  await click(`[data-suggestion="${proposal.pending[0]}"] button`);
+  peer.close();
+  await click('[aria-label="Accept: Review harness proof"]');
   await until(
     async () =>
-      (await view()).snapshot.proposals.find((p) => p.id === proposal.id)
-        .pending.length === 1,
-    "per-node acceptance",
-  );
-  await until(
-    () =>
-      evaluate(
-        "![...document.querySelectorAll('button')].find(e => e.textContent.trim() === 'Reject batch')?.disabled",
+      (await view()).snapshot.nodes.some(
+        (n) => n.text === "Review harness proof",
       ),
-    "review acknowledged",
-  );
-  await clickText("Reject batch");
-  await until(
-    async () =>
-      (await view()).snapshot.proposals.find((p) => p.id === proposal.id)
-        .pending.length === 0,
-    "batch rejection",
-  );
-  const panePid = (
-    await exec("tmux", [
-      "display-message",
-      "-p",
-      "-t",
-      run.sessionName,
-      "#{pane_pid}",
-    ])
-  ).stdout;
-  await stopServer();
-  server = startServer("web");
-  await until(
-    async () => (await fetch(`${url}/api/outline`)).ok,
-    "server restart",
-  );
-  await cdp("Page.reload");
-  await until(
-    () => evaluate("document.body.innerText.includes('shell · running')"),
-    "outline and run recover after browser + server restart",
+    "per-row acceptance commits",
   );
   assert.equal(
-    (
-      await exec("tmux", [
-        "display-message",
-        "-p",
-        "-t",
-        run.sessionName,
-        "#{pane_pid}",
-      ])
-    ).stdout,
-    panePid,
+    (await view()).snapshot.proposals.find((p) => p.id === agentProposal.id)
+      .pending.length,
+    1,
   );
-  await until(
-    () =>
-      evaluate(
-        "[...document.querySelectorAll('.fw-outliner__text')].some(e => e.value === 'Review harness proof')",
-      ),
-    "accepted proposal recovered",
-  );
+  const history = (
+    await exec("git", ["-C", join(project, ".threadvm"), "log", "--format=%s"])
+  ).stdout;
+  assert.match(history, /proposal: accept/);
   await cdp("Page.navigate", { url: `${url}/inventory` });
   await until(
     () =>
-      evaluate(`!!document.querySelector('[aria-label="Create ThreadVM"]')`),
-    "exe.dev inventory reachable",
-  );
-  await exec("tmux", ["kill-session", "-t", acpRun.sessionName]).catch(
-    () => {},
+      evaluate("!!document.querySelector('[aria-label=\"Create ThreadVM\"]')"),
+    "VM inventory reachable",
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS Foldkit local harness: human ops, nesting, done, worktree/tmux, terminal input, observations, ACP permission, agent CLI proposal, partial and batch review, browser/server recovery, VM inventory. Screenshots: .context/plan4-foldkit-*.png, .context/plan4-acp-permission.png",
+    "PASS shared Foldkit local room: editing, mention countdown, shell/worktree/tmux, thread terminal, two windows, ACP permission, CLI and agent tracked proposals, per-row acceptance, restart recovery, inventory.",
   );
   socket.close();
 } catch (error) {

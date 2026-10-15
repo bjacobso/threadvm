@@ -229,3 +229,36 @@ SHA. This is separate from the deterministic regression fixture.
 Undo restores the content of committed deletions with fresh IDs. Rewrite the
 Foldworks history when tombstones arrive, preserving the store's no-ID-reuse
 invariant. Local collapse preferences do not become shared operations.
+
+## Design Alignment: One Outline Client
+
+Local and Cloudflare modes use the same PR #1 Foldkit client, projections,
+attention queue, views and CSS. `@threadvm/outline-protocol` owns their additive
+wire contract. Its synchronous JSON codecs isolate the client’s Effect release
+from the server’s Effect release; Effect values do not cross that boundary.
+
+The local `OutlineRoom` serializes socket mutations, broadcasts canonical changes
+to every window, and polls the Git store and run event log for CLI/ACP writes.
+Human saves carry a base document, base revision and idempotency key. A tab has
+one save in flight; acknowledgement rebases later keystrokes onto the canonical
+result. Git remains the authority for conflicts, immutable IDs and partial review.
+Accepted operations are never copied back as a second human batch.
+
+Mentions use the existing countdown, send-now and keep-as-note interactions.
+Claude and configured Codex profiles use persistent ACP sessions; unconfigured
+Codex retains its terminal fallback. Shell uses a worktree/tmux run. Conductor
+uses Claude to propose a delegated plan; Cursor is explicitly unavailable.
+Accepting a proposed mentioned bullet authorizes fan-out, bounded at two levels.
+This supersedes the earlier first-slice deferral of nested delegation.
+
+ACP permission requests and form elicitations become inline questions, inbox
+cards and thread questions. Responses go through the scoped control path.
+Queued answers are remembered so polling cannot reopen an already answered
+request. Unanswered questions and pending proposals recover after server restart.
+Persistent sessions support subsequent prompts and cancellation. Terminal attach
+uses the existing gateway inside a collapsible thread-panel section. VM inventory
+and thoughts Git push are accessible from the quiet header menu.
+
+The separate `src/local` client is removed. The Cloudflare simulator and tests
+remain available. MCP and sandbox placement are addressed in PLAN_5 rather than
+mixed into this UI alignment.

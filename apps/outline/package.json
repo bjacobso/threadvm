@@ -27,7 +27,8 @@
     "@stylexjs/stylex": "catalog:",
     "effect": "catalog:",
     "foldkit": "catalog:",
-    "@threadvm/shared": "workspace:*"
+    "@threadvm/shared": "workspace:*",
+    "@threadvm/outline-protocol": "workspace:*"
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",

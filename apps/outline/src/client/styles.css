@@ -1,4 +1,3 @@
-@import "../local/styles.css";
 @import "@foldworks/ui/base.css";
 @import "@foldworks/ui/themes/shadcn.css";
 @import "@foldworks/outliner/styles.css";
@@ -54,7 +53,10 @@ kbd {
   border: 1px solid var(--border);
   border-bottom-width: 2px;
   border-radius: 4px;
-  font: 500 11px/16px system-ui, -apple-system, var(--font-sans);
+  font:
+    500 11px/16px system-ui,
+    -apple-system,
+    var(--font-sans);
   text-align: center;
   color: var(--muted-foreground);
   background: var(--card);
@@ -65,6 +67,9 @@ kbd {
 .app {
   display: grid;
   grid-template-rows: var(--header-height) 1fr;
+  &:has(.room-error) {
+    grid-template-rows: var(--header-height) auto minmax(0, 1fr);
+  }
   height: 100%;
 }
 
@@ -90,9 +95,12 @@ kbd {
   height: 18px;
   border-radius: 5px;
   background:
-    linear-gradient(var(--foreground), var(--foreground)) 4px 4px / 10px 2px no-repeat,
-    linear-gradient(var(--foreground), var(--foreground)) 7px 8px / 7px 2px no-repeat,
-    linear-gradient(var(--foreground), var(--foreground)) 7px 12px / 7px 2px no-repeat;
+    linear-gradient(var(--foreground), var(--foreground)) 4px 4px / 10px 2px
+      no-repeat,
+    linear-gradient(var(--foreground), var(--foreground)) 7px 8px / 7px 2px
+      no-repeat,
+    linear-gradient(var(--foreground), var(--foreground)) 7px 12px / 7px 2px
+      no-repeat;
   box-shadow: inset 0 0 0 1.5px var(--foreground);
 }
 
@@ -380,7 +388,8 @@ kbd {
 .outline-pane .fw-outliner__row[data-tone="question"] .fw-outliner__accessory {
   flex-basis: 100%;
   max-width: none;
-  margin: 0 0 8px calc(var(--fw-outliner-toggle) + var(--fw-outliner-handle) + 6px);
+  margin: 0 0 8px
+    calc(var(--fw-outliner-toggle) + var(--fw-outliner-handle) + 6px);
 }
 .row-question {
   flex-wrap: wrap;
@@ -412,7 +421,12 @@ kbd {
 
 /* Bullets an agent is attached to keep a quiet colored dot. */
 .fw-outliner__row[data-tone^="thread-"] .fw-outliner__dot {
-  box-shadow: 0 0 0 3px color-mix(in oklab, var(--thread-tone, var(--muted-foreground)) 25%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(
+      in oklab,
+      var(--thread-tone, var(--muted-foreground)) 25%,
+      transparent
+    );
   background: var(--thread-tone, var(--muted-foreground));
 }
 .fw-outliner__row[data-tone="thread-working"] {
@@ -538,7 +552,10 @@ kbd {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: conic-gradient(var(--foreground) calc(var(--countdown) * 360deg), transparent 0);
+  background: conic-gradient(
+    var(--foreground) calc(var(--countdown) * 360deg),
+    transparent 0
+  );
   mask: radial-gradient(circle, transparent 3px, black 3.5px);
   opacity: 0.65;
 }
@@ -1200,4 +1217,62 @@ kbd {
     animation: none !important;
     transition: none !important;
   }
+}
+
+.project-menu {
+  position: relative;
+  color: var(--muted-foreground);
+}
+.project-menu summary {
+  cursor: pointer;
+  padding: 4px 8px;
+  list-style: none;
+}
+.project-menu > div {
+  position: absolute;
+  right: 0;
+  top: 30px;
+  z-index: 30;
+  display: grid;
+  gap: 10px;
+  min-width: 240px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--foreground) 12%, transparent);
+  font-size: 12px;
+}
+.room-error {
+  padding: 8px 24px;
+  color: var(--destructive);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.terminal-section {
+  margin: 14px 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.terminal-section summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.thread-terminal {
+  width: 100%;
+  height: 320px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+:root {
+  --agent-shell: var(--muted-foreground);
+}
+
+[data-agent="shell"] {
+  --agent: var(--agent-shell);
+}
+.fw-outliner__span[data-kind="agent-shell"] {
+  --agent: var(--agent-shell);
+  color: var(--agent-shell);
 }

@@ -181,6 +181,8 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
               yield* saveThread(cancel(thread, now));
               return;
             }
+            case "Push":
+              return yield* socket.send(encode({ _tag: "Error", message: "Git push is available in local mode" }));
             case "ResetDemo":
               return yield* reset;
           }

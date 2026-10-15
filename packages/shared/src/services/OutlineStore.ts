@@ -8,13 +8,13 @@ import {
   AppliedBatch,
   Proposal,
   ReviewRequest,
-  type OutlineOperation
+  type OutlineOperation,
 } from "../domain/outline.js";
 import {
   ThoughtsRepo,
   OutlineError,
   outlineIO,
-  atomicWrite
+  atomicWrite,
 } from "./ThoughtsRepo.js";
 
 export const operationNodeId = (op: OutlineOperation) =>
@@ -24,7 +24,7 @@ const emptySnapshot = () =>
     revision: 0,
     nodes: [],
     tombstones: {},
-    proposals: []
+    proposals: [],
   });
 const fail = (message: string): never => {
   throw new OutlineError(message);
@@ -32,7 +32,7 @@ const fail = (message: string): never => {
 
 export const applyOperations = (
   snapshot: OutlineSnapshot,
-  batch: OperationBatch
+  batch: OperationBatch,
 ): OutlineSnapshot => {
   if (batch.baseRevision > snapshot.revision)
     fail("baseRevision is ahead of the outline");
@@ -84,7 +84,7 @@ export const applyOperations = (
         fail(`Node ID ${id} has already been used`);
       place(
         new Node({ ...op.node, parent: op.parent, changedAt: revision }),
-        op.after
+        op.after,
       );
       continue;
     }
@@ -92,7 +92,7 @@ export const applyOperations = (
     const node = get(id);
     if (op.type === "update") {
       nodes = nodes.map((n) =>
-        n.id === id ? new Node({ ...n, ...op.patch, changedAt: revision }) : n
+        n.id === id ? new Node({ ...n, ...op.patch, changedAt: revision }) : n,
       );
     } else if (op.type === "delete") {
       const ids = descendantIds(id);
@@ -107,7 +107,7 @@ export const applyOperations = (
       nodes = nodes.filter((n) => n.id !== id);
       place(
         new Node({ ...node, parent: op.parent, changedAt: revision }),
-        op.after
+        op.after,
       );
     }
   }
@@ -119,7 +119,7 @@ export const renderMarkdown = (snapshot: OutlineSnapshot): string => {
   const visit = (parent: string | null, depth: number) => {
     for (const node of snapshot.nodes.filter((n) => n.parent === parent)) {
       lines.push(
-        `${"  ".repeat(depth)}- [${node.done ? "x" : " "}] ${node.text.replace(/\n/g, " ")} ^${node.id}`
+        `${"  ".repeat(depth)}- [${node.done ? "x" : " "}] ${node.text.replace(/\n/g, " ")} ^${node.id}`,
       );
       visit(node.id, depth + 1);
     }
@@ -134,14 +134,14 @@ export class OutlineStore extends Context.Service<
     readonly init: Effect.Effect<OutlineSnapshot, OutlineError>;
     readonly read: Effect.Effect<OutlineSnapshot, OutlineError>;
     readonly apply: (
-      batch: OperationBatch
+      batch: OperationBatch,
     ) => Effect.Effect<OutlineSnapshot, OutlineError>;
     readonly propose: (
       batch: OperationBatch,
-      runId?: string
+      runId?: string,
     ) => Effect.Effect<Proposal, OutlineError>;
     readonly review: (
-      request: ReviewRequest
+      request: ReviewRequest,
     ) => Effect.Effect<OutlineSnapshot, OutlineError>;
   }
 >()("OutlineStore") {}
@@ -156,12 +156,14 @@ export const OutlineStoreLive = Layer.effect(
         Effect.flatMap((text) =>
           Effect.try({
             try: () => JSON.parse(text),
-            catch: (e) => new OutlineError(String(e))
-          })
+            catch: (e) => new OutlineError(String(e)),
+          }),
         ),
         Effect.flatMap((json) =>
-          decode(json).pipe(Effect.mapError((e) => new OutlineError(String(e))))
-        )
+          decode(json).pipe(
+            Effect.mapError((e) => new OutlineError(String(e))),
+          ),
+        ),
       );
     const read = repo.git(["rev-parse", "HEAD"]).pipe(Effect.flatMap(readAt));
     const persist = (snapshot: OutlineSnapshot, ops: string, message: string) =>
@@ -169,12 +171,12 @@ export const OutlineStoreLive = Layer.effect(
         yield* outlineIO(async () => {
           await atomicWrite(
             join(repo.dir, "snapshot.json"),
-            `${JSON.stringify(snapshot, null, 2)}\n`
+            `${JSON.stringify(snapshot, null, 2)}\n`,
           );
           await atomicWrite(join(repo.dir, "ops.jsonl"), ops);
           await atomicWrite(
             join(repo.dir, "outline.md"),
-            renderMarkdown(snapshot)
+            renderMarkdown(snapshot),
           );
         });
         yield* repo.git([
@@ -183,7 +185,7 @@ export const OutlineStoreLive = Layer.effect(
           "snapshot.json",
           "ops.jsonl",
           "outline.md",
-          ".gitignore"
+          ".gitignore",
         ]);
         yield* repo.git([
           "-c",
@@ -197,7 +199,7 @@ export const OutlineStoreLive = Layer.effect(
           "snapshot.json",
           "ops.jsonl",
           "outline.md",
-          ".gitignore"
+          ".gitignore",
         ]);
         return snapshot;
       });
@@ -208,26 +210,45 @@ export const OutlineStoreLive = Layer.effect(
       repo.withLock(
         Effect.gen(function* () {
           const batch = yield* Schema.decodeUnknownEffect(OperationBatch)(
-            input
+            input,
           ).pipe(Effect.mapError((e) => new OutlineError(String(e))));
           const snapshot = yield* read;
+          if (batch.requestId) {
+            const prior = (yield* opsLog)
+              .split("\n")
+              .filter(Boolean)
+              .map((line) => JSON.parse(line) as AppliedBatch)
+              .find((record) => record.requestId === batch.requestId);
+            if (prior) {
+              if (
+                JSON.stringify(prior.operations) !==
+                JSON.stringify(batch.operations)
+              )
+                return yield* Effect.fail(
+                  new OutlineError(
+                    "Request ID reused with different operations",
+                  ),
+                );
+              return snapshot;
+            }
+          }
           const next = yield* Effect.try({
             try: () => applyOperations(snapshot, batch),
-            catch: (e) => new OutlineError(String(e))
+            catch: (e) => new OutlineError(String(e)),
           });
           const record = new AppliedBatch({
             ...batch,
             id: randomUUID(),
             revision: next.revision,
             time: Date.now(),
-            actor: "human"
+            actor: "human",
           });
           return yield* persist(
             next,
             `${yield* opsLog}${JSON.stringify(record)}\n`,
-            `outline: human batch ${record.id}`
+            `outline: human batch ${record.id}`,
           );
-        })
+        }),
       );
     return {
       read,
@@ -237,7 +258,7 @@ export const OutlineStoreLive = Layer.effect(
           repo.withLock(
             Effect.gen(function* () {
               const head = yield* Effect.result(
-                repo.git(["rev-parse", "--verify", "HEAD"])
+                repo.git(["rev-parse", "--verify", "HEAD"]),
               );
               if (head._tag === "Success") {
                 yield* repo.git([
@@ -248,29 +269,29 @@ export const OutlineStoreLive = Layer.effect(
                   "--",
                   "snapshot.json",
                   "ops.jsonl",
-                  "outline.md"
+                  "outline.md",
                 ]);
                 return yield* read;
               }
               return yield* persist(
                 emptySnapshot(),
                 "",
-                "Initialize ThreadVM outline"
+                "Initialize ThreadVM outline",
               );
-            })
-          )
-        )
+            }),
+          ),
+        ),
       ),
       propose: (input, runId) =>
         repo.withLock(
           Effect.gen(function* () {
             const batch = yield* Schema.decodeUnknownEffect(OperationBatch)(
-              input
+              input,
             ).pipe(Effect.mapError((e) => new OutlineError(String(e))));
             const snapshot = yield* read;
             yield* Effect.try({
               try: () => applyOperations(snapshot, batch),
-              catch: (e) => new OutlineError(String(e))
+              catch: (e) => new OutlineError(String(e)),
             });
             const proposal = new Proposal({
               id: randomUUID(),
@@ -279,32 +300,32 @@ export const OutlineStoreLive = Layer.effect(
               createdAt: Date.now(),
               pending: [...new Set(batch.operations.map(operationNodeId))],
               accepted: [],
-              rejected: []
+              rejected: [],
             });
             yield* persist(
               new OutlineSnapshot({
                 ...snapshot,
-                proposals: [...snapshot.proposals, proposal]
+                proposals: [...snapshot.proposals, proposal],
               }),
               yield* opsLog,
-              `proposal: submit ${proposal.id}`
+              `proposal: submit ${proposal.id}`,
             );
             return proposal;
-          })
+          }),
         ),
       review: (request) =>
         repo.withLock(
           Effect.gen(function* () {
             const snapshot = yield* read;
             const proposal = snapshot.proposals.find(
-              (p) => p.id === request.proposalId
+              (p) => p.id === request.proposalId,
             );
             if (!proposal)
               return yield* Effect.fail(new OutlineError("Proposal not found"));
             const ids = request.nodeIds ?? proposal.pending;
             if (!ids.length || ids.some((id) => !proposal.pending.includes(id)))
               return yield* Effect.fail(
-                new OutlineError("Select pending proposal nodes")
+                new OutlineError("Select pending proposal nodes"),
               );
             let next = snapshot;
             let log = yield* opsLog;
@@ -312,14 +333,14 @@ export const OutlineStoreLive = Layer.effect(
               const batch = new OperationBatch({
                 baseRevision: proposal.batch.baseRevision,
                 operations: proposal.batch.operations.filter((op) =>
-                  ids.includes(operationNodeId(op))
-                )
+                  ids.includes(operationNodeId(op)),
+                ),
               });
               // Nodes already accepted from this proposal may be referenced by the rest.
               // Only the selected node's own revision participates in conflict checking.
               next = yield* Effect.try({
                 try: () => applyOperations(snapshot, batch),
-                catch: (e) => new OutlineError(String(e))
+                catch: (e) => new OutlineError(String(e)),
               });
               const record = new AppliedBatch({
                 ...batch,
@@ -328,7 +349,7 @@ export const OutlineStoreLive = Layer.effect(
                 actor: "accepted",
                 proposalId: proposal.id,
                 runId: proposal.runId,
-                time: Date.now()
+                time: Date.now(),
               });
               log += `${JSON.stringify(record)}\n`;
             }
@@ -342,21 +363,21 @@ export const OutlineStoreLive = Layer.effect(
               rejected:
                 request.decision === "reject"
                   ? [...proposal.rejected, ...ids]
-                  : proposal.rejected
+                  : proposal.rejected,
             });
             next = new OutlineSnapshot({
               ...next,
               proposals: next.proposals.map((p) =>
-                p.id === reviewed.id ? reviewed : p
-              )
+                p.id === reviewed.id ? reviewed : p,
+              ),
             });
             return yield* persist(
               next,
               log,
-              `proposal: ${request.decision} ${proposal.id} (${ids.join(", ")})`
+              `proposal: ${request.decision} ${proposal.id} (${ids.join(", ")})`,
             );
-          })
-        )
+          }),
+        ),
     };
-  })
+  }),
 );

@@ -23,6 +23,9 @@ export class AgentEvent extends Schema.Class<AgentEvent>("AgentEvent")({
     "permission_resolved",
     "cancelled",
     "turn_complete",
+    "turn_started",
+    "question",
+    "question_resolved",
   ]),
   sessionId: Schema.optional(Schema.String),
   requestId: Schema.optional(Schema.String),
@@ -50,6 +53,10 @@ export interface AgentSession {
   readonly respondToPermission: (
     id: string,
     option: string,
+  ) => Effect.Effect<void, AgentError>;
+  readonly answer: (
+    id: string,
+    text: string,
   ) => Effect.Effect<void, AgentError>;
   readonly endEvents: Effect.Effect<void>;
 }
@@ -95,6 +102,7 @@ export const AcpDriverLive = Layer.effect(
           const queue = yield* Queue.bounded<AgentEvent, Cause.Done<void>>(512);
           const emit = (event: AgentEvent) =>
             Queue.offer(queue, event).pipe(Effect.asVoid);
+          const questions = new Map<string, Deferred.Deferred<string>>();
           const pending = new Map<
             string,
             {
@@ -139,10 +147,107 @@ export const AcpDriverLive = Layer.effect(
               );
             }),
           );
+          yield* client.handleElicitation((request) =>
+            Effect.gen(function* () {
+              if (request.mode !== "form")
+                return {
+                  action: "decline",
+                } as Protocol.CreateElicitationResponse;
+              const schema = request.requestedSchema as {
+                properties?: Record<
+                  string,
+                  {
+                    type?: string;
+                    description?: string;
+                    enum?: string[];
+                    oneOf?: Array<{ const: string; title?: string }>;
+                    items?: {
+                      anyOf?: Array<{ const: string; title?: string }>;
+                    };
+                  }
+                >;
+              };
+              const content: Record<string, Protocol.ElicitationContentValue> =
+                {};
+              for (const [field, property] of Object.entries(
+                schema.properties ?? {},
+              )) {
+                if (field.endsWith("_custom")) continue;
+                const choices =
+                  property.oneOf ??
+                  property.items?.anyOf ??
+                  property.enum?.map((value) => ({
+                    const: value,
+                    title: value,
+                  })) ??
+                  [];
+                const requestId = randomUUID();
+                const reply = yield* Deferred.make<string>();
+                questions.set(requestId, reply);
+                yield* emit(
+                  new AgentEvent({
+                    type: "question",
+                    requestId,
+                    sessionId:
+                      "sessionId" in request &&
+                      typeof request.sessionId === "string"
+                        ? request.sessionId
+                        : undefined,
+                    title: property.description ?? request.message,
+                    options: choices.map((choice) => ({
+                      id: choice.const,
+                      name: choice.title ?? choice.const,
+                      kind: "answer",
+                    })),
+                    payload: { request, field },
+                  }),
+                );
+                const text = yield* Deferred.await(reply).pipe(
+                  Effect.ensuring(
+                    Effect.sync(() => questions.delete(requestId)),
+                  ),
+                );
+                if (!text)
+                  return {
+                    action: "cancel",
+                  } as Protocol.CreateElicitationResponse;
+                const choice = choices.find(
+                  (c) => c.title === text || c.const === text,
+                );
+                if (
+                  choices.length &&
+                  !choice &&
+                  schema.properties?.[`${field}_custom`]
+                )
+                  content[`${field}_custom`] = text;
+                else
+                  content[field] =
+                    property.type === "array"
+                      ? [choice?.const ?? text]
+                      : property.type === "boolean"
+                        ? /^(true|yes)$/i.test(text)
+                        : property.type === "number" ||
+                            property.type === "integer"
+                          ? Number(text)
+                          : (choice?.const ?? text);
+                yield* emit(
+                  new AgentEvent({
+                    type: "question_resolved",
+                    requestId,
+                    payload: { text },
+                  }),
+                );
+              }
+              return {
+                action: "accept",
+                content,
+              } as Protocol.CreateElicitationResponse;
+            }),
+          );
           const initialized = yield* client.agent.initialize({
             protocolVersion: 1,
             clientInfo: { name: "threadvm", version: "0.0.0" },
-            clientCapabilities: {},
+            clientCapabilities: { elicitation: { form: {} } },
           });
           yield* emit(
             new AgentEvent({ type: "initialized", payload: initialized }),
@@ -165,6 +270,8 @@ export const AcpDriverLive = Layer.effect(
             // cancel is a notification, so let the transport flush before Scope reaps the peer.
             yield* Effect.sleep("150 millis");
             active = false;
+            for (const reply of questions.values())
+              yield* Deferred.succeed(reply, "");
             for (const value of pending.values())
               yield* Deferred.succeed(value.reply, {
                 outcome: { outcome: "cancelled" },
@@ -185,6 +292,15 @@ export const AcpDriverLive = Layer.effect(
               Effect.sync(() => {
                 active = true;
               }).pipe(
+                Effect.andThen(
+                  emit(
+                    new AgentEvent({
+                      type: "turn_started",
+                      sessionId: id,
+                      payload: { text },
+                    }),
+                  ),
+                ),
                 Effect.andThen(
                   client.agent.prompt({
                     sessionId: id,
@@ -231,6 +347,15 @@ export const AcpDriverLive = Layer.effect(
                     payload: { optionId: option },
                   }),
                 );
+              }),
+            answer: (requestId: string, text: string) =>
+              Effect.gen(function* () {
+                const reply = questions.get(requestId);
+                if (!reply)
+                  return yield* Effect.fail(
+                    new AgentError({ message: "Question is no longer live" }),
+                  );
+                yield* Deferred.succeed(reply, text);
               }),
             endEvents: Queue.end(queue).pipe(Effect.asVoid),
           };

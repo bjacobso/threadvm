@@ -357,6 +357,7 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
       ];
     }
 
+    case "shell":
     case "codex": {
       const findings = FINDINGS[area];
       const fix = canDelegate

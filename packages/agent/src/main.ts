@@ -1,4 +1,4 @@
-import { Effect, Fiber, Schema, Stream } from "effect";
+import { Effect, Fiber, Queue, Schema, Stream } from "effect";
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { readFile, readdir, unlink } from "node:fs/promises";
@@ -11,11 +11,13 @@ const io = <A>(run: () => Promise<A>) =>
 const Configuration = Schema.Struct({
   command: Schema.String,
   args: Schema.Array(Schema.String),
+  persistent: Schema.optional(Schema.Boolean),
 });
 const Control = Schema.Struct({
-  action: Schema.Literals(["permission", "cancel"]),
+  action: Schema.Literals(["permission", "cancel", "answer", "prompt"]),
   requestId: Schema.optional(Schema.String),
   optionId: Schema.optional(Schema.String),
+  text: Schema.optional(Schema.String),
 });
 const project = process.env.THREADVM_PROJECT_DIR!;
 const runId = process.env.THREADVM_RUN_ID!;
@@ -62,6 +64,7 @@ const program = Effect.gen(function* () {
     Stream.runForEach(record),
     Effect.forkScoped,
   );
+  const prompts = yield* Queue.unbounded<string>();
   // Commands are durable files, scoped to this run; the server never owns the ACP process.
   const controls = Effect.gen(function* () {
     for (const file of (yield* io(() => readdir(join(runDir, "control"))))
@@ -77,9 +80,16 @@ const program = Effect.gen(function* () {
         yield* session.cancel;
         return true;
       }
-      yield* session
-        .respondToPermission(control.requestId!, control.optionId!)
-        .pipe(Effect.catch((e) => Effect.sync(() => console.error(e.message))));
+      if (control.action === "prompt")
+        yield* Queue.offer(prompts, control.text ?? "");
+      else if (control.action === "answer")
+        yield* session.answer(control.requestId!, control.text ?? "");
+      else
+        yield* session
+          .respondToPermission(control.requestId!, control.optionId!)
+          .pipe(
+            Effect.catch((e) => Effect.sync(() => console.error(e.message))),
+          );
       yield* io(() => unlink(path));
     }
     return false;
@@ -92,10 +102,12 @@ const program = Effect.gen(function* () {
   const context = yield* io(() =>
     readFile(process.env.THREADVM_CONTEXT_FILE!, "utf8"),
   );
-  yield* Effect.raceFirst(
-    Effect.raceFirst(session.prompt(context), watch),
-    Fiber.join(writer),
-  );
+  const turns = Effect.gen(function* () {
+    yield* session.prompt(context);
+    if (config.persistent)
+      while (true) yield* session.prompt(yield* Queue.take(prompts));
+  });
+  yield* Effect.raceFirst(Effect.raceFirst(turns, watch), Fiber.join(writer));
   yield* session.endEvents;
   yield* Fiber.join(writer);
 }).pipe(

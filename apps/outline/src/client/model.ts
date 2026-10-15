@@ -1,7 +1,7 @@
 import { Schema as S } from "effect";
 import { Outliner } from "@foldworks/outliner";
 
-import { AgentId, Thread } from "../shared/protocol.ts";
+import { AgentId, Thread, Backend, Items } from "../shared/protocol.ts";
 
 export const Flags = S.Struct({
   outlineId: S.String,
@@ -22,6 +22,18 @@ export const COUNTDOWN_MS = 2400;
 export const Model = S.Struct({
   outlineId: S.String,
   sessionId: S.String,
+  backend: S.NullOr(Backend),
+  canonical: Items,
+  inFlight: S.NullOr(
+    S.Struct({
+      requestId: S.String,
+      items: Items,
+      baseItems: Items,
+      baseRevision: S.Number,
+      editorRevision: S.Number,
+    }),
+  ),
+  error: S.String,
   outline: Outliner.Model,
   threads: S.Record(S.String, Thread),
   connection: Connection,
@@ -48,7 +60,11 @@ export type Model = typeof Model.Type;
 export const init = (flags: Flags): Model => ({
   outlineId: flags.outlineId,
   sessionId: flags.sessionId,
-  outline: Outliner.init({ id: "outline", items: [] }),
+  backend: null,
+  canonical: [],
+  inFlight: null,
+  error: "",
+  outline: Outliner.init({ id: `outline-${flags.sessionId}`, items: [] }),
   threads: {},
   connection: "Connecting",
   retries: 0,

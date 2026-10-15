@@ -51,7 +51,7 @@ const checkFile = async (file: string): Promise<Array<Violation>> => {
 
 const files = (
   await Promise.all(
-    [webSourceRoot, path.join(repoRoot, "apps/outline/src/local")].map(
+    [webSourceRoot, path.join(repoRoot, "apps/outline/src/client")].map(
       sourceFiles
     )
   )
