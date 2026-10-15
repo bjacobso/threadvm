@@ -1,3 +1,5 @@
+import { OutlinePane } from "@/features/outline/OutlinePane";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useEffect, useState } from "react";
 import { PanelRightOpenIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,7 +42,7 @@ const panelFrame = (panel: FocusedPanel, focusedPanel: FocusedPanel) =>
     panel === focusedPanel && "ring-1 ring-inset ring-ring/50"
   );
 
-export function App() {
+function VmInventoryApp() {
   const selected = useSelectedThreadVm();
   const focusedPanel = useAtomRef(focusedPanelAtom);
   const [commandOpen, setCommandOpen] = useState(false);
@@ -67,7 +69,10 @@ export function App() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "k" || (!event.metaKey && !event.ctrlKey)) {
+      if (
+        event.key.toLowerCase() !== "k" ||
+        (!event.metaKey && !event.ctrlKey)
+      ) {
         return;
       }
       event.preventDefault();
@@ -80,7 +85,7 @@ export function App() {
 
   return (
     <TooltipProvider>
-      <main className="relative h-svh min-h-0 bg-background text-foreground">
+      <main className="relative h-full min-h-0 bg-background text-foreground">
         <ResizablePanelGroup orientation="horizontal" className="h-full">
           <ResizablePanel defaultSize="18%" minSize="14%" maxSize="28%">
             <div
@@ -141,7 +146,10 @@ export function App() {
           <InspectorPanel />
         </SheetContent>
       </Sheet>
-      <ThreadVmCommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
+      <ThreadVmCommandPalette
+        open={commandOpen}
+        onOpenChange={setCommandOpen}
+      />
       <NewThreadVmDialog
         open={newThreadVmOpen}
         onOpenChange={setNewThreadVmOpen}
@@ -152,5 +160,38 @@ export function App() {
       />
       <Toaster richColors position="bottom-right" />
     </TooltipProvider>
+  );
+}
+
+export function App() {
+  return (
+    <Tabs
+      defaultValue="outline"
+      className="h-svh gap-0 bg-background text-foreground"
+    >
+      <header className="flex h-14 shrink-0 items-center gap-8 border-b border-border px-6">
+        <span className="text-sm font-semibold tracking-tight">
+          ThreadVM
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            /
+          </span>
+        </span>
+        <TabsList variant="line">
+          <TabsTrigger value="outline">Outline</TabsTrigger>
+          <TabsTrigger value="inventory">VM inventory</TabsTrigger>
+        </TabsList>
+        <span className="ml-auto hidden text-xs text-muted-foreground sm:block">
+          Local directory · durable thinking
+        </span>
+      </header>
+      <TabsContent value="outline" className="min-h-0 overflow-hidden">
+        <TooltipProvider>
+          <OutlinePane />
+        </TooltipProvider>
+      </TabsContent>
+      <TabsContent value="inventory" className="min-h-0 overflow-hidden">
+        <VmInventoryApp />
+      </TabsContent>
+    </Tabs>
   );
 }
