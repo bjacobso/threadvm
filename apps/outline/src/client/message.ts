@@ -39,6 +39,8 @@ export const Message = defineMessageUnion({
   },
   ClickedResetDemo: {},
   ClickedPush: {},
+  RetriedEdit: {},
+  DiscardedEdit: {},
   CompletedFocus: {},
 });
 export type Message = typeof Message.Type;

@@ -472,7 +472,7 @@ const fromServer = (
       ...model,
       backend: server.backend,
       canonical: server.items,
-      error: "",
+      error: model.saveRejected ? model.error : "",
     };
     if (server._tag === "Snapshot")
       next = {
@@ -480,19 +480,14 @@ const fromServer = (
         threads: Object.fromEntries(server.threads.map((t) => [t.id, t])),
       };
     if (model.inFlight) {
+      if (server._tag === "Snapshot" && model.saveRejected)
+        return { model: next };
       if (server._tag === "Snapshot")
         return {
           model: next,
           outbox: [{ _tag: "SaveDocument", ...model.inFlight }],
         };
-      if (server.requestId !== model.inFlight.requestId)
-        return {
-          model: {
-            ...next,
-            canonical: model.canonical,
-            backend: model.backend,
-          },
-        };
+      if (server.requestId !== model.inFlight.requestId) return { model: next };
       const pending = diff(
         asNodes(model.inFlight.items),
         realItems(model.outline.items),
@@ -504,6 +499,7 @@ const fromServer = (
       next = {
         ...next,
         inFlight: null,
+        saveRejected: false,
         synced: true,
         savedRevision: pending.length
           ? model.inFlight.editorRevision
@@ -520,10 +516,19 @@ const fromServer = (
         },
       };
     }
-    if (model.synced && model.outline.revision !== model.savedRevision)
-      return {
-        model: { ...next, canonical: model.canonical, backend: model.backend },
+    if (model.synced && model.outline.revision !== model.savedRevision) {
+      const inFlight = {
+        requestId: crypto.randomUUID(),
+        items: realItems(model.outline.items),
+        baseItems: model.canonical,
+        baseRevision: model.backend!.revision,
+        editorRevision: model.outline.revision,
       };
+      return {
+        model: { ...next, inFlight },
+        outbox: [{ _tag: "SaveDocument", ...inFlight }],
+      };
+    }
     const loaded = outline(
       next,
       Outliner.Message.Load({ items: project(server.items, next.threads) }),
@@ -543,6 +548,9 @@ const fromServer = (
         model: {
           ...model,
           error: server.message,
+          saveRejected:
+            model.saveRejected ||
+            (!!model.inFlight && server.requestId === model.inFlight.requestId),
           announcement: server.message,
         },
       };
@@ -684,6 +692,68 @@ const reduce = (model: Model, message: Message): Step =>
       outbox: [{ _tag: "Cancel", threadId }],
     }),
     JumpedToAttention: ({ kind }) => jump(model, kind),
+    RetriedEdit: () => {
+      if (!model.inFlight || !model.saveRejected) return { model };
+      const operations = diff(
+        asNodes(model.inFlight.baseItems),
+        realItems(model.outline.items),
+      );
+      const latest = asNodes(model.canonical);
+      const known = new Set([
+        ...latest.map((n) => n.id),
+        ...operations.filter((o) => o.type === "insert").map((o) => o.node.id),
+      ]);
+      if (
+        operations.some(
+          (o) =>
+            ((o.type === "update" || o.type === "move") && !known.has(o.id)) ||
+            ((o.type === "insert" || o.type === "move") &&
+              ((o.parent !== null && !known.has(o.parent)) ||
+                (o.after != null && !known.has(o.after)))),
+        )
+      )
+        return {
+          model: {
+            ...model,
+            error:
+              "A bullet or anchor was deleted. Copy your draft before using the latest outline.",
+          },
+        };
+      const rebased = replay(
+        latest,
+        operations.filter((o) => o.type !== "delete" || known.has(o.id)),
+      );
+      const items = toItems(rebased, realItems(model.outline.items));
+      if (asNodes(items).length !== rebased.length)
+        return {
+          model: {
+            ...model,
+            error:
+              "The latest outline conflicts with this move. Copy your draft before using the latest outline.",
+          },
+        };
+      const replaced = replaceReal(
+        { ...model, inFlight: null, error: "", saveRejected: false },
+        items,
+        "Retrying your edit against the latest revision.",
+      );
+      return { ...replaced, model: { ...replaced.model, savedRevision: -1 } };
+    },
+    DiscardedEdit: () => {
+      const loaded = outline(
+        { ...model, inFlight: null, error: "", saveRejected: false },
+        Outliner.Message.Load({
+          items: project(model.canonical, model.threads),
+        }),
+      );
+      return {
+        ...loaded,
+        model: {
+          ...loaded.model,
+          savedRevision: loaded.model.outline.revision,
+        },
+      };
+    },
     ClickedPush: () => ({ model, outbox: [{ _tag: "Push" }] }),
     ClickedResetDemo: () => ({
       model: {

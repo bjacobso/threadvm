@@ -132,7 +132,10 @@ export const diff = (
         add({
           type: "update",
           id: next.id,
-          patch: { text: next.text, done: next.done },
+          patch: {
+            ...(previous.text !== next.text ? { text: next.text } : {}),
+            ...(previous.done !== next.done ? { done: next.done } : {}),
+          },
         });
       const siblings = working.filter((n) => n.parent === previous.parent);
       const after =

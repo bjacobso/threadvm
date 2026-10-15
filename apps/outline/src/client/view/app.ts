@@ -124,7 +124,36 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
     [
       header(model, h),
       ...(model.error
-        ? [h.div([h.Class("room-error"), h.Role("alert")], [model.error])]
+        ? [
+            h.div(
+              [h.Class("room-error"), h.Role("alert")],
+              [
+                model.error,
+                ...(model.saveRejected
+                  ? [
+                      Button.view(
+                        {
+                          label: "Retry my edit",
+                          variant: "ghost",
+                          size: "xs",
+                          onClick: Message.RetriedEdit(),
+                        },
+                        h,
+                      ),
+                      Button.view(
+                        {
+                          label: "Use latest",
+                          variant: "ghost",
+                          size: "xs",
+                          onClick: Message.DiscardedEdit(),
+                        },
+                        h,
+                      ),
+                    ]
+                  : []),
+              ],
+            ),
+          ]
         : []),
       h.main([h.Class("app-main")], [outlinePane(model, h), panel(model, h)]),
       h.div(

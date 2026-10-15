@@ -249,7 +249,7 @@ try {
     () => evaluate("document.activeElement?.value === ''"),
     "new bullet focused",
   );
-  await cdp("Input.insertText", { text: "Inspect the worktree @shell" });
+  await cdp("Input.insertText", { text: "Inspect the worktree @shell/local" });
   await key("Tab");
   await until(
     async () =>
@@ -277,7 +277,11 @@ try {
     "working node badge",
   );
   await click(".thread-chip[data-status=working]");
-  await clickText("Terminal").catch(() => click(".terminal-section summary"));
+  await until(
+    () => evaluate("!!document.querySelector('.terminal-section summary')"),
+    "sandbox metadata ready",
+  );
+  await click(".terminal-section summary");
   await until(
     () => evaluate("!!document.querySelector('iframe')"),
     "terminal in thread panel",
@@ -313,7 +317,7 @@ try {
   await screenshot("align-probe-terminal.png");
   await clickText("Inbox");
   // A second window shares the exact room protocol. Human and CLI edits broadcast.
-  const peer = new WebSocket(
+  let peer = new WebSocket(
     `${url.replace("http", "ws")}/api/outlines/local/socket`,
   );
   const frames = [];
@@ -340,6 +344,66 @@ try {
         "[...document.querySelectorAll('textarea')].some(e => e.value === 'Two windows in sync')",
       ),
     "cross-window human edit",
+  );
+  // Preserve a real offline draft, then explicitly resolve a same-node conflict.
+  peer.close();
+  await stopServer();
+  await until(
+    () => evaluate("document.body.innerText.includes('Reconnecting')"),
+    "offline editor",
+  );
+  await evaluate(
+    `(() => {const el=document.querySelector('[data-outline-row="${rootId}"] textarea');el.focus();el.setSelectionRange(0,el.value.length)})()`,
+  );
+  await cdp("Input.insertText", { text: "My recovered offline edit" });
+  const beforeConflict = await invoke("outline", "show");
+  const conflictFile = join(project, "conflict.json");
+  await writeFile(
+    conflictFile,
+    JSON.stringify({
+      baseRevision: beforeConflict.snapshot.revision,
+      operations: [
+        {
+          type: "update",
+          id: rootId,
+          patch: { text: "The other window changed this bullet" },
+        },
+        {
+          type: "insert",
+          parent: rootId,
+          node: {
+            id: "concurrent-child",
+            text: "Keep the other window's child",
+            done: false,
+          },
+        },
+      ],
+    }),
+  );
+  await invoke("outline", "apply", conflictFile);
+  server = startServer();
+  await until(
+    () => evaluate("document.body.innerText.includes('Retry my edit')"),
+    "conflict recovery controls",
+  );
+  await screenshot("align-probe-conflict.png");
+  await clickText("Retry my edit");
+  await until(async () => {
+    const v = await view();
+    return (
+      v.snapshot.nodes.find((n) => n.id === rootId)?.text ===
+        "My recovered offline edit" &&
+      v.snapshot.nodes.some((n) => n.id === "concurrent-child")
+    );
+  }, "explicit retry preserves the draft and remote insert");
+  frames.length = 0;
+  peer = new WebSocket(
+    `${url.replace("http", "ws")}/api/outlines/local/socket`,
+  );
+  peer.onmessage = (e) => frames.push(JSON.parse(e.data));
+  await until(
+    () => frames.some((m) => m._tag === "Snapshot"),
+    "room reconnected",
   );
   await writeFile(
     join(project, ".threadvm/acp.json"),

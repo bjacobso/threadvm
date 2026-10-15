@@ -459,7 +459,7 @@ kbd {
   place-items: center;
   flex: none;
   border-radius: 6px;
-  background: var(--agent);
+  background: var(--agent, var(--muted-foreground));
   color: white;
   font-weight: 650;
   line-height: 1;
@@ -1244,6 +1244,9 @@ kbd {
   font-size: 12px;
 }
 .room-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 24px;
   color: var(--destructive);
   border-bottom: 1px solid var(--border);

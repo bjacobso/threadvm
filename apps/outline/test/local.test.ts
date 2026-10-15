@@ -161,3 +161,95 @@ it("retains an unacknowledged batch across a reconnect and never overwrites a dr
   expect(result.model.inFlight).toEqual(inFlight);
   expect(result.commands).toHaveLength(1);
 });
+
+it("keeps a rejected draft until explicit retry, preserving remote inserts and unchanged fields", () => {
+  const base = toItems([node("a")]),
+    typed = toItems([{ ...node("a"), text: "my edit" }]);
+  const model = {
+    ...init({ outlineId: "local", sessionId: "tab" }),
+    backend,
+    synced: true,
+    connection: "Online" as const,
+    canonical: base,
+    outline: { ...Outliner.init({ id: "test", items: typed }), revision: 2 },
+    savedRevision: 1,
+    inFlight: {
+      requestId: "conflict",
+      items: typed,
+      baseItems: base,
+      baseRevision: 1,
+      editorRevision: 2,
+    },
+  };
+  const remote = toItems([
+    { ...node("a"), text: "other edit", done: true },
+    node("other-tab"),
+  ]);
+  const changed = update(
+    model,
+    Message.ReceivedServerMessage({
+      message: {
+        _tag: "DocumentChanged",
+        items: remote,
+        backend: { ...backend, revision: 2 },
+      },
+    }),
+  ).model;
+  const rejected = update(
+    changed,
+    Message.ReceivedServerMessage({
+      message: {
+        _tag: "Error",
+        requestId: "conflict",
+        message: "Same node changed",
+      },
+    }),
+  );
+  expect(rejected.model.outline.items).toEqual(typed);
+  expect(rejected.model.saveRejected).toBe(true);
+  expect(rejected.commands ?? []).toHaveLength(0);
+  const retried = update(rejected.model, Message.RetriedEdit()).model;
+  expect(retried.outline.items.map((n) => n.text)).toEqual([
+    "my edit",
+    "other-tab",
+  ]);
+  expect(retried.outline.items[0]?.checked).toBe(true);
+  expect(retried.inFlight?.baseRevision).toBe(2);
+  expect(retried.inFlight?.requestId).not.toBe("conflict");
+  const discarded = update(rejected.model, Message.DiscardedEdit()).model;
+  expect(discarded.outline.items).toEqual(remote);
+  expect(discarded.inFlight).toBeNull();
+  expect(discarded.error).toBe("");
+});
+it("keeps an offline edit's original base when reconnecting to a changed room", () => {
+  const base = toItems([node("a")]),
+    typed = toItems([{ ...node("a"), text: "offline edit" }]);
+  const model = {
+    ...init({ outlineId: "local", sessionId: "tab" }),
+    backend,
+    synced: true,
+    connection: "Online" as const,
+    canonical: base,
+    outline: { ...Outliner.init({ id: "test", items: typed }), revision: 2 },
+    savedRevision: 1,
+  };
+  const latest = toItems([
+    { ...node("a"), text: "other edit" },
+    node("other-tab"),
+  ]);
+  const reconnected = update(
+    model,
+    Message.ReceivedServerMessage({
+      message: {
+        _tag: "Snapshot",
+        items: latest,
+        threads: [],
+        backend: { ...backend, revision: 2 },
+      },
+    }),
+  ).model;
+  expect(reconnected.canonical).toEqual(latest);
+  expect(reconnected.outline.items).toEqual(typed);
+  expect(reconnected.inFlight?.baseRevision).toBe(1);
+  expect(reconnected.inFlight?.baseItems).toEqual(base);
+});
