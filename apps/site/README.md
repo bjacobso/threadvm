@@ -17,12 +17,80 @@ pnpm build:site               # apps/site/dist
 pnpm --filter @threadvm/site preview
 ```
 
-Deploy `apps/site/dist` on any static host. Set the repository root as the install
-and build directory, use `pnpm build:site` as the build command, and
-`apps/site/dist` as the output directory. No server adapter or environment
-variables are required. The site currently assumes it is served at the domain
-root. Set `SITE_URL` to the final public origin at build time to generate
-canonical URLs and absolute social-preview image URLs.
+## Deployment
+
+[`alchemy.run.ts`](alchemy.run.ts) deploys this site as a Cloudflare Worker with
+static assets, using the same Alchemy version and remote `Cloudflare.state()`
+store as the other projects. The stack is `threadvm-site`; it is separate from
+the existing outline demo's `ThreadvmOutline` stack.
+
+| Trigger                                         | Stage         | Worker                      | URL                                         |
+| ----------------------------------------------- | ------------- | --------------------------- | ------------------------------------------- |
+| Push to `main` or manual production workflow    | `prod`        | `threadvm-site`             | `https://threadvm.com`                      |
+| Same-repository PR opened, reopened, or updated | `pr-<number>` | `threadvm-site-pr-<number>` | Isolated `workers.dev` URL posted on the PR |
+| Same-repository PR closed or merged             | `pr-<number>` | Deleted                     | Preview comment removed                     |
+
+Production is the only stage that binds the custom domain. Preview deployments
+do not modify its DNS or route. The Alchemy-managed comment updates on each push,
+identifies the deployed commit, and is removed with the preview. Fork PRs do not
+receive deployment credentials and are skipped. Deploys and cleanup for one PR
+share a concurrency group, with cancellation disabled to avoid interrupted state
+updates. Cleanup checks out the deployed head SHA so it works after the branch
+or merge ref is deleted.
+
+### One-time Cloudflare and GitHub setup
+
+1. Put `threadvm.com` in the intended Cloudflare account as an active zone, and
+   enable that account's `workers.dev` subdomain. The domain must be available for
+   this Worker's custom-domain binding.
+2. Add `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` in this repository's
+   **Settings → Secrets and variables → Actions**. Repository secrets serve both
+   workflows; production can also use secrets from the `production` environment.
+3. Scope the token to the deployment account and the `threadvm.com` zone. It needs
+   Workers Scripts and Secrets Store write access (including Alchemy's remote
+   state), account settings access for the Workers subdomain, zone read access,
+   and Workers Routes write access for the custom domain. See
+   [Alchemy's CI credentials guide](https://alchemy.run/environments/ci/) and
+   [Cloudflare's Workers permissions](https://developers.cloudflare.com/workers/authorization/workers/).
+4. Enable Actions and allow its `GITHUB_TOKEN` to write PR comments. The preview
+   workflow requests `pull-requests: write`; no separate GitHub PAT is needed.
+
+The first Alchemy run can bootstrap the account's shared state-store Worker and
+Secrets Store entries. CI uses `--yes` for this. Keep the same Cloudflare account
+and remote state for later deploys and cleanup; `.alchemy/` stays ignored.
+
+From the repository root, with Cloudflare credentials in the environment or an
+Alchemy profile:
+
+```sh
+pnpm plan:site                   # production plan (requires Cloudflare access)
+pnpm deploy:site --yes           # build prerequisites + deploy threadvm.com
+pnpm --filter @threadvm/site run deploy --stage pr-123 --yes
+```
+
+For a manual preview to also update a PR comment, set `PULL_REQUEST=123`,
+`GITHUB_REPOSITORY=bjacobso/threadvm`, `GITHUB_SHA`, and `GITHUB_TOKEN`.
+The workflows in `.github/workflows/site-{production,preview}.yml` supply these.
+Only destroy preview stages when cleaning up manually:
+
+```sh
+PULL_REQUEST=123 pnpm --filter @threadvm/site run destroy --stage pr-123 --yes
+```
+
+Removing an Alchemy-managed comment also requires `GITHUB_TOKEN`.
+
+Alchemy builds through Turbo from the repository root, so a fresh CI checkout
+builds the required Foldworks and outline packages automatically. Production
+sets `SITE_URL=https://threadvm.com` to generate canonical and social image URLs;
+previews clear it so they do not advertise the production origin. Build memoization
+includes site, outline, shared, and vendored source plus the workspace lockfile.
+
+For another static host, build with
+`pnpm exec turbo build --filter @threadvm/site` and publish `apps/site/dist`.
+No server adapter is required. The site assumes it is served at the domain root;
+set `SITE_URL` to that host's public origin for canonical and social image URLs.
+
+## Development builds
 
 `dev` and `build` first run `pnpm demo`, which builds `apps/outline` with
 `vite build --mode embed` into `public/demo/` (ignored by Git). Rerun it after

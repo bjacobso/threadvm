@@ -23,12 +23,16 @@ isolation, and the three histories follow.
 ```sh
 pnpm dev:site     # field notes at http://localhost:4321
 pnpm build:site   # static site in apps/site/dist
-pnpm check:site   # Astro diagnostics
+pnpm check:site   # Astro + deployment stack diagnostics
 ```
 
-See [the site guide](apps/site/README.md) for static deployment and screenshot
-regeneration. The site builds independently of the local harness, but it builds
-the outline embed, so the Foldworks packages must be built first.
+The Alchemy deployment targets **threadvm.com** on pushes to `main`; PRs get
+isolated Cloudflare preview links that update with each push and are removed on
+close. Run `pnpm plan:site` or `pnpm deploy:site --yes` for production from a
+configured local environment. See [the site guide](apps/site/README.md#deployment)
+for Cloudflare credentials, deployment workflows, and screenshot regeneration.
+The site builds independently of the local harness, but it builds the outline
+embed, so the Foldworks packages must be built first.
 
 ## Local Outline Workflow
 
