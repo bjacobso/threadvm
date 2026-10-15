@@ -1,0 +1,145 @@
+---
+// The real outliner, built with `--mode embed` into /demo/. Its room and
+// scripted agents run inside the frame; the frame reports where the story is
+// so this rail can follow along.
+const steps = [
+  {
+    stage: "Write",
+    title: "Write a thought",
+    detail:
+      "A bullet is a thought, and nesting gives it context. The outline is a normal outline until you ask for help.",
+  },
+  {
+    stage: "Delegate",
+    title: "Mention an agent",
+    detail:
+      "Mentioning @cursor turns the bullet into a thread with its own sandbox and branch. It sees the path to the bullet and the branch beneath it.",
+  },
+  {
+    stage: "Answer",
+    title: "Answer when it asks",
+    detail:
+      "When an agent needs you, its question appears under the bullet that asked, and every folded branch above it keeps count. Pick an answer.",
+  },
+  {
+    stage: "Review",
+    title: "Review what comes back",
+    detail:
+      "Agents never edit the outline. Their changes arrive as suggestions: green for new bullets, struck text for rewording. Accept or reject each one.",
+  },
+  {
+    stage: "Done",
+    title: "Keep the result",
+    detail:
+      "Accepted suggestions become part of the outline, and the thread stays attached to the bullet. Now it is yours: type @claude anywhere and press Return.",
+  },
+];
+---
+
+<div class="demo" data-demo>
+  <div class="story" data-stage="Write" data-driving="Story">
+    <ol class="story__steps">
+      {
+        steps.map((step, index) => (
+          <li class="story__step" data-step={step.stage}>
+            <span class="story__dot" aria-hidden="true" />
+            <span class="story__index">{index + 1}</span>
+            {step.title}
+          </li>
+        ))
+      }
+    </ol>
+    <div class="story__end">
+      <span class="story__driver" data-driver>
+        <span class="story__driver-dot" aria-hidden="true"></span>
+        <span data-driver-label>Playing</span>
+      </span>
+      <button class="button button-ghost button-sm" type="button" data-replay>
+        Replay
+      </button>
+    </div>
+  </div>
+  <div class="demo-frame">
+    <iframe
+      src="/demo/"
+      title="Interactive outline demo with scripted agents"
+      data-frame></iframe>
+  </div>
+  <div class="story-detail" aria-live="polite">
+    {
+      steps.map((step, index) => (
+        <p data-detail={step.stage} hidden={index !== 0}>
+          <strong>{step.title}.</strong> {step.detail}
+        </p>
+      ))
+    }
+  </div>
+</div>
+
+<script>
+  type StoryEvent = {
+    source: "threadvm-demo";
+    stage: string;
+    driving: "Story" | "Visitor";
+  };
+  const demo = document.querySelector<HTMLElement>("[data-demo]");
+  const story = demo?.querySelector<HTMLElement>(".story");
+  const frame = demo?.querySelector<HTMLIFrameElement>("[data-frame]");
+  const driverLabel = demo?.querySelector<HTMLElement>("[data-driver-label]");
+  if (demo && story && frame && driverLabel) {
+    const order = [...story.querySelectorAll<HTMLElement>("[data-step]")].map(
+      (step) => step.dataset.step,
+    );
+    const show = ({ stage, driving }: Omit<StoryEvent, "source">) => {
+      story.dataset.stage = stage;
+      story.dataset.driving = driving;
+      const current = order.indexOf(stage);
+      story.querySelectorAll<HTMLElement>("[data-step]").forEach((step, i) => {
+        step.dataset.state =
+          i < current ? "past" : i === current ? "current" : "next";
+        if (i === current) step.setAttribute("aria-current", "step");
+        else step.removeAttribute("aria-current");
+      });
+      demo.querySelectorAll<HTMLElement>("[data-detail]").forEach((detail) => {
+        detail.hidden = detail.dataset.detail !== stage;
+      });
+      driverLabel.textContent =
+        driving === "Visitor"
+          ? "You’re driving"
+          : stage === "Done"
+            ? "Story finished"
+            : "Playing";
+    };
+    show({ stage: "Write", driving: "Story" });
+    window.addEventListener("message", (event: MessageEvent<StoryEvent>) => {
+      if (event.origin !== location.origin) return;
+      if (event.source !== frame.contentWindow) return;
+      if (event.data?.source !== "threadvm-demo") return;
+      show(event.data);
+      play();
+    });
+    demo.querySelector("[data-replay]")?.addEventListener("click", () => {
+      show({ stage: "Write", driving: "Story" });
+      frame.contentWindow?.location.reload();
+    });
+
+    // The story waits until most of the frame is on screen. The room reports
+    // as soon as it is listening, including after a reload, and asking again
+    // once the story runs does nothing.
+    let visible = false;
+    const play = () => {
+      if (visible)
+        frame.contentWindow?.postMessage(
+          { source: "threadvm-site", command: "play" },
+          location.origin,
+        );
+    };
+    new IntersectionObserver(
+      ([entry]) => {
+        visible = (entry?.intersectionRatio ?? 0) >= 0.6;
+        play();
+      },
+      { threshold: 0.6 },
+    ).observe(frame);
+  }
+</script>

@@ -386,10 +386,10 @@ kbd {
 }
 /* Its answers sit on their own line, under the question. */
 .outline-pane .fw-outliner__row[data-tone="question"] .fw-outliner__accessory {
-  flex-basis: 100%;
+  --indent: calc(var(--fw-outliner-toggle) + var(--fw-outliner-handle) + 6px);
+  flex-basis: calc(100% - var(--indent));
   max-width: none;
-  margin: 0 0 8px
-    calc(var(--fw-outliner-toggle) + var(--fw-outliner-handle) + 6px);
+  margin: 0 0 8px var(--indent);
 }
 .row-question {
   flex-wrap: wrap;

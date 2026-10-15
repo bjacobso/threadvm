@@ -13,8 +13,9 @@ const randomId = (length: number): string =>
     "abcdefghijkmnpqrstuvwxyz23456789".charAt(byte % 32),
   ).join("");
 
-/** Each outline lives at `/o/<id>`; the root starts a fresh one. */
+/** Each outline lives at `/o/<id>`; the root starts a fresh one. The homepage embed has just one. */
 const flags = Effect.sync((): Flags => {
+  if (import.meta.env.MODE === "embed") return { outlineId: "demo", sessionId: randomId(6) };
   const match = /^\/o\/([A-Za-z0-9_-]{1,64})\/?$/u.exec(location.pathname);
   const outlineId =
     match?.[1] ??

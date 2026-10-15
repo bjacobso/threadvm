@@ -1,0 +1,29 @@
+{
+  "name": "@threadvm/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "pnpm --filter @threadvm/outline build:embed",
+    "dev": "pnpm run demo && astro dev --host 0.0.0.0",
+    "build": "pnpm run demo && astro build",
+    "preview": "astro preview --host 0.0.0.0",
+    "typecheck": "astro check && tsc -p tsconfig.alchemy.json",
+    "lint": "pnpm typecheck",
+    "deploy": "alchemy deploy",
+    "plan": "alchemy plan",
+    "destroy": "alchemy destroy"
+  },
+  "dependencies": {
+    "astro": "^7.4.0"
+  },
+  "devDependencies": {
+    "@threadvm/outline": "workspace:*",
+    "@astrojs/check": "^0.9.10",
+    "typescript": "^6.0.3",
+    "alchemy": "2.0.0-beta.76",
+    "effect": "catalog:",
+    "@types/node": "catalog:",
+    "@effect/platform-node": "4.0.0-rc.112"
+  }
+}

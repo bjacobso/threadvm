@@ -19,7 +19,13 @@
     "probe:outline": "pnpm build && pnpm exec tsx scripts/outline_probe.ts",
     "probe:outline-ui": "pnpm build && node scripts/outline_ui_probe.mjs",
     "probe:acp": "pnpm build && pnpm exec tsx packages/agent/test/runtime_probe.ts && node scripts/acp_probe.mjs",
-    "probe:local-ui": "pnpm build && node scripts/local_harness_ui_probe.mjs"
+    "probe:local-ui": "pnpm build && node scripts/local_harness_ui_probe.mjs",
+    "dev:site": "pnpm --filter @threadvm/site dev",
+    "build:site": "pnpm --filter @threadvm/site build",
+    "check:site": "pnpm --filter @threadvm/site typecheck",
+    "probe:site": "node scripts/site_probe.mjs",
+    "deploy:site": "pnpm --filter @threadvm/site run deploy --stage prod",
+    "plan:site": "pnpm --filter @threadvm/site run plan --stage prod"
   },
   "devDependencies": {
     "tsx": "^4.23.0",

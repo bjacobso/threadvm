@@ -1,0 +1,49 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { notes } from "../../content/notes";
+export function getStaticPaths() {
+  return notes.map((note) => ({
+    params: { slug: note.slug },
+    props: { note },
+  }));
+}
+const { note } = Astro.props;
+---
+
+<Layout
+  title={`${note.title} — ThreadVM field notes`}
+  description={note.description}
+  crumb={`Field notes / ${note.title}`}
+>
+  <article class="article">
+    <a class="text-link" href="/#notes">← All field notes</a>
+    <span class="eyebrow">
+      {note.category.toLowerCase()} · {note.readTime} min read
+    </span>
+    <h1>{note.title}</h1>
+    <p class="lead">{note.lead}</p>
+    <div class="article__body">
+      {
+        note.sections.map((section) => (
+          <section>
+            <h2>{section.title}</h2>
+            <p>{section.body}</p>
+          </section>
+        ))
+      }
+    </div>
+    <aside class="inbox-card article__source">
+      <span class="inbox-card__path">Keep exploring</span>
+      <a
+        class="inbox-card__title"
+        href={`https://github.com/bjacobso/threadvm/blob/main/${note.source}`}
+      >
+        {note.sourceLabel} ↗
+      </a>
+      <span class="inbox-card__detail">
+        These notes describe the current exploration. The repository contains
+        the implementation and its evolving plans.
+      </span>
+    </aside>
+  </article>
+</Layout>

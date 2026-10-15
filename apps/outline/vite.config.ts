@@ -10,7 +10,15 @@ const worker = local
   ? `http://127.0.0.1:${process.env.THREADVM_PORT ?? "3333"}`
   : (process.env.OUTLINE_WORKER_URL ?? "http://localhost:1337");
 
+// `--mode embed` builds the homepage demo: the room runs in the page, and the
+// app is served from the site's `/demo/`.
 export default defineConfig(({ mode }) => ({
+  ...(mode === "embed"
+    ? {
+        base: "/demo/",
+        build: { outDir: "../site/public/demo", emptyOutDir: true },
+      }
+    : {}),
   plugins: [
     {
       name: "threadvm-backend",

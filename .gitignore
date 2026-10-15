@@ -10,3 +10,9 @@ packages/*/dist/
 *.log
 .env
 .alchemy/
+
+# Astro generated types and cache
+apps/site/.astro/
+
+# The outline demo, built into the site by `pnpm --filter @threadvm/site demo`
+apps/site/public/demo/

@@ -9,6 +9,31 @@ The first outline slice is implemented alongside the existing exe.dev workspace
 control plane. The outliner is the default pane; **VM inventory** opens the
 existing VM provisioning, inspector and remote terminal interface.
 
+## Explore the idea
+
+The [Astro field-notes site](apps/site) explains the exploration in the
+outliner's own visual style. Its centerpiece is the actual outliner, built in
+embed mode with its room and scripted agents running in the page: a short story
+writes a bullet, sends it to an agent, answers, and accepts, and hands over the
+moment the visitor does anything. Real local captures and notes on context,
+isolation, and the three histories follow.
+
+![ThreadVM site: the embedded outliner demo with its story steps](docs/images/site.png)
+
+```sh
+pnpm dev:site     # field notes at http://localhost:4321
+pnpm build:site   # static site in apps/site/dist
+pnpm check:site   # Astro + deployment stack diagnostics
+```
+
+The Alchemy deployment targets **threadvm.com** on pushes to `main`; PRs get
+isolated Cloudflare preview links that update with each push and are removed on
+close. Run `pnpm plan:site` or `pnpm deploy:site --yes` for production from a
+configured local environment. See [the site guide](apps/site/README.md#deployment)
+for Cloudflare credentials, deployment workflows, and screenshot regeneration.
+The site builds independently of the local harness, but it builds the outline
+embed, so the Foldworks packages must be built first.
+
 ## Local Outline Workflow
 
 Install dependencies and build once with `pnpm install && pnpm build`. Run the
@@ -118,6 +143,10 @@ local mentions, questions, suggestions and accepted delegation use real runs.
 The local Chrome probe writes `.context/align-probe-*.png`. Live design and
 runtime captures are saved under `.context/align-*.png` and `.context/runtime-*.png`.
 See [PLAN_4.md](./PLAN_4.md) for the design.
+
+![ThreadVM local outline with a seeded project, inline suggestions, and an Inbox for review](apps/site/public/screenshots/outline.png)
+
+*The local interface with a sample project and proposals submitted through the CLI.*
 
 ### ACP agents
 

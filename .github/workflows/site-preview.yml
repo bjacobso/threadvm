@@ -1,0 +1,67 @@
+name: Website preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+
+# Deploys and cleanup for one PR share a queue, so closing cannot race an apply.
+concurrency:
+  group: threadvm-site-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    # Forks do not receive deployment secrets. Never run PR code via pull_request_target.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      PREVIEW_STAGE: pr-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The merge ref can disappear when a PR closes; the deployed revision still exists.
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - run: git submodule update --init vendor/foldworks
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.1
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:site
+        if: github.event.action != 'closed'
+      - name: Deploy preview and update the PR link
+        if: github.event.action != 'closed'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          : "${CLOUDFLARE_ACCOUNT_ID:?Set the CLOUDFLARE_ACCOUNT_ID Actions secret}"
+          : "${CLOUDFLARE_API_TOKEN:?Set the CLOUDFLARE_API_TOKEN Actions secret}"
+          pnpm --filter @threadvm/site run deploy --stage "$PREVIEW_STAGE" --yes
+      - name: Remove the closed PR's preview and link
+        if: github.event.action == 'closed'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          : "${CLOUDFLARE_ACCOUNT_ID:?Set the CLOUDFLARE_ACCOUNT_ID Actions secret}"
+          : "${CLOUDFLARE_API_TOKEN:?Set the CLOUDFLARE_API_TOKEN Actions secret}"
+          if [[ ! "$PREVIEW_STAGE" =~ ^pr-[0-9]+$ ]]; then
+            echo "Refusing to destroy a non-PR stage: $PREVIEW_STAGE" >&2
+            exit 1
+          fi
+          pnpm --filter @threadvm/site run destroy --stage "$PREVIEW_STAGE" --yes
