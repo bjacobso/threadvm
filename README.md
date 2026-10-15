@@ -1,10 +1,111 @@
 # ThreadVM
 
-ThreadVM is a local web app for spinning up one isolated development VM per coding thread.
+ThreadVM is a filesystem-native, Git-versioned outline meta-harness. Humans
+author intent, agents execute and propose, and the outline is where both meet.
+Every bullet has a stable ID. Delegate a node to give it an isolated code
+worktree, a local tmux executor, observations and an attachable browser terminal.
 
-Use it when an idea, bug, RFC, or experiment deserves its own clean environment, running dev server, and agent terminal. ThreadVM uses exe.dev for the actual VMs, a browser-attached SSH terminal for direct access, remote tmux sessions for durable terminal state, and Effect for the local control plane. Herdr can still be started manually inside a VM when you want its agent-oriented panes or workflows.
+The first outline slice is implemented alongside the existing exe.dev workspace
+control plane. The outliner is the default pane; **VM inventory** opens the
+existing VM provisioning, inspector and remote terminal interface.
 
-Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, project registry editor, reconciliation/provisioning streams, local ThreadVM metadata cache, SSH provisioning, and basic stop/remove lifecycle actions are implemented. Workspace creation now requests the VM create/clone operation, then starts repo bootstrap and the configured dev command in a background Effect fiber.
+## Local Outline Workflow
+
+Install dependencies and build once with `pnpm install && pnpm build`. Run the
+built CLI directly (or use the `threadvm` binary from `@threadvm/cli`):
+
+```sh
+node /path/to/threadvm/apps/cli/dist/main.js init /path/to/project
+node /path/to/threadvm/apps/cli/dist/main.js open /path/to/project
+```
+
+The project must be a Git repository. Make an initial code commit before starting
+a run. Local execution needs Git, tmux and a shell; `--agent codex` or
+`--agent claude` additionally needs that executor installed on PATH. `open`
+starts the server on port 3333 and requests the default browser. On a headless
+machine, open the printed URL yourself.
+
+```sh
+threadvm init [dir]
+threadvm open [dir]
+threadvm web                         # existing server launcher, outline + VM tab
+threadvm outline show               # snapshot, proposals, runs and events as JSON
+threadvm outline show --markdown     # read-only projection with stable ID anchors
+threadvm outline apply batch.json   # human edit; also accepts stdin with -
+threadvm propose batch.json         # agent proposal, pending human review
+threadvm proposal accept <id> [nodeId ...]
+threadvm proposal reject <id> [nodeId ...]
+threadvm run <nodeId> --agent shell  # also codex or claude
+threadvm observe <runId> 'progress'
+threadvm observe <runId> <sha> --kind commit
+threadvm remote add origin <thoughts-repo-url>
+threadvm push [remote] [branch]
+```
+
+Use `--dir /path/to/project` on non-launch commands, or set
+`THREADVM_PROJECT_DIR`. New runs default to `shell`; the UI lets you choose an
+executor before explicitly approving launch. Enter adds a sibling; Tab and
+Shift-Tab indent/outdent; Alt-Up/Down reorder; `/run` + Enter opens delegation.
+Node buttons provide the same actions. Proposal cards appear where changes would
+live, with node and batch accept/reject controls.
+
+Example human batch or agent proposal (use the current `snapshot.revision` from
+`outline show`):
+
+```json
+{
+  "baseRevision": 0,
+  "operations": [
+    {
+      "type": "insert",
+      "parent": null,
+      "node": { "id": "auth", "text": "Implement authorization", "done": false }
+    }
+  ]
+}
+```
+
+Operations are `insert` (node, parent, optional after), `update` (id, patch),
+`move` (id, parent, optional after), and `delete` (id, including descendants).
+`parent: null` means root; `after: null` means first sibling; omitted `after`
+means last sibling. Node patches contain text and/or done. Different node edits
+rebase across revisions. A stale edit to the same node, a deleted reference or
+a cycle fails atomically. Accept dependent proposed parents before their children,
+or accept the complete batch.
+
+`.threadvm/` is its own nested Git repository, excluded from the outer repository.
+`snapshot.json`, `ops.jsonl`, `outline.md`, proposals and run summaries form thought
+history. Each human/accepted batch is one commit; proposal submission/rejection
+and delegation summaries also have their own commits. `events.jsonl` is a local,
+append-only execution log. Runtime capabilities, worktrees and transcripts are
+ignored. Code stays in the project's Git history on `threadvm/<node>-<run>`
+branches. Finished run summaries link to the final code HEAD. `push` defaults to
+`origin main` in the thoughts repository.
+
+Runs receive their ancestor path, subtree and CLI instructions. A run-scoped
+`threadvm` wrapper is on PATH, with `THREADVM_RUN_ID`,
+`THREADVM_RUN_CAPABILITY` and `THREADVM_CONTEXT_FILE` set. The CLI allows that
+context to read/propose and observe its own run; human mutation/review, remotes
+and additional delegation are denied. This is an API ownership contract in a
+trusted local environment, not an OS sandbox. MCP and Markdown round-trip editing
+are deferred; the CLI is the complete agent write path for this slice.
+
+The UI polls filesystem-backed state, so CLI writes appear without a separate
+daemon. Browser/server restarts recover outline, pending reviews, events and live
+tmux sessions. Closing a terminal leaves the run alive. Worktrees and branches
+remain available for manual review and cleanup after execution.
+
+```sh
+pnpm probe:outline       # real temp Git repo, CLI, worktree/tmux, recovery, remotes
+pnpm probe:outline-ui    # real headless Chrome, UI edits/review/terminal/restarts
+```
+
+The Chrome probe writes `.context/plan4-inline-proposal.png` and
+`.context/plan4-running-node.png`. See [PLAN_4.md](./PLAN_4.md) for the design.
+
+## exe.dev Workspace Workflow
+
+The existing remote workspace flow remains available from the VM inventory tab.
 
 ## What It Does
 
@@ -152,7 +253,9 @@ The backend is organized around Effect services:
 - `ExeDevService`: wraps raw `ssh exe.dev ...` commands and reflects VM metadata.
 - `SshService`: runs non-interactive commands inside a specific VM.
 - `RemoteTerminalSession`: provisions tmux and owns deterministic remote session naming and attach/restart commands.
-- `TerminalBridge`: owns one scoped local SSH PTY for each browser WebSocket attachment.
+- `TerminalBridge`: owns one scoped local PTY for each browser WebSocket attachment, attaching to remote or local tmux.
+- `ThoughtsRepo`, `OutlineStore`: serialize outline operations and proposal review in the nested thoughts Git repository.
+- `RunEventLog`, `LocalRunSubstrate`: retain execution events and manage local worktree/tmux runs.
 - `HerdrService`: deferred optional integration for users who want managed Herdr sessions later.
 - `WorkspaceService`: coordinates creation, bootstrap, metadata, ports, and lifecycle actions.
 - `LocalStore`: stores cache, UI preferences, provisioning logs, and annotations.
