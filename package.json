@@ -18,7 +18,7 @@
     "start": "pnpm --filter @threadvm/server start",
     "probe:outline": "pnpm build && pnpm exec tsx scripts/outline_probe.ts",
     "probe:outline-ui": "pnpm build && node scripts/outline_ui_probe.mjs",
-    "probe:acp": "pnpm build && node scripts/acp_probe.mjs",
+    "probe:acp": "pnpm build && pnpm exec tsx packages/agent/test/runtime_probe.ts && node scripts/acp_probe.mjs",
     "probe:local-ui": "pnpm build && node scripts/local_harness_ui_probe.mjs"
   },
   "devDependencies": {

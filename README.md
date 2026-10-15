@@ -21,7 +21,7 @@ node /path/to/threadvm/apps/cli/dist/main.js open /path/to/project
 
 The project must be a Git repository. Make an initial code commit before starting
 a run. Local execution needs Git, tmux and a shell; `--agent codex` or
-`--agent claude` additionally needs that executor installed on PATH. `open`
+`--agent claude` additionally needs its authenticated ACP shim installed on PATH. `open`
 starts the server on port 3333 and requests the default browser. On a headless
 machine, open the printed URL yourself.
 
@@ -43,12 +43,18 @@ threadvm push [remote] [branch]
 ```
 
 Use `--dir /path/to/project` on non-launch commands, or set
-`THREADVM_PROJECT_DIR`. New runs default to `shell`; the UI lets you choose an
-executor before explicitly approving launch. Enter adds a sibling; Tab and
-Shift-Tab indent/outdent; drag bullets to reorder. Select an executor and use
-the Run button under a bullet to delegate explicitly. Append `/run` and press
-Enter to open delegation controls from the keyboard. Proposal cards appear where
-changes would live, with node and batch accept/reject controls.
+`THREADVM_PROJECT_DIR`. CLI runs default to `shell`. In the UI, mention an agent
+in a bullet and leave it to start the send countdown; use send-now or Keep as
+note. Enter adds a sibling, Tab/Shift-Tab indent/outdent, and drag reorders.
+Agent changes appear as tracked suggestions with per-row and batch acceptance.
+Questions appear inline and in the Inbox. Select a thread for context, activity,
+follow-up turns, Stop and its collapsible terminal. The header menu opens VM
+inventory and thoughts Git push.
+
+`.threadvm/agents.yaml` selects agent profiles and sandbox profiles. All coding
+agents use ACP; `@shell` is terminal-only. `@claude/exe` overrides the default
+sandbox for one bullet. See [the runtime guide](docs/agent-runtime.md) and
+[PLAN_5.md](PLAN_5.md) for installation, configuration, MCP, resume and providers.
 
 Example human batch or agent proposal (use the current `snapshot.revision` from
 `outline show`):
@@ -88,11 +94,11 @@ Runs receive their ancestor path, subtree and CLI instructions. A run-scoped
 `THREADVM_RUN_CAPABILITY` and `THREADVM_CONTEXT_FILE` set. The CLI allows that
 context to read/propose and observe its own run; human mutation/review, remotes
 and additional delegation are denied. This is an API ownership contract in a
-trusted local environment, not an OS sandbox. MCP and Markdown round-trip editing
-are deferred; the CLI is the complete agent write path for this slice.
+trusted local environment, not an OS sandbox. The injected MCP server exposes
+the same read/propose/observe verbs. Markdown round-trip editing remains deferred.
 
-The UI polls filesystem-backed state, so CLI writes appear without a separate
-daemon. Browser/server restarts recover outline, pending reviews, events and live
+The server broadcasts filesystem-backed state over the shared outline socket,
+so CLI and MCP writes appear in every connected window. Browser/server restarts recover outline, pending reviews, events and live
 tmux sessions. Closing a terminal leaves the run alive. Worktrees and branches
 remain available for manual review and cleanup after execution.
 
@@ -104,13 +110,13 @@ pnpm probe:local-ui      # Foldkit UI + real local harness in Chrome
 ```
 
 The local UI uses **Foldkit + Foldworks + StyleX**. The server serves it at `/`,
-with the existing React VM inventory at `/inventory` and TerminalPane embedded
-under running nodes. `THREADVM_UI=legacy` selects the earlier React outliner.
-The separate Cloudflare app remains an experience demo with simulated agents;
-mention countdowns and automatic nested delegation apply only to that demo.
+with the existing React VM inventory at `/inventory` and TerminalPane inside the
+selected thread panel. `THREADVM_UI=legacy` selects the earlier React outliner.
+Local and Cloudflare modes share that client. Cloudflare keeps its simulator;
+local mentions, questions, suggestions and accepted delegation use real runs.
 
-The local Chrome probe writes `.context/plan4-foldkit-running.png`,
-`.context/plan4-foldkit-proposal.png` and `.context/plan4-acp-permission.png`.
+The local Chrome probe writes `.context/align-probe-*.png`. Live design and
+runtime captures are saved under `.context/align-*.png` and `.context/runtime-*.png`.
 See [PLAN_4.md](./PLAN_4.md) for the design.
 
 ### ACP agents
@@ -119,8 +125,8 @@ See [PLAN_4.md](./PLAN_4.md) for the design.
 is vendored with its MIT license inside the isolated `@threadvm/agent` runner.
 The Effect `AgentDriver` service uses ACP for initialization, sessions, streamed
 updates, permission requests and cancellation. This avoids a vendor-specific
-control adapter for every ACP-capable agent. Agents still use the common CLI
-for outline reads, observations and reviewable proposals.
+control adapter for every ACP-capable agent. Every coding profile uses an ACP
+shim and receives the scoped outline MCP server. CLI writes remain supported.
 
 Create `.threadvm/acp.json` with an installed ACP program:
 
@@ -128,8 +134,8 @@ Create `.threadvm/acp.json` with an installed ACP program:
 { "command": "/absolute/path/to/acp-agent", "args": [] }
 ```
 
-Then select **ACP (configured agent)** in the UI or use
-`threadvm run <nodeId> --agent acp`. The executable must implement ACP, rather
+This legacy configuration can be used with `@claude` in the UI or
+`threadvm run <nodeId> --agent acp`. Prefer agents.yaml for new profiles. The executable must implement ACP, rather
 than an interactive terminal CLI. It inherits the launch environment, starts
 in the run's worktree and receives the node context. Permission options appear
 under the delegated node. Human CLI equivalents are:
@@ -141,8 +147,9 @@ threadvm cancel <runId>
 
 ACP initialization metadata and raw updates stay in the run event log. The tmux
 runner survives browser/server restarts, including while awaiting a permission.
-One prompt is one run today; resuming terminated processes, multi-turn steering,
-client-provided filesystem/terminal tools and MCP are follow-up work.
+UI sessions stay hot for follow-up turns. The runtime supports negotiated
+session/load and client filesystem/terminal capabilities backed by Sandbox.
+Pending permissions retain live/message/expired response capabilities.
 
 For local development after the initial build, `pnpm dev` starts the API and
 Foldkit Vite app without Cloudflare credentials. Set `THREADVM_PROJECT_DIR` to

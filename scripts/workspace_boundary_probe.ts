@@ -71,7 +71,7 @@ const workspaces: ReadonlyArray<Workspace> = [
 
 const allowedImports: Record<WorkspaceName, ReadonlySet<WorkspaceName>> = {
   "@threadvm/outline-protocol": new Set(["@threadvm/shared"]),
-  "@threadvm/agent": new Set(),
+  "@threadvm/agent": new Set(["@threadvm/shared"]),
   "@threadvm/outline": new Set(["@threadvm/shared", "@threadvm/outline-protocol"]),
   "@threadvm/web": new Set(["@threadvm/shared"]),
   "@threadvm/server": new Set(["@threadvm/shared", "@threadvm/outline-protocol"]),
@@ -177,6 +177,9 @@ const checkReference = async (
 
   const internalPackage = threadVmPackageName(reference.specifier);
   if (internalPackage) {
+    if (sourceWorkspace.name === "@threadvm/agent" && internalPackage === "@threadvm/shared" && !["@threadvm/shared/domain", "@threadvm/shared/services/SshBridge", "@threadvm/shared/services/SshTransport"].includes(reference.specifier)) {
+      return { ...reference, reason: "the isolated ACP runtime may import only shared DTO types and Promise/command transport bridges" };
+    }
     if (internalPackage === sourceWorkspace.name) {
       return undefined;
     }

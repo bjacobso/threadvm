@@ -147,3 +147,35 @@ outside their workspace merely by advertising those capabilities.
   expired response behavior correctly; loadSession false is never ignored.
 - Vercel/Cloudflare are explicitly documented typed stubs. No fake live-provider
   claims. No agentd, hosted model loop, billing or secret-vault implementation.
+
+## Implementation Notes and Verification
+
+The shared coordinator is now AgentRuns. LocalRunSubstrate is only a compatibility
+re-export for existing callers. LocalSandboxProvider, ExeSandboxProvider,
+VercelSandboxProvider and CloudflareSandboxProvider are Effect services in the
+isolated runtime. SshBridge reuses the existing beta SshService/ExeDevService via
+plain Promises; no beta Effect values enter stable effect-acp. CLI resource
+requests use JSON for the same version-isolation reason.
+
+The HTTP MCP callback is implemented, in addition to the requested stdio command.
+A profile can select an existing exe host or clone baseDevbox into a new VM.
+Remote Git and terminal operations use Sandbox, including final HEAD lookup.
+Native fs/terminal ACP client capabilities are implemented and probed. A bounded
+session event stream becomes available before session/load completes: otherwise
+a large replay could deadlock before the caller starts draining it.
+
+Pending requests are reconstructed from events and atomically checkpointed.
+A server restart keeps an existing tmux-owned worker live. A lost worker's request
+becomes message or expired. Answering a message request loads the same session,
+sends a clearly labelled follow-up, and resolves the old request; the agent must
+ask again for new tool permission. This is verified on both local and mocked SSH
+transports. No agentd supervisor or automatic remote reconnect was introduced.
+
+The installed Claude shim completed a live permission → MCP read/propose/observe
+→ UI acceptance → thoughts commit scenario, and committed the proof code.
+Codex ACP was installed and attempted; session/new failed Authentication required
+(the host has no Codex login or API key). A read-only exe.dev connection failed
+Permission denied, so SSH, cloned code, tmux, HTTP MCP, cancellation and resume
+were tested with an explicit mock. VM allocation itself was not tested against
+exe.dev. Vercel and Cloudflare have no available credentials and remain typed
+stubs. API model loops remain future ACP agents, not a second core adapter.

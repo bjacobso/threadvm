@@ -7,7 +7,47 @@ writeFileSync("acp-runner-pid", String(process.ppid));
 const hold = process.argv.includes("--hold");
 const send = (message) =>
   process.stdout.write(JSON.stringify({ jsonrpc: "2.0", ...message }) + "\n");
-let turn;
+let turn, mcpServer;
+let rpcId = 0;
+const mcp = async (name, args = {}) => {
+  const request = {
+    jsonrpc: "2.0",
+    id: ++rpcId,
+    method: "tools/call",
+    params: { name, arguments: args },
+  };
+  let response;
+  if (mcpServer.type === "http") {
+    const headers = Object.fromEntries(
+      (mcpServer.headers ?? []).map((h) => [h.name, h.value]),
+    );
+    response = await fetch(mcpServer.url, {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(request),
+    }).then((r) => r.json());
+  } else {
+    const env = {
+      ...process.env,
+      ...Object.fromEntries(
+        (mcpServer.env ?? []).map((e) => [e.name, e.value]),
+      ),
+    };
+    const text = execFileSync(mcpServer.command, mcpServer.args, {
+      env,
+      encoding: "utf8",
+      input: JSON.stringify(request) + "\n",
+    });
+    response = JSON.parse(text.trim().split("\n").at(-1));
+  }
+  if (response.error || response.result?.isError)
+    throw Error(JSON.stringify(response));
+  return JSON.parse(response.result.content[0].text);
+};
 const update = (text) =>
   send({
     method: "session/update",
@@ -31,14 +71,40 @@ for await (const line of createInterface({ input: process.stdin })) {
       id: message.id,
       result: {
         protocolVersion: 1,
-        agentCapabilities: { loadSession: false },
+        agentCapabilities: {
+          loadSession: process.argv.includes("--resumable"),
+          mcpCapabilities: { http: true },
+        },
         agentInfo: { name: "ThreadVM ACP probe fixture", version: "1" },
         authMethods: [],
       },
     });
-  else if (message.method === "session/new")
+  else if (message.method === "session/new") {
+    if (process.argv.includes("--fail-new")) {
+      send({
+        id: message.id,
+        error: { code: -32000, message: "Fixture authentication required" },
+      });
+      continue;
+    }
+    mcpServer = message.params.mcpServers?.[0];
+    writeFileSync(
+      "mcp-injected.json",
+      JSON.stringify({
+        name: mcpServer?.name,
+        transport: mcpServer?.type ?? "stdio",
+      }),
+    );
     send({ id: message.id, result: { sessionId: "fixture-session" } });
-  else if (message.method === "session/prompt") {
+  } else if (message.method === "session/load") {
+    if (!process.argv.includes("--resumable"))
+      send({ id: message.id, error: { code: -32601, message: "Cannot load" } });
+    else {
+      mcpServer = message.params.mcpServers?.[0];
+      writeFileSync("acp-load-received.txt", "session/load received\n");
+      send({ id: message.id, result: {} });
+    }
+  } else if (message.method === "session/prompt") {
     turn = message.id;
     update("ACP test agent is working in the delegated worktree.\n");
     if (process.argv.includes("--large"))
@@ -67,7 +133,9 @@ for await (const line of createInterface({ input: process.stdin })) {
         "harness-proof.txt",
         "The ACP agent wrote this inside its own worktree.\n",
       );
-      const view = JSON.parse(cli(["outline", "show"]));
+      const snapshot = mcpServer
+        ? await mcp("outline.read")
+        : JSON.parse(cli(["outline", "show"])).snapshot;
       const suffix = process.env.THREADVM_RUN_ID.slice(0, 8);
       const operations = ["Review harness proof", "Add follow-up coverage"].map(
         (text, i) => ({
@@ -76,15 +144,20 @@ for await (const line of createInterface({ input: process.stdin })) {
           node: { id: `proof-${suffix}-${i}`, text, done: false },
         }),
       );
-      cli(
-        ["propose", "-"],
-        JSON.stringify({ baseRevision: view.snapshot.revision, operations }),
-      );
-      cli([
-        "observe",
-        process.env.THREADVM_RUN_ID,
-        "Created harness-proof.txt and proposed two reviewable bullets",
-      ]);
+      const batch = { baseRevision: snapshot.revision, operations };
+      if (mcpServer) await mcp("outline.propose", batch);
+      else cli(["propose", "-"], JSON.stringify(batch));
+      if (mcpServer)
+        await mcp("run.observe", {
+          message:
+            "Created harness-proof.txt and proposed two reviewable bullets",
+        });
+      else
+        cli([
+          "observe",
+          process.env.THREADVM_RUN_ID,
+          "Created harness-proof.txt and proposed two reviewable bullets",
+        ]);
       update(
         "Worktree proof written. Outline suggestions await human review.\n",
       );
