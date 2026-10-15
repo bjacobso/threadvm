@@ -199,7 +199,7 @@ try {
         default:
           return yield* Effect.fail(
             new OutlineError(
-              "Usage: threadvm init|open|web|outline|propose|proposal|observe|run|remote add|push"
+              "Usage: threadvm init|open|web|outline|propose|proposal|observe|run|cancel|permission|remote add|push"
             )
           );
       }

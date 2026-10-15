@@ -163,9 +163,33 @@ function VmInventoryApp() {
 }
 
 export function App() {
+  const localRun = /^\/terminal\/([A-Za-z0-9_-]+)$/.exec(
+    window.location.pathname
+  )?.[1];
+  if (localRun)
+    return (
+      <TooltipProvider>
+        <div className="h-svh bg-background text-foreground">
+          <TerminalPane
+            autoAttach
+            selected={{
+              id: `run-${localRun}`,
+              name: "Local run",
+              host: "localhost",
+              state: "running",
+              source: "cache",
+              ports: []
+            }}
+          />
+        </div>
+        <Toaster />
+      </TooltipProvider>
+    );
   return (
     <Tabs
-      defaultValue="outline"
+      defaultValue={
+        window.location.pathname === "/inventory" ? "inventory" : "outline"
+      }
       className="h-svh gap-0 bg-background text-foreground"
     >
       <header className="flex h-14 shrink-0 items-center gap-8 border-b border-border px-6">

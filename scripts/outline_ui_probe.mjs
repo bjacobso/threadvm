@@ -62,7 +62,7 @@ const startServer = (launch = "open") => {
       env: {
         ...process.env,
         THREADVM_PROJECT_DIR: project,
-        THREADVM_PORT: String(apiPort),
+        THREADVM_UI: "legacy", THREADVM_PORT: String(apiPort),
         THREADVM_EXEDEV_MOCK: "1",
         THREADVM_SSH_MOCK: "1"
       },

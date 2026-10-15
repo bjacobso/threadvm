@@ -35,7 +35,7 @@ threadvm outline apply batch.json   # human edit; also accepts stdin with -
 threadvm propose batch.json         # agent proposal, pending human review
 threadvm proposal accept <id> [nodeId ...]
 threadvm proposal reject <id> [nodeId ...]
-threadvm run <nodeId> --agent shell  # also codex or claude
+threadvm run <nodeId> --agent shell  # also codex, claude, or configured acp
 threadvm observe <runId> 'progress'
 threadvm observe <runId> <sha> --kind commit
 threadvm remote add origin <thoughts-repo-url>
@@ -45,9 +45,10 @@ threadvm push [remote] [branch]
 Use `--dir /path/to/project` on non-launch commands, or set
 `THREADVM_PROJECT_DIR`. New runs default to `shell`; the UI lets you choose an
 executor before explicitly approving launch. Enter adds a sibling; Tab and
-Shift-Tab indent/outdent; Alt-Up/Down reorder; `/run` + Enter opens delegation.
-Node buttons provide the same actions. Proposal cards appear where changes would
-live, with node and batch accept/reject controls.
+Shift-Tab indent/outdent; drag bullets to reorder. Select an executor and use
+the Run button under a bullet to delegate explicitly. Append `/run` and press
+Enter to open delegation controls from the keyboard. Proposal cards appear where
+changes would live, with node and batch accept/reject controls.
 
 Example human batch or agent proposal (use the current `snapshot.revision` from
 `outline show`):
@@ -97,11 +98,56 @@ remain available for manual review and cleanup after execution.
 
 ```sh
 pnpm probe:outline       # real temp Git repo, CLI, worktree/tmux, recovery, remotes
-pnpm probe:outline-ui    # real headless Chrome, UI edits/review/terminal/restarts
+pnpm probe:outline-ui    # legacy React outline regression
+pnpm probe:acp           # real ACP protocol + deterministic test agent
+pnpm probe:local-ui      # Foldkit UI + real local harness in Chrome
 ```
 
-The Chrome probe writes `.context/plan4-inline-proposal.png` and
-`.context/plan4-running-node.png`. See [PLAN_4.md](./PLAN_4.md) for the design.
+The local UI uses **Foldkit + Foldworks + StyleX**. The server serves it at `/`,
+with the existing React VM inventory at `/inventory` and TerminalPane embedded
+under running nodes. `THREADVM_UI=legacy` selects the earlier React outliner.
+The separate Cloudflare app remains an experience demo with simulated agents;
+mention countdowns and automatic nested delegation apply only to that demo.
+
+The local Chrome probe writes `.context/plan4-foldkit-running.png`,
+`.context/plan4-foldkit-proposal.png` and `.context/plan4-acp-permission.png`.
+See [PLAN_4.md](./PLAN_4.md) for the design.
+
+### ACP agents
+
+[T3 Code's effect-acp](https://github.com/pingdotgg/t3code/tree/main/packages/effect-acp)
+is vendored with its MIT license inside the isolated `@threadvm/agent` runner.
+The Effect `AgentDriver` service uses ACP for initialization, sessions, streamed
+updates, permission requests and cancellation. This avoids a vendor-specific
+control adapter for every ACP-capable agent. Agents still use the common CLI
+for outline reads, observations and reviewable proposals.
+
+Create `.threadvm/acp.json` with an installed ACP program:
+
+```json
+{ "command": "/absolute/path/to/acp-agent", "args": [] }
+```
+
+Then select **ACP (configured agent)** in the UI or use
+`threadvm run <nodeId> --agent acp`. The executable must implement ACP, rather
+than an interactive terminal CLI. It inherits the launch environment, starts
+in the run's worktree and receives the node context. Permission options appear
+under the delegated node. Human CLI equivalents are:
+
+```sh
+threadvm permission <runId> <requestId> <optionId>
+threadvm cancel <runId>
+```
+
+ACP initialization metadata and raw updates stay in the run event log. The tmux
+runner survives browser/server restarts, including while awaiting a permission.
+One prompt is one run today; resuming terminated processes, multi-turn steering,
+client-provided filesystem/terminal tools and MCP are follow-up work.
+
+For local development after the initial build, `pnpm dev` starts the API and
+Foldkit Vite app without Cloudflare credentials. Set `THREADVM_PROJECT_DIR` to
+an initialized project. The Cloudflare demo uses
+`pnpm --filter @threadvm/outline dev:demo`.
 
 ## exe.dev Workspace Workflow
 
@@ -109,7 +155,7 @@ The existing remote workspace flow remains available from the VM inventory tab.
 
 ## Outline prototype
 
-[`apps/outline`](apps/outline) is a separate experience prototype: an outliner
+The Cloudflare mode of [`apps/outline`](apps/outline) is an experience prototype: an outliner
 where bullets that mention `@claude`, `@cursor`, `@codex`, or `@conductor`
 become agent threads that ask questions and propose changes as suggestions. It
 is built with Foldkit, Foldworks, and Effect, and deploys to Cloudflare with

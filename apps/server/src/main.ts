@@ -1,8 +1,13 @@
 import { HttpApiBuilder, HttpApiScalar } from "effect/unstable/httpapi";
-import { HttpMiddleware, HttpRouter, HttpServerResponse } from "effect/unstable/http";
+import {
+  HttpMiddleware,
+  HttpRouter,
+  HttpServerResponse
+} from "effect/unstable/http";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, relative, resolve, sep } from "node:path";
@@ -22,10 +27,13 @@ import { TerminalRoutesLive } from "./terminalRoutes.js";
 
 const port = Number(process.env.THREADVM_PORT ?? "3333");
 const webPort = Number(process.env.THREADVM_WEB_PORT ?? "5173");
-const distClient = fileURLToPath(new URL("../../web/dist", import.meta.url));
+const legacyClient = fileURLToPath(new URL("../../web/dist", import.meta.url));
+const distClient =
+  process.env.THREADVM_UI === "legacy"
+    ? legacyClient
+    : fileURLToPath(new URL("../../outline/dist", import.meta.url));
 const indexPath = join(distClient, "index.html");
-const devFallbackHtml =
-  `<!doctype html><title>ThreadVM</title><body><h1>ThreadVM API</h1><p>Run <code>pnpm dev</code> and open the Vite client at <code>http://127.0.0.1:${webPort}</code>.</p><p>API docs are at <a href="/docs">/docs</a>.</p></body>`;
+const devFallbackHtml = `<!doctype html><title>ThreadVM</title><body><h1>ThreadVM API</h1><p>Run <code>pnpm dev</code> and open the Vite client at <code>http://127.0.0.1:${webPort}</code>.</p><p>API docs are at <a href="/docs">/docs</a>.</p></body>`;
 const reservedBrowserPrefixes = ["/api", "/rpc", "/docs", "/assets"] as const;
 
 const notFound = HttpServerResponse.text("Not found", { status: 404 });
@@ -33,7 +41,21 @@ const notFoundEffect = Effect.succeed(notFound);
 
 const indexResponse = () =>
   existsSync(indexPath)
-    ? HttpServerResponse.file(indexPath)
+    ? Effect.tryPromise(() => readFile(indexPath, "utf8")).pipe(
+        Effect.map((html) =>
+          HttpServerResponse.html(
+            distClient === legacyClient
+              ? html
+              : html.replace(
+                  "<head>",
+                  '<head><meta name="threadvm-local" content="true">'
+                )
+          )
+        ),
+        Effect.catch(() =>
+          Effect.succeed(HttpServerResponse.html(devFallbackHtml))
+        )
+      )
     : Effect.succeed(HttpServerResponse.html(devFallbackHtml));
 
 const requestPath = (url: string) => {
@@ -57,7 +79,10 @@ const assetResponse = (url: string) => {
     return notFoundEffect;
   }
 
-  return HttpServerResponse.file(staticPath).pipe(
+  const chosen = existsSync(staticPath)
+    ? staticPath
+    : resolve(legacyClient, relativePath);
+  return HttpServerResponse.file(chosen).pipe(
     Effect.catch(() => notFoundEffect)
   );
 };
@@ -72,6 +97,12 @@ const spaFallbackResponse = (url: string) => {
     return notFoundEffect;
   }
 
+  if (
+    pathname === "/inventory" ||
+    pathname.startsWith("/terminal/") ||
+    pathname === "/legacy"
+  )
+    return HttpServerResponse.file(join(legacyClient, "index.html"));
   return indexResponse();
 };
 
@@ -85,11 +116,7 @@ const DocsRouteLive = HttpApiScalar.layer(ThreadVmApi, {
 
 const StaticRoutesLive = Layer.mergeAll(
   HttpRouter.add("GET", "/", indexResponse()),
-  HttpRouter.add(
-    "GET",
-    "/assets/*",
-    (request) => assetResponse(request.url)
-  ),
+  HttpRouter.add("GET", "/assets/*", (request) => assetResponse(request.url)),
   HttpRouter.add("GET", "*", (request) => spaFallbackResponse(request.url))
 );
 
@@ -97,7 +124,9 @@ const ExeDevServiceComposed = ExeDevServiceLive.pipe(
   Layer.provide(CommandServiceLive)
 );
 
-const SshServiceComposed = SshServiceLive.pipe(Layer.provide(CommandServiceLive));
+const SshServiceComposed = SshServiceLive.pipe(
+  Layer.provide(CommandServiceLive)
+);
 
 const RemoteTerminalSessionComposed = RemoteTerminalSessionLive.pipe(
   Layer.provide(SshServiceComposed)

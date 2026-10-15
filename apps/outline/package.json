@@ -4,14 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm run \"/^dev:/\"",
+    "dev": "THREADVM_LOCAL=1 vite --host 127.0.0.1",
     "dev:worker": "mkdir -p dist && ALCHEMY_LOCAL_STATE=1 alchemy dev --env-file .env.dev",
     "dev:client": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "deploy": "vite build && alchemy deploy --stage prod",
-    "destroy": "alchemy destroy --stage prod"
+    "destroy": "alchemy destroy --stage prod",
+    "dev:stable": "THREADVM_LOCAL=1 vite --host 127.0.0.1",
+    "dev:demo": "pnpm run \"/^dev:(worker|client)$/\""
   },
   "dependencies": {
     "@foldkit/ui": "catalog:",

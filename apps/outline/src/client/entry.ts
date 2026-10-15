@@ -33,4 +33,8 @@ const application = Runtime.makeApplication({
   devTools: { Message, show: "Development", position: "BottomLeft", excludeFromHistory: ["TickedCountdowns"] },
 });
 
-Runtime.run(application, { flags });
+if (document.querySelector('meta[name="threadvm-local"]') || new URLSearchParams(location.search).has("local")) {
+  import("../local/state.ts").then(({ run }) => run());
+} else {
+  Runtime.run(application, { flags });
+}

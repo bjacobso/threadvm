@@ -30,6 +30,7 @@ POST /api/outline/proposals
 POST /api/outline/review
 POST /api/outline/runs
 POST /api/outline/observations
+POST /api/outline/control
 ```
 
 See [PLAN_4.md](./PLAN_4.md) and the README local workflow for schemas, CLI
@@ -48,7 +49,9 @@ Current implementation supports:
 ## Workspace Layout
 
 ```text
-apps/web        Vite React UI
+apps/web        Vite React VM inventory and reusable terminal
+apps/outline    Foldkit/Foldworks/StyleX primary local UI + Cloudflare demo
+packages/agent  Isolated Effect 4.0.4 ACP runner (T3 effect-acp source)
 apps/server     Effect Platform HTTP server
 apps/cli        CLI launcher entrypoint
 packages/shared domain schemas, typed API, services
@@ -67,8 +70,9 @@ Package manager and build system:
 
 Frontend:
 
+- Foldkit, Foldworks and StyleX for the local outline
 - Vite 8
-- React 19
+- React 19 for VM inventory and the reused terminal
 - Tailwind CSS 4
 - shadcn/Radix component source
 - lucide-react icons
@@ -384,7 +388,7 @@ Probe scripts:
 ## Known Current Constraints
 
 - Terminal renderer is directly xterm.js; Ghostty Web is not implemented yet.
-- Terminal transport is SSE plus POST, not WebSocket or Effect RPC.
+- Terminal transport is an ordered, schema-validated WebSocket; inventory streams use SSE.
 - `TerminalBridge` is in `packages/shared` even though it is server-only and depends on `node-pty`.
 - Python PTY fallback still exists.
 - exe.dev integration is command-output parsing, not an SDK.

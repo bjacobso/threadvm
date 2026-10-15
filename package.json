@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "pnpm@10.20.0",
   "scripts": {
-    "dev": "turbo dev",
-    "dev:stable": "turbo dev:stable",
+    "dev": "turbo dev --filter=@threadvm/server --filter=@threadvm/outline",
+    "dev:stable": "turbo dev:stable --filter=@threadvm/server --filter=@threadvm/outline",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
@@ -17,7 +17,9 @@
     "probe:terminal-ui": "pnpm exec tsx --tsconfig apps/web/tsconfig.json scripts/terminal_ui_probe.ts",
     "start": "pnpm --filter @threadvm/server start",
     "probe:outline": "pnpm build && pnpm exec tsx scripts/outline_probe.ts",
-    "probe:outline-ui": "pnpm build && node scripts/outline_ui_probe.mjs"
+    "probe:outline-ui": "pnpm build && node scripts/outline_ui_probe.mjs",
+    "probe:acp": "pnpm build && node scripts/acp_probe.mjs",
+    "probe:local-ui": "pnpm build && node scripts/local_harness_ui_probe.mjs"
   },
   "devDependencies": {
     "tsx": "^4.23.0",
