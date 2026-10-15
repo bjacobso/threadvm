@@ -15,8 +15,20 @@ import type {
 import { applyOp, contextOf, item } from "../shared/tree.ts";
 
 export type Beat =
-  | Readonly<{ _tag: "Provision"; ms: number; image: string; branch: string; detail: string }>
-  | Readonly<{ _tag: "Step"; ms: number; kind: StepKind; label: string; detail: string }>
+  | Readonly<{
+      _tag: "Provision";
+      ms: number;
+      image: string;
+      branch: string;
+      detail: string;
+    }>
+  | Readonly<{
+      _tag: "Step";
+      ms: number;
+      kind: StepKind;
+      label: string;
+      detail: string;
+    }>
   | Readonly<{ _tag: "Say"; ms: number; text: string }>
   | Readonly<{ _tag: "Ask"; question: Question }>
   | Readonly<{ _tag: "Propose"; summary: string; ops: ReadonlyArray<Op> }>
@@ -31,7 +43,8 @@ export type ScriptContext = Readonly<{
 
 const hash = (value: string): number => {
   let result = 2166136261;
-  for (const char of value) result = Math.imul(result ^ char.charCodeAt(0), 16777619);
+  for (const char of value)
+    result = Math.imul(result ^ char.charCodeAt(0), 16777619);
   return result >>> 0;
 };
 
@@ -44,12 +57,16 @@ const slugOf = (task: string): string =>
     .slice(0, 5)
     .join("-") || "task";
 
-const sentence = (text: string): string => (text ? text[0]!.toUpperCase() + text.slice(1) : text);
+const sentence = (text: string): string =>
+  text ? text[0]!.toUpperCase() + text.slice(1) : text;
 
 /** The task without planning verbs, so a plan reads "for sharing" rather than "for break down sharing". */
 const topicOf = (task: string): string =>
   task
-    .replace(/^(break down|plan|split up|split|organize|coordinate|own|drive|scope)\s+/iu, "")
+    .replace(
+      /^(break down|plan|split up|split|organize|coordinate|own|drive|scope)\s+/iu,
+      "",
+    )
     .replace(/^(the|a|an)\s+/iu, "") || task;
 
 type Area = "permissions" | "data" | "interface" | "email" | "general";
@@ -59,16 +76,29 @@ const areaOf = (task: string): Area =>
     ? "permissions"
     : /\b(migrations?|schema|tables?|database|models?|api)\b/iu.test(task)
       ? "data"
-      : /\b(ui|interface|dialog|page|screens?|layout|design|buttons?|settings|modal)\b/iu.test(task)
+      : /\b(ui|interface|dialog|page|screens?|layout|design|buttons?|settings|modal)\b/iu.test(
+            task,
+          )
         ? "interface"
         : /\b(emails?|invites?|notifications?|magic links?)\b/iu.test(task)
           ? "email"
           : "general";
 
 const FILES: Readonly<Record<Area, ReadonlyArray<string>>> = {
-  permissions: ["src/server/acl.ts", "src/server/routes/share.ts", "db/migrations/0042_acl.sql"],
-  data: ["db/migrations/0043_workspace_members.sql", "src/server/models/member.ts"],
-  interface: ["src/ui/ShareDialog.ts", "src/ui/MemberList.ts", "src/ui/styles/share.css"],
+  permissions: [
+    "src/server/acl.ts",
+    "src/server/routes/share.ts",
+    "db/migrations/0042_acl.sql",
+  ],
+  data: [
+    "db/migrations/0043_workspace_members.sql",
+    "src/server/models/member.ts",
+  ],
+  interface: [
+    "src/ui/ShareDialog.ts",
+    "src/ui/MemberList.ts",
+    "src/ui/styles/share.css",
+  ],
   email: ["src/server/mail/invite.ts", "src/server/mail/templates/invite.mjml"],
   general: ["src/app/workspace.ts", "src/app/workspace.test.ts"],
 };
@@ -84,10 +114,15 @@ const SEARCH: Readonly<Record<Area, string>> = {
 const QUESTIONS: Readonly<Record<Area, Omit<Question, "id">>> = {
   permissions: {
     prompt: "Should owners be able to transfer ownership of a shared outline?",
-    options: ["Yes, owners can transfer", "No, the creator stays owner", "Only workspace admins"],
+    options: [
+      "Yes, owners can transfer",
+      "No, the creator stays owner",
+      "Only workspace admins",
+    ],
   },
   data: {
-    prompt: "Can I run the migration against staging, or keep it local for now?",
+    prompt:
+      "Can I run the migration against staging, or keep it local for now?",
     options: ["Run it on staging", "Keep it local"],
   },
   interface: {
@@ -109,7 +144,9 @@ const FINDINGS: Readonly<Record<Area, ReadonlyArray<string>>> = {
     "Share links never expire; add a TTL and revoke on role change",
     "POST /api/share has no rate limit",
   ],
-  data: ["Migration locks `members` for ~4s on large workspaces; backfill in batches"],
+  data: [
+    "Migration locks `members` for ~4s on large workspaces; backfill in batches",
+  ],
   interface: ["Dialog traps focus but Esc leaves the invite field dirty"],
   email: ["Magic links are logged in plain text by the mail worker"],
   general: ["Two code paths build the workspace URL differently"],
@@ -134,7 +171,10 @@ const sandboxIdOf = (threadId: string): string =>
   `sbx-${(hash(threadId) % 0xfffff).toString(16).padStart(5, "0")}`;
 
 /** The beats for a thread. Beats before the thread's cursor have already played. */
-export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray<Beat> => {
+export const scriptFor = (
+  thread: Thread,
+  context: ScriptContext,
+): ReadonlyArray<Beat> => {
   const task = taskOf(thread.prompt) || "this task";
   const area = areaOf(task);
   const seed = hash(thread.id);
@@ -148,7 +188,10 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
   const itemId = (suffix: string) => `${thread.id}-${suffix}`;
   const canDelegate = context.depth < 2;
   const answer = thread.answers[0] ?? "";
-  const question = (id: string, base: Omit<Question, "id">): Question => ({ id: opId(id), ...base });
+  const question = (id: string, base: Omit<Question, "id">): Question => ({
+    id: opId(id),
+    ...base,
+  });
 
   const readOutline: Beat = {
     _tag: "Step",
@@ -275,13 +318,23 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
               ...decided,
               ...followUp,
             ]),
-            { _tag: "Complete", id: opId("done"), state: "Pending", nodeId: thread.nodeId },
+            {
+              _tag: "Complete",
+              id: opId("done"),
+              state: "Pending",
+              nodeId: thread.nodeId,
+            },
           ],
         },
         {
           _tag: "Finish",
           report: `Opened PR #${pr} for “${task}”. Tests pass.`,
-          links: [{ label: `PR #${pr}`, href: `https://github.com/acme/workspace/pull/${pr}` }],
+          links: [
+            {
+              label: `PR #${pr}`,
+              href: `https://github.com/acme/workspace/pull/${pr}`,
+            },
+          ],
         },
       ];
     }
@@ -346,7 +399,10 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
             },
             ...inserts(opId, thread.nodeId, [
               item(itemId("preview"), `Preview: ${preview}`),
-              item(itemId("open"), "Empty state copy still needs a decision #design"),
+              item(
+                itemId("open"),
+                "Empty state copy still needs a decision #design",
+              ),
             ]),
           ],
         },
@@ -362,7 +418,12 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
     case "codex": {
       const findings = FINDINGS[area];
       const fix = canDelegate
-        ? [item(itemId("fix"), `@claude fix: ${findings[0]!.split(";")[0]!.toLowerCase()}`)]
+        ? [
+            item(
+              itemId("fix"),
+              `@claude fix: ${findings[0]!.split(";")[0]!.toLowerCase()}`,
+            ),
+          ]
         : [];
       return [
         {
@@ -418,9 +479,15 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
 // persists and broadcasts it.
 
 let counter = 0;
-const activityId = (thread: Thread) => `${thread.id}-a${thread.activity.length}-${++counter}`;
+const activityId = (thread: Thread) =>
+  `${thread.id}-a${thread.activity.length}-${++counter}`;
 
-const said = (thread: Thread, who: "Agent" | "Human", text: string, now: number): Activity => ({
+const said = (
+  thread: Thread,
+  who: "Agent" | "Human",
+  text: string,
+  now: number,
+): Activity => ({
   _tag: "Said",
   id: activityId(thread),
   at: now,
@@ -437,7 +504,11 @@ export const startBeat = (thread: Thread, beat: Beat, now: number): Thread => {
         ...base,
         status: "Provisioning",
         headline: "Provisioning a sandbox",
-        sandbox: { id: sandboxIdOf(thread.id), image: beat.image, branch: beat.branch },
+        sandbox: {
+          id: sandboxIdOf(thread.id),
+          image: beat.image,
+          branch: beat.branch,
+        },
         activity: [
           ...thread.activity,
           {
@@ -477,14 +548,21 @@ export const startBeat = (thread: Thread, beat: Beat, now: number): Thread => {
         status: "NeedsInput",
         headline: beat.question.prompt,
         question: beat.question,
-        activity: [...thread.activity, said(thread, "Agent", beat.question.prompt, now)],
+        activity: [
+          ...thread.activity,
+          said(thread, "Agent", beat.question.prompt, now),
+        ],
       };
     case "Propose":
       return {
         ...base,
         status: "Review",
         headline: beat.summary,
-        proposal: { id: `${thread.id}-proposal`, summary: beat.summary, ops: beat.ops },
+        proposal: {
+          id: `${thread.id}-proposal`,
+          summary: beat.summary,
+          ops: beat.ops,
+        },
       };
     case "Finish":
       return {
@@ -507,18 +585,25 @@ export const finishBeat = (thread: Thread, beat: Beat, now: number): Thread => {
         ...done,
         status: "Working",
         activity: thread.activity.map((entry) =>
-          entry._tag === "Step" && entry.state === "Running" ? { ...entry, state: "Done" } : entry,
+          entry._tag === "Step" && entry.state === "Running"
+            ? { ...entry, state: "Done" }
+            : entry,
         ),
       };
     case "Step":
       return {
         ...done,
         activity: thread.activity.map((entry) =>
-          entry._tag === "Step" && entry.state === "Running" ? { ...entry, state: "Done" } : entry,
+          entry._tag === "Step" && entry.state === "Running"
+            ? { ...entry, state: "Done" }
+            : entry,
         ),
       };
     case "Say":
-      return { ...done, activity: [...thread.activity, said(thread, "Agent", beat.text, now)] };
+      return {
+        ...done,
+        activity: [...thread.activity, said(thread, "Agent", beat.text, now)],
+      };
     case "Ask":
     case "Propose":
     case "Finish":
@@ -526,7 +611,8 @@ export const finishBeat = (thread: Thread, beat: Beat, now: number): Thread => {
   }
 };
 
-export const isTimed = (beat: Beat): beat is Extract<Beat, { ms: number }> => "ms" in beat;
+export const isTimed = (beat: Beat): beat is Extract<Beat, { ms: number }> =>
+  "ms" in beat;
 
 export const answer = (thread: Thread, text: string, now: number): Thread => ({
   ...thread,
@@ -546,11 +632,14 @@ export const resolve = (
   now: number,
 ): Thread => {
   if (thread.proposal === null) return thread;
-  const ops = thread.proposal.ops.map((op) => (opIds.includes(op.id) ? { ...op, state } : op));
+  const ops = thread.proposal.ops.map((op) =>
+    opIds.includes(op.id) ? { ...op, state } : op,
+  );
   const settled = ops.every((op) => op.state !== "Pending");
   const accepted = ops.filter((op) => op.state === "Accepted").length;
   const proposal = { ...thread.proposal, ops };
-  if (!settled || thread.status !== "Review") return { ...thread, proposal, updatedAt: now };
+  if (!settled || thread.status !== "Review")
+    return { ...thread, proposal, updatedAt: now };
   return {
     ...thread,
     proposal,
@@ -580,7 +669,12 @@ export const steer = (thread: Thread, text: string, now: number): Thread => ({
   activity: [
     ...thread.activity,
     said(thread, "Human", text, now),
-    said(thread, "Agent", "Got it. I’ll take that into account for the rest of this run.", now),
+    said(
+      thread,
+      "Agent",
+      "Got it. I’ll take that into account for the rest of this run.",
+      now,
+    ),
   ],
 });
 
@@ -591,7 +685,9 @@ export const cancel = (thread: Thread, now: number): Thread => ({
   question: null,
   updatedAt: now,
   activity: thread.activity.map((entry) =>
-    entry._tag === "Step" && entry.state === "Running" ? { ...entry, state: "Failed" } : entry,
+    entry._tag === "Step" && entry.state === "Running"
+      ? { ...entry, state: "Failed" }
+      : entry,
   ),
 });
 
@@ -634,13 +730,20 @@ export const newThread = (
 export const fastForward = (
   start: Thread,
   items: Items,
-  options: Readonly<{ depth: number; answer?: string; accept?: boolean; now: number }>,
+  options: Readonly<{
+    depth: number;
+    answer?: string;
+    accept?: boolean;
+    now: number;
+  }>,
 ): Readonly<{ thread: Thread; items: Items }> => {
   let thread = start;
   let outline = items;
   let now = options.now;
   for (let guard = 0; guard < 64; guard += 1) {
-    const beat = scriptFor(thread, { items: outline, depth: options.depth })[thread.cursor];
+    const beat = scriptFor(thread, { items: outline, depth: options.depth })[
+      thread.cursor
+    ];
     if (beat === undefined) break;
     now += isTimed(beat) ? beat.ms : 200;
     thread = startBeat(thread, beat, now);
@@ -655,7 +758,8 @@ export const fastForward = (
     }
     if (beat._tag === "Propose") {
       if (options.accept === undefined) break;
-      for (const op of beat.ops) if (options.accept) outline = applyOp(outline, op);
+      for (const op of beat.ops)
+        if (options.accept) outline = applyOp(outline, op);
       thread = resolve(
         thread,
         beat.ops.map((op) => op.id),

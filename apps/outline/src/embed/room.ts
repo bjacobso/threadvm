@@ -52,11 +52,20 @@ const PATIENCE_MS = 6500;
 /** The answer the director picks when nobody else does. */
 const STORY_ANSWER = "Full dialog with tabs";
 
-export const STAGES = ["Write", "Delegate", "Answer", "Review", "Done"] as const;
+export const STAGES = [
+  "Write",
+  "Delegate",
+  "Answer",
+  "Review",
+  "Done",
+] as const;
 export type Stage = (typeof STAGES)[number];
 
 /** Sent by the embedding page once the frame is in view. */
-export type StoryCommand = Readonly<{ source: "threadvm-site"; command: "play" }>;
+export type StoryCommand = Readonly<{
+  source: "threadvm-site";
+  command: "play";
+}>;
 
 /** Posted to the embedding page whenever the story moves. */
 export type StoryEvent = Readonly<{
@@ -79,7 +88,9 @@ const stageOf = (thread: Thread): Stage =>
 
 /** Threads waiting on a person, finished, or stopped have nothing to play. */
 const isPlaying = (thread: Thread) =>
-  thread.status === "Queued" || thread.status === "Provisioning" || thread.status === "Working";
+  thread.status === "Queued" ||
+  thread.status === "Provisioning" ||
+  thread.status === "Working";
 
 /** Timeouts that can be cancelled together. */
 class Timers {
@@ -116,7 +127,11 @@ class Room {
     this.socket = socket;
     if (!this.seeded) this.seed();
     this.seeded = true;
-    this.send({ _tag: "Snapshot", items: this.items, threads: [...this.threads.values()] });
+    this.send({
+      _tag: "Snapshot",
+      items: this.items,
+      threads: [...this.threads.values()],
+    });
     this.report();
     this.begin();
   }
@@ -183,7 +198,10 @@ class Room {
         return this.save(cancel(thread, now));
       }
       case "Push":
-        return this.send({ _tag: "Error", message: "Git push is available in local mode" });
+        return this.send({
+          _tag: "Error",
+          message: "Git push is available in local mode",
+        });
       case "ResetDemo":
         return this.replay();
     }
@@ -191,7 +209,11 @@ class Room {
 
   private replay() {
     this.seed();
-    this.send({ _tag: "Snapshot", items: this.items, threads: [...this.threads.values()] });
+    this.send({
+      _tag: "Snapshot",
+      items: this.items,
+      threads: [...this.threads.values()],
+    });
     this.report();
     this.tell();
   }
@@ -203,7 +225,10 @@ class Room {
     this.beats.clear();
     this.cues.clear();
     const seeded = seed(Date.now());
-    this.items = updateItem(seeded.items, STORY_NODE, (node) => ({ ...node, text: "" }));
+    this.items = updateItem(seeded.items, STORY_NODE, (node) => ({
+      ...node,
+      text: "",
+    }));
     this.threads.clear();
     for (const thread of seeded.threads)
       if (thread.id !== SEEDED_THREAD) this.threads.set(thread.id, thread);
@@ -229,7 +254,10 @@ class Room {
   }
 
   private beatOf(thread: Thread) {
-    return scriptFor(thread, { items: this.items, depth: this.depthOf(thread) })[thread.cursor];
+    return scriptFor(thread, {
+      items: this.items,
+      depth: this.depthOf(thread),
+    })[thread.cursor];
   }
 
   /** Starts the beat at the thread's cursor, and finishes it later if it is timed. */
@@ -243,7 +271,12 @@ class Room {
     if (!isTimed(beat)) return;
     this.beats.after(beat.ms * PACE, () => {
       const current = this.threads.get(id);
-      if (current === undefined || !isPlaying(current) || current.cursor !== started.cursor) return;
+      if (
+        current === undefined ||
+        !isPlaying(current) ||
+        current.cursor !== started.cursor
+      )
+        return;
       this.save(finishBeat(current, beat, Date.now()));
       this.advance(id);
     });
@@ -257,9 +290,13 @@ class Room {
     const type = () => {
       typed += 1;
       this.write(
-        updateItem(this.items, STORY_NODE, (node) => ({ ...node, text: STORY_TEXT.slice(0, typed) })),
+        updateItem(this.items, STORY_NODE, (node) => ({
+          ...node,
+          text: STORY_TEXT.slice(0, typed),
+        })),
       );
-      if (typed < STORY_TEXT.length) this.cues.after(KEY_MS + ((typed * 37) % 45), type);
+      if (typed < STORY_TEXT.length)
+        this.cues.after(KEY_MS + ((typed * 37) % 45), type);
       else this.cues.after(SEND_MS, dispatch);
     };
     const dispatch = () => {
@@ -294,7 +331,11 @@ class Room {
     if (thread.status === "NeedsInput" && asked)
       this.cues.after(PATIENCE_MS, () => {
         const current = this.threads.get(STORY_THREAD);
-        if (current === undefined || current.question?.id !== asked.id || this.driving !== "Story")
+        if (
+          current === undefined ||
+          current.question?.id !== asked.id ||
+          this.driving !== "Story"
+        )
           return;
         const choice = asked.options.includes(STORY_ANSWER)
           ? STORY_ANSWER
@@ -310,7 +351,14 @@ class Room {
         let items = this.items;
         for (const op of ops) items = applyOp(items, op);
         this.write(items);
-        this.save(resolve(current, ops.map((op) => op.id), "Accepted", Date.now()));
+        this.save(
+          resolve(
+            current,
+            ops.map((op) => op.id),
+            "Accepted",
+            Date.now(),
+          ),
+        );
         this.advance(STORY_THREAD);
       });
   }
@@ -337,7 +385,11 @@ class Room {
   }
 
   private report() {
-    this.onStory({ source: "threadvm-demo", stage: this.stage, driving: this.driving });
+    this.onStory({
+      source: "threadvm-demo",
+      stage: this.stage,
+      driving: this.driving,
+    });
   }
 }
 
@@ -356,7 +408,9 @@ export class DemoSocket extends EventTarget {
     });
   }
 
-  override addEventListener(...args: Parameters<EventTarget["addEventListener"]>) {
+  override addEventListener(
+    ...args: Parameters<EventTarget["addEventListener"]>
+  ) {
     super.addEventListener(...args);
     const waiting = this.waiting;
     if (args[0] !== "message" || waiting === null) return;
@@ -387,12 +441,19 @@ export class DemoSocket extends EventTarget {
 // The embedding page starts the story when the frame comes into view, and
 // replays it by reloading the frame.
 const room = new Room((event) => {
-  if (window.parent !== window) window.parent.postMessage(event, location.origin);
+  if (window.parent !== window)
+    window.parent.postMessage(event, location.origin);
 });
 
-window.addEventListener("message", (event: MessageEvent<Partial<StoryCommand>>) => {
-  if (event.origin !== location.origin || event.source !== window.parent) return;
-  if (event.data?.source === "threadvm-site" && event.data.command === "play") room.play();
-});
+window.addEventListener(
+  "message",
+  (event: MessageEvent<Partial<StoryCommand>>) => {
+    if (event.origin !== location.origin || event.source !== window.parent)
+      return;
+    if (event.data?.source === "threadvm-site" && event.data.command === "play")
+      room.play();
+  },
+);
 
-export const openDemoSocket = (_outlineId: string): WebSocket => new DemoSocket(room) as unknown as WebSocket;
+export const openDemoSocket = (_outlineId: string): WebSocket =>
+  new DemoSocket(room) as unknown as WebSocket;

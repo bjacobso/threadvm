@@ -16,21 +16,21 @@ const { note } = Astro.props;
   crumb={`Field notes / ${note.title}`}
 >
   <article class="article">
-    <a class="text-link" href="/#notes">← All field notes</a>
+    <a class="text-link" href="/#notes">
+      ← All field notes
+    </a>
     <span class="eyebrow">
       {note.category.toLowerCase()} · {note.readTime} min read
     </span>
     <h1>{note.title}</h1>
     <p class="lead">{note.lead}</p>
     <div class="article__body">
-      {
-        note.sections.map((section) => (
-          <section>
-            <h2>{section.title}</h2>
-            <p>{section.body}</p>
-          </section>
-        ))
-      }
+      {note.sections.map((section) => (
+        <section>
+          <h2>{section.title}</h2>
+          <p>{section.body}</p>
+        </section>
+      ))}
     </div>
     <aside class="inbox-card article__source">
       <span class="inbox-card__path">Keep exploring</span>

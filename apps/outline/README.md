@@ -130,7 +130,6 @@ the stack. To add a custom domain, set `domain` on the Worker in
 - Suggestions anchor to bullet ids. If the anchor is deleted, its suggestions
   disappear from the outline but stay in the thread.
 
-
 For local harness development, run `pnpm dev` at the repository root. This runs
 only the local API and Foldkit Vite app, without Cloudflare credentials. Set
 `THREADVM_PROJECT_DIR` to an initialized project. The first `pnpm build` supplies

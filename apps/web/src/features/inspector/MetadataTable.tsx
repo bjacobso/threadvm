@@ -1,13 +1,8 @@
 import type React from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 
 export function MetadataTable({
-  rows
+  rows,
 }: {
   readonly rows: ReadonlyArray<readonly [string, React.ReactNode]>;
 }) {

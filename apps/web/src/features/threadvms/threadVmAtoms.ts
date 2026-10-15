@@ -13,5 +13,5 @@ export {
   setSelectedThreadVmId,
   threadVmsAtom,
   useAtomRef,
-  useSelectedThreadVm
+  useSelectedThreadVm,
 } from "@/state/atoms";

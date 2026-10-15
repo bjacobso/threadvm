@@ -5,7 +5,7 @@ import type {
   ProjectModel,
   ThreadVmDevLogResponseModel,
   ThreadVmPortsResponseModel,
-  ThreadVmModel
+  ThreadVmModel,
 } from "@threadvm/shared/domain";
 import { threadVmApi } from "./apiClient";
 import { readStored, writeStored } from "./storage";
@@ -19,7 +19,11 @@ export type TerminalStatus =
 
 export type ClipboardNotice =
   | { readonly status: "copied"; readonly message: string }
-  | { readonly status: "pending"; readonly message: string; readonly text: string }
+  | {
+      readonly status: "pending";
+      readonly message: string;
+      readonly text: string;
+    }
   | { readonly status: "failed"; readonly message: string };
 
 export interface TerminalSessionState {
@@ -102,7 +106,7 @@ export const activeTerminalVmKey = "threadvm.activeTerminalVmId";
 export const projectConfigAtom = AtomRef.make<ProjectConfigState>({
   projects: [],
   loading: false,
-  error: undefined
+  error: undefined,
 });
 export const threadVmsAtom = AtomRef.make<ReadonlyArray<ThreadVmModel>>([]);
 export const inventoryLoadingAtom = AtomRef.make(false);
@@ -111,21 +115,22 @@ export const reconciliationAtom = AtomRef.make<ReconciliationState>({
   status: "idle",
   lastStartedAt: undefined,
   lastFinishedAt: undefined,
-  error: undefined
+  error: undefined,
 });
-export const provisioningStreamStateAtom = AtomRef.make<ProvisioningStreamState>({
-  status: "idle",
-  threadVmId: undefined,
-  lastStartedAt: undefined,
-  lastObservedAt: undefined,
-  error: undefined
-});
+export const provisioningStreamStateAtom =
+  AtomRef.make<ProvisioningStreamState>({
+    status: "idle",
+    threadVmId: undefined,
+    lastStartedAt: undefined,
+    lastObservedAt: undefined,
+    error: undefined,
+  });
 export const selectedThreadVmIdAtom = AtomRef.make<string | undefined>(
-  readStored(selectedVmKey)
+  readStored(selectedVmKey),
 );
 export const terminalUiAtom = AtomRef.make<TerminalUiState>({
   clipboardNotice: undefined,
-  focusedPanel: "terminal"
+  focusedPanel: "terminal",
 });
 export const clipboardNoticeAtom = terminalUiAtom.prop("clipboardNotice");
 export const focusedPanelAtom = terminalUiAtom.prop("focusedPanel");
@@ -133,46 +138,49 @@ export const createThreadVmAtom = AtomRef.make<CreateThreadVmState>({
   status: "idle",
   message: undefined,
   error: undefined,
-  createdThreadVmId: undefined
+  createdThreadVmId: undefined,
 });
 export const projectRegistryMutationAtom =
   AtomRef.make<ProjectRegistryMutationState>({
     status: "idle",
     projectId: undefined,
     message: undefined,
-    error: undefined
+    error: undefined,
   });
 export const threadVmLifecycleAtom = AtomRef.make<ThreadVmLifecycleState>({
   status: "idle",
   action: undefined,
   threadVmId: undefined,
   message: undefined,
-  error: undefined
+  error: undefined,
 });
 export const devLogAtom = AtomRef.make<DevLogState>({
   status: "idle",
   threadVmId: undefined,
   response: undefined,
-  error: undefined
+  error: undefined,
 });
 export const portStatusAtom = AtomRef.make<PortStatusState>({
   status: "idle",
   threadVmId: undefined,
   response: undefined,
-  error: undefined
+  error: undefined,
 });
 
 const emptyTerminalSessionAtom = AtomRef.make<TerminalSessionState>({
   status: "detached",
-  connection: undefined
+  connection: undefined,
 });
 
-const terminalSessionAtoms = new Map<string, AtomRef.AtomRef<TerminalSessionState>>();
+const terminalSessionAtoms = new Map<
+  string,
+  AtomRef.AtomRef<TerminalSessionState>
+>();
 
 const readonlyRef = <A>(
   key: string,
   subscribeToSources: (notify: () => void) => () => void,
-  getValue: () => A
+  getValue: () => A,
 ) =>
   ({
     key,
@@ -182,11 +190,7 @@ const readonlyRef = <A>(
     subscribe: (listener: (value: A) => void) =>
       subscribeToSources(() => listener(getValue())),
     map: <B>(f: (value: A) => B) =>
-      readonlyRef(
-        `${key}:map`,
-        subscribeToSources,
-        () => f(getValue())
-      )
+      readonlyRef(`${key}:map`, subscribeToSources, () => f(getValue())),
   }) as unknown as AtomRef.ReadonlyRef<A>;
 
 export const terminalSessionAtomFamily = (threadVmId: string | undefined) => {
@@ -199,7 +203,7 @@ export const terminalSessionAtomFamily = (threadVmId: string | undefined) => {
   }
   const created = AtomRef.make<TerminalSessionState>({
     status: "detached",
-    connection: undefined
+    connection: undefined,
   });
   terminalSessionAtoms.set(threadVmId, created);
   return created;
@@ -220,15 +224,15 @@ export const selectedThreadVmAtom = readonlyRef(
   },
   () =>
     threadVmsAtom.value.find(
-      (threadVm) => threadVm.id === selectedThreadVmIdAtom.value
-    )
+      (threadVm) => threadVm.id === selectedThreadVmIdAtom.value,
+    ),
 );
 
-export const useAtomRef = <A,>(ref: AtomRef.ReadonlyRef<A>): A =>
+export const useAtomRef = <A>(ref: AtomRef.ReadonlyRef<A>): A =>
   useSyncExternalStore(
     (listener) => ref.subscribe(listener),
     () => ref.value,
-    () => ref.value
+    () => ref.value,
   );
 
 export const useSelectedThreadVm = () => {
@@ -240,25 +244,29 @@ export const setSelectedThreadVmId = (threadVmId: string | undefined) => {
   writeStored(selectedVmKey, threadVmId);
 };
 
-const setThreadVmsFromServer = (nextThreadVms: ReadonlyArray<ThreadVmModel>) => {
+const setThreadVmsFromServer = (
+  nextThreadVms: ReadonlyArray<ThreadVmModel>,
+) => {
   threadVmsAtom.set(nextThreadVms);
   const selectedId = selectedThreadVmIdAtom.value;
   const preferred = selectedId ?? nextThreadVms[0]?.id;
   setSelectedThreadVmId(
     nextThreadVms.some((threadVm) => threadVm.id === preferred)
       ? preferred
-      : nextThreadVms[0]?.id
+      : nextThreadVms[0]?.id,
   );
 };
 
 const upsertThreadVmFromServer = (nextThreadVm: ThreadVmModel) => {
   threadVmsAtom.update((current) => {
-    const existing = current.find((threadVm) => threadVm.id === nextThreadVm.id);
+    const existing = current.find(
+      (threadVm) => threadVm.id === nextThreadVm.id,
+    );
     if (!existing) {
       return [nextThreadVm, ...current];
     }
     return current.map((threadVm) =>
-      threadVm.id === nextThreadVm.id ? nextThreadVm : threadVm
+      threadVm.id === nextThreadVm.id ? nextThreadVm : threadVm,
     );
   });
 };
@@ -268,23 +276,23 @@ export const loadProjectConfigAtom = {
     projectConfigAtom.update((current) => ({
       ...current,
       loading: true,
-      error: undefined
+      error: undefined,
     }));
     try {
       const projects = await threadVmApi.listProjects();
       projectConfigAtom.set({
         projects,
         loading: false,
-        error: undefined
+        error: undefined,
       });
     } catch (cause) {
       projectConfigAtom.update((current) => ({
         ...current,
         loading: false,
-        error: cause instanceof Error ? cause.message : String(cause)
+        error: cause instanceof Error ? cause.message : String(cause),
       }));
     }
-  }
+  },
 } as const;
 
 export const refreshThreadVmsAtom = {
@@ -296,7 +304,7 @@ export const refreshThreadVmsAtom = {
       status: "refreshing",
       lastStartedAt: startedAt,
       lastFinishedAt: undefined,
-      error: undefined
+      error: undefined,
     });
 
     try {
@@ -306,7 +314,7 @@ export const refreshThreadVmsAtom = {
         status: "succeeded",
         lastStartedAt: startedAt,
         lastFinishedAt: Date.now(),
-        error: undefined
+        error: undefined,
       });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
@@ -315,12 +323,12 @@ export const refreshThreadVmsAtom = {
         status: "failed",
         lastStartedAt: startedAt,
         lastFinishedAt: Date.now(),
-        error: message
+        error: message,
       });
     } finally {
       inventoryLoadingAtom.set(false);
     }
-  }
+  },
 } as const;
 
 let reconciliationStreamCleanup: (() => void) | undefined;
@@ -336,7 +344,7 @@ export const reconciliationStreamAtom = {
       status: "streaming",
       lastStartedAt: startedAt,
       lastFinishedAt: undefined,
-      error: undefined
+      error: undefined,
     });
 
     source.addEventListener("snapshot", (event) => {
@@ -353,20 +361,21 @@ export const reconciliationStreamAtom = {
             status: "streaming",
             lastStartedAt: startedAt,
             lastFinishedAt: snapshot.observedAt,
-            error: undefined
+            error: undefined,
           });
         })
         .catch((cause) => {
           if (closed) {
             return;
           }
-          const message = cause instanceof Error ? cause.message : String(cause);
+          const message =
+            cause instanceof Error ? cause.message : String(cause);
           inventoryErrorAtom.set(message);
           reconciliationAtom.set({
             status: "failed",
             lastStartedAt: startedAt,
             lastFinishedAt: Date.now(),
-            error: message
+            error: message,
           });
         });
     });
@@ -382,7 +391,7 @@ export const reconciliationStreamAtom = {
         status: "failed",
         lastStartedAt: startedAt,
         lastFinishedAt: Date.now(),
-        error: message
+        error: message,
       });
     });
 
@@ -396,7 +405,7 @@ export const reconciliationStreamAtom = {
         status: "failed",
         lastStartedAt: startedAt,
         lastFinishedAt: Date.now(),
-        error: message
+        error: message,
       });
       source.close();
       reconciliationStreamCleanup = undefined;
@@ -414,7 +423,7 @@ export const reconciliationStreamAtom = {
   },
   stop: () => {
     reconciliationStreamCleanup?.();
-  }
+  },
 } as const;
 
 let provisioningStreamCleanup: (() => void) | undefined;
@@ -429,7 +438,7 @@ export const provisioningStreamAtom = {
         threadVmId: undefined,
         lastStartedAt: undefined,
         lastObservedAt: undefined,
-        error: undefined
+        error: undefined,
       });
       return () => {};
     }
@@ -437,14 +446,14 @@ export const provisioningStreamAtom = {
     const startedAt = Date.now();
     let closed = false;
     const source = new EventSource(
-      `/rpc/threadvms/${encodeURIComponent(threadVmId)}/provisioning`
+      `/rpc/threadvms/${encodeURIComponent(threadVmId)}/provisioning`,
     );
     provisioningStreamStateAtom.set({
       status: "streaming",
       threadVmId,
       lastStartedAt: startedAt,
       lastObservedAt: undefined,
-      error: undefined
+      error: undefined,
     });
 
     source.addEventListener("provisioning", (event) => {
@@ -460,7 +469,7 @@ export const provisioningStreamAtom = {
             threadVmId,
             lastStartedAt: startedAt,
             lastObservedAt: snapshot.observedAt,
-            error: undefined
+            error: undefined,
           });
         })
         .catch((cause) => {
@@ -472,7 +481,7 @@ export const provisioningStreamAtom = {
             threadVmId,
             lastStartedAt: startedAt,
             lastObservedAt: Date.now(),
-            error: cause instanceof Error ? cause.message : String(cause)
+            error: cause instanceof Error ? cause.message : String(cause),
           });
         });
     });
@@ -486,7 +495,7 @@ export const provisioningStreamAtom = {
         threadVmId,
         lastStartedAt: startedAt,
         lastObservedAt: Date.now(),
-        error: "data" in event ? String(event.data) : "provisioning failed"
+        error: "data" in event ? String(event.data) : "provisioning failed",
       });
     });
 
@@ -499,7 +508,7 @@ export const provisioningStreamAtom = {
         threadVmId,
         lastStartedAt: startedAt,
         lastObservedAt: Date.now(),
-        error: "Provisioning stream disconnected"
+        error: "Provisioning stream disconnected",
       });
       source.close();
       provisioningStreamCleanup = undefined;
@@ -522,9 +531,9 @@ export const provisioningStreamAtom = {
       threadVmId: undefined,
       lastStartedAt: undefined,
       lastObservedAt: undefined,
-      error: undefined
+      error: undefined,
     });
-  }
+  },
 } as const;
 
 export const createThreadVmActionAtom = {
@@ -533,14 +542,14 @@ export const createThreadVmActionAtom = {
       status: "creating",
       message: undefined,
       error: undefined,
-      createdThreadVmId: undefined
+      createdThreadVmId: undefined,
     });
 
     try {
       const response = await threadVmApi.createThreadVm(request);
       threadVmsAtom.update((current) => {
         const withoutCreated = current.filter(
-          (threadVm) => threadVm.id !== response.threadVm.id
+          (threadVm) => threadVm.id !== response.threadVm.id,
         );
         return [response.threadVm, ...withoutCreated];
       });
@@ -549,7 +558,7 @@ export const createThreadVmActionAtom = {
         status: "succeeded",
         message: response.message,
         error: undefined,
-        createdThreadVmId: response.threadVm.id
+        createdThreadVmId: response.threadVm.id,
       });
       return response;
     } catch (cause) {
@@ -558,7 +567,7 @@ export const createThreadVmActionAtom = {
         status: "failed",
         message: undefined,
         error: message,
-        createdThreadVmId: undefined
+        createdThreadVmId: undefined,
       });
       throw cause;
     }
@@ -568,9 +577,9 @@ export const createThreadVmActionAtom = {
       status: "idle",
       message: undefined,
       error: undefined,
-      createdThreadVmId: undefined
+      createdThreadVmId: undefined,
     });
-  }
+  },
 } as const;
 
 export const projectRegistryActionAtom = {
@@ -579,20 +588,20 @@ export const projectRegistryActionAtom = {
       status: "saving",
       projectId: project.id,
       message: undefined,
-      error: undefined
+      error: undefined,
     });
     try {
       const response = await threadVmApi.saveProject(project);
       projectConfigAtom.set({
         projects: response.projects,
         loading: false,
-        error: undefined
+        error: undefined,
       });
       projectRegistryMutationAtom.set({
         status: "succeeded",
         projectId: project.id,
         message: response.message,
-        error: undefined
+        error: undefined,
       });
       return response;
     } catch (cause) {
@@ -601,7 +610,7 @@ export const projectRegistryActionAtom = {
         status: "failed",
         projectId: project.id,
         message: undefined,
-        error: message
+        error: message,
       });
       throw cause;
     }
@@ -611,20 +620,20 @@ export const projectRegistryActionAtom = {
       status: "removing",
       projectId,
       message: undefined,
-      error: undefined
+      error: undefined,
     });
     try {
       const response = await threadVmApi.removeProject(projectId);
       projectConfigAtom.set({
         projects: response.projects,
         loading: false,
-        error: undefined
+        error: undefined,
       });
       projectRegistryMutationAtom.set({
         status: "succeeded",
         projectId,
         message: response.message,
-        error: undefined
+        error: undefined,
       });
       return response;
     } catch (cause) {
@@ -633,7 +642,7 @@ export const projectRegistryActionAtom = {
         status: "failed",
         projectId,
         message: undefined,
-        error: message
+        error: message,
       });
       throw cause;
     }
@@ -643,35 +652,35 @@ export const projectRegistryActionAtom = {
       status: "idle",
       projectId: undefined,
       message: undefined,
-      error: undefined
+      error: undefined,
     });
-  }
+  },
 } as const;
 
 const lifecycleStarted = (
   action: ThreadVmLifecycleState["action"],
-  threadVmId: string
+  threadVmId: string,
 ) => {
   threadVmLifecycleAtom.set({
     status: "running",
     action,
     threadVmId,
     message: undefined,
-    error: undefined
+    error: undefined,
   });
 };
 
 const lifecycleFailed = (
   action: ThreadVmLifecycleState["action"],
   threadVmId: string,
-  cause: unknown
+  cause: unknown,
 ) => {
   threadVmLifecycleAtom.set({
     status: "failed",
     action,
     threadVmId,
     message: undefined,
-    error: cause instanceof Error ? cause.message : String(cause)
+    error: cause instanceof Error ? cause.message : String(cause),
   });
 };
 
@@ -682,15 +691,15 @@ export const threadVmLifecycleActionAtom = {
       const response = await threadVmApi.stopThreadVm(threadVmId);
       threadVmsAtom.update((current) =>
         current.map((threadVm) =>
-          threadVm.id === response.threadVm.id ? response.threadVm : threadVm
-        )
+          threadVm.id === response.threadVm.id ? response.threadVm : threadVm,
+        ),
       );
       threadVmLifecycleAtom.set({
         status: "succeeded",
         action: "stop",
         threadVmId,
         message: response.message,
-        error: undefined
+        error: undefined,
       });
       return response;
     } catch (cause) {
@@ -714,7 +723,7 @@ export const threadVmLifecycleActionAtom = {
         action: "remove",
         threadVmId,
         message: response.message,
-        error: undefined
+        error: undefined,
       });
       return response;
     } catch (cause) {
@@ -728,9 +737,9 @@ export const threadVmLifecycleActionAtom = {
       action: undefined,
       threadVmId: undefined,
       message: undefined,
-      error: undefined
+      error: undefined,
     });
-  }
+  },
 } as const;
 
 export const devLogActionAtom = {
@@ -739,7 +748,7 @@ export const devLogActionAtom = {
       status: "loading",
       threadVmId,
       response: undefined,
-      error: undefined
+      error: undefined,
     });
     try {
       const response = await threadVmApi.readDevLog(threadVmId);
@@ -747,7 +756,7 @@ export const devLogActionAtom = {
         status: "succeeded",
         threadVmId,
         response,
-        error: undefined
+        error: undefined,
       });
       return response;
     } catch (cause) {
@@ -756,7 +765,7 @@ export const devLogActionAtom = {
         status: "failed",
         threadVmId,
         response: undefined,
-        error: message
+        error: message,
       });
       throw cause;
     }
@@ -766,9 +775,9 @@ export const devLogActionAtom = {
       status: "idle",
       threadVmId: undefined,
       response: undefined,
-      error: undefined
+      error: undefined,
     });
-  }
+  },
 } as const;
 
 export const portStatusActionAtom = {
@@ -777,7 +786,7 @@ export const portStatusActionAtom = {
       status: "loading",
       threadVmId,
       response: undefined,
-      error: undefined
+      error: undefined,
     });
     try {
       const response = await threadVmApi.checkPorts(threadVmId);
@@ -785,7 +794,7 @@ export const portStatusActionAtom = {
         status: "succeeded",
         threadVmId,
         response,
-        error: undefined
+        error: undefined,
       });
       return response;
     } catch (cause) {
@@ -794,7 +803,7 @@ export const portStatusActionAtom = {
         status: "failed",
         threadVmId,
         response: undefined,
-        error: message
+        error: message,
       });
       throw cause;
     }
@@ -804,7 +813,7 @@ export const portStatusActionAtom = {
       status: "idle",
       threadVmId: undefined,
       response: undefined,
-      error: undefined
+      error: undefined,
     });
-  }
+  },
 } as const;

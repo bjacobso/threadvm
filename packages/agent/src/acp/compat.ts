@@ -23,7 +23,10 @@ export type ContentBlock =
 
 export type AbsolutePath = V2.AbsolutePath;
 export type AvailableCommand = Omit<V2.AvailableCommand, "input"> & {
-  readonly input?: Extract<V2.AvailableCommandInput, { readonly type: "text" }> | null;
+  readonly input?: Extract<
+    V2.AvailableCommandInput,
+    { readonly type: "text" }
+  > | null;
 };
 export type CloseSessionRequest = V2.CloseSessionRequest;
 export type CloseSessionResponse = V2.CloseSessionResponse;
@@ -42,7 +45,8 @@ export type MessageMcpNotification = V2.MessageMcpNotification;
 export type MessageMcpResponse = V2.MessageMcpResponse;
 export type DisconnectMcpRequest = V2.DisconnectMcpRequest;
 export type DisconnectMcpResponse = V2.DisconnectMcpResponse;
-export type CompleteElicitationNotification = V2.CompleteElicitationNotification;
+export type CompleteElicitationNotification =
+  V2.CompleteElicitationNotification;
 export type CreateElicitationRequest = V2.CreateElicitationRequest;
 export type CreateElicitationResponse = V2.CreateElicitationResponse;
 export type ElicitationContentValue = V2.ElicitationContentValue;
@@ -61,7 +65,10 @@ export type ToolCallStatus = V2.ToolCallStatus;
 export type ToolKind = V2.ToolKind;
 
 export type ClientCapabilities = {
-  readonly fs?: { readonly readTextFile?: boolean; readonly writeTextFile?: boolean };
+  readonly fs?: {
+    readonly readTextFile?: boolean;
+    readonly writeTextFile?: boolean;
+  };
   readonly terminal?: boolean;
   readonly session?: { readonly list?: Meta } | null;
   readonly plan?: Meta;
@@ -118,7 +125,10 @@ export type AuthMethod =
     })
   | (AuthMethodBase & {
       readonly type: "env_var";
-      readonly vars: ReadonlyArray<{ readonly name: string; readonly label?: string }>;
+      readonly vars: ReadonlyArray<{
+        readonly name: string;
+        readonly label?: string;
+      }>;
       readonly link?: string | null;
     })
   | (AuthMethodBase & { readonly type?: "agent" });
@@ -148,7 +158,10 @@ export type McpServer =
 export type NewSessionRequest = Omit<V2.NewSessionRequest, "mcpServers"> & {
   readonly mcpServers: ReadonlyArray<McpServer>;
 };
-export type ResumeSessionRequest = Omit<V2.ResumeSessionRequest, "mcpServers"> & {
+export type ResumeSessionRequest = Omit<
+  V2.ResumeSessionRequest,
+  "mcpServers"
+> & {
   readonly mcpServers?: ReadonlyArray<McpServer>;
 };
 export type LoadSessionRequest = Omit<ResumeSessionRequest, "replayFrom">;
@@ -247,7 +260,11 @@ export interface PromptResponse {
 }
 
 export type ToolCallContent =
-  | { readonly type: "content"; readonly content: ContentBlock; readonly _meta?: Meta }
+  | {
+      readonly type: "content";
+      readonly content: ContentBlock;
+      readonly _meta?: Meta;
+    }
   | {
       readonly type: "diff";
       readonly path: string;
@@ -261,7 +278,11 @@ export type ToolCallContent =
       readonly patch?: V2.DiffPatch | null;
       readonly _meta?: Meta;
     }
-  | { readonly type: "terminal"; readonly terminalId: string; readonly _meta?: Meta }
+  | {
+      readonly type: "terminal";
+      readonly terminalId: string;
+      readonly _meta?: Meta;
+    }
   | {
       readonly type: "_t3_unknown";
       readonly originalType: string;
@@ -300,7 +321,10 @@ export type SessionUpdate =
   | (MessageUpdate & { readonly sessionUpdate: "user_message" })
   | (MessageUpdate & { readonly sessionUpdate: "agent_message" })
   | (MessageUpdate & { readonly sessionUpdate: "agent_thought" })
-  | (ToolCallUpdate & { readonly sessionUpdate: "tool_call"; readonly title: string })
+  | (ToolCallUpdate & {
+      readonly sessionUpdate: "tool_call";
+      readonly title: string;
+    })
   | (ToolCallUpdate & { readonly sessionUpdate: "tool_call_update" })
   | {
       readonly sessionUpdate: "tool_call_content_chunk";
@@ -326,7 +350,10 @@ export type SessionUpdate =
       readonly _meta?: Meta;
     }
   | Extract<V2.SessionUpdate, { readonly sessionUpdate: "terminal_update" }>
-  | Extract<V2.SessionUpdate, { readonly sessionUpdate: "terminal_output_chunk" }>
+  | Extract<
+      V2.SessionUpdate,
+      { readonly sessionUpdate: "terminal_output_chunk" }
+    >
   | Extract<V2.SessionUpdate, { readonly sessionUpdate: "plan_update" }>
   | Extract<V2.SessionUpdate, { readonly sessionUpdate: "plan_removed" }>
   | {
@@ -355,8 +382,14 @@ export type SessionUpdate =
       readonly configOptions: ReadonlyArray<SessionConfigOption>;
       readonly _meta?: Meta;
     }
-  | { readonly sessionUpdate: "plan"; readonly entries: ReadonlyArray<V2.PlanEntry> }
-  | { readonly sessionUpdate: "current_mode_update"; readonly currentModeId: string }
+  | {
+      readonly sessionUpdate: "plan";
+      readonly entries: ReadonlyArray<V2.PlanEntry>;
+    }
+  | {
+      readonly sessionUpdate: "current_mode_update";
+      readonly currentModeId: string;
+    }
   | {
       readonly sessionUpdate: "_t3_unknown";
       readonly originalSessionUpdate: string;
@@ -426,7 +459,9 @@ export type ReleaseTerminalRequest = TerminalRequest;
 export interface ReleaseTerminalResponse {}
 
 // Older v1 agents still advertise and select models through this removed unstable API.
-const LegacyMeta = Schema.optionalKey(Schema.NullOr(Schema.Record(Schema.String, Schema.Json)));
+const LegacyMeta = Schema.optionalKey(
+  Schema.NullOr(Schema.Record(Schema.String, Schema.Json)),
+);
 export const ModelInfo = Schema.Struct({
   modelId: Schema.String,
   name: Schema.String,

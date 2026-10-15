@@ -149,7 +149,6 @@ SQLite indexing, exe.dev as a run substrate, nested delegation orchestration,
 multiplayer, Markdown round-trip editing and automatic code merging are deferred.
 MCP is optional; CLI is the first complete agent protocol.
 
-
 ## Foldkit + ACP Integration (October 15)
 
 The user's follow-up replaces the primary React outline pane with Foldkit,
@@ -218,7 +217,6 @@ resumption and multi-turn steering are deferred.
 - Defer MCP, reconnecting a terminated ACP subprocess, client-mediated ACP
   filesystem/terminal tools, model selection, multi-turn steering, nested
   delegation and the prototype's richer mention/inbox interactions in local mode.
-
 
 The live integration was additionally checked with the installed
 `@agentclientprotocol/claude-agent-acp` 0.91.0 and the workspace's existing Claude

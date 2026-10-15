@@ -7,7 +7,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator
+  CommandSeparator,
 } from "@/components/ui/command";
 import {
   projectConfigAtom,
@@ -16,7 +16,7 @@ import {
   selectedThreadVmIdAtom,
   setSelectedThreadVmId,
   threadVmsAtom,
-  useAtomRef
+  useAtomRef,
 } from "./threadVmAtoms";
 import { ThreadVmStateBadge } from "./ThreadVmStateBadge";
 
@@ -27,14 +27,14 @@ interface ThreadVmCommandPaletteProps {
 
 export function ThreadVmCommandPalette({
   open,
-  onOpenChange
+  onOpenChange,
 }: ThreadVmCommandPaletteProps) {
   const threadVms = useAtomRef(threadVmsAtom);
   const selectedId = useAtomRef(selectedThreadVmIdAtom);
   const projectConfig = useAtomRef(projectConfigAtom);
   const reconciliation = useAtomRef(reconciliationAtom);
   const projectsById = new Map(
-    projectConfig.projects.map((project) => [project.id, project])
+    projectConfig.projects.map((project) => [project.id, project]),
   );
 
   return (
@@ -76,7 +76,7 @@ export function ThreadVmCommandPalette({
                     threadVm.host,
                     threadVm.project,
                     threadVm.branch,
-                    threadVm.source
+                    threadVm.source,
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -88,10 +88,14 @@ export function ThreadVmCommandPalette({
                 >
                   <ServerIcon />
                   <span className="grid min-w-0 flex-1 gap-0.5">
-                    <span className="truncate font-medium">{threadVm.name}</span>
+                    <span className="truncate font-medium">
+                      {threadVm.name}
+                    </span>
                     <span className="truncate text-xs text-muted-foreground">
                       {threadVm.project ?? project?.id ?? "unknown project"} ·{" "}
-                      {threadVm.branch ?? project?.defaultBranch ?? "unknown branch"}
+                      {threadVm.branch ??
+                        project?.defaultBranch ??
+                        "unknown branch"}
                     </span>
                   </span>
                   <ThreadVmStateBadge state={threadVm.state} />

@@ -243,14 +243,8 @@ Font stack:
 
 ```css
 font-family:
-  "JetBrains Mono",
-  ui-monospace,
-  SFMono-Regular,
-  Menlo,
-  Monaco,
-  Consolas,
-  "Liberation Mono",
-  monospace;
+  "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+  "Liberation Mono", monospace;
 ```
 
 ## UI Architecture
@@ -491,4 +485,3 @@ Exit criteria:
 - Do not make Herdr mandatory.
 - Do not build a marketing landing page.
 - Do not create decorative UI that competes with the terminal.
-

@@ -40,21 +40,19 @@ export const OutlineRoutesLive = HttpRouter.add(
             const text =
               typeof data === "string" ? data : new TextDecoder().decode(data);
             const message = yield* Effect.try(() => decodeClient(text));
-            yield* room
-              .handle(message)
-              .pipe(
-                Effect.catch((e) =>
-                  writer(
-                    encodeServer({
-                      _tag: "Error",
-                      message: e.message,
-                      ...(message._tag === "SaveDocument" && message.requestId
-                        ? { requestId: message.requestId }
-                        : {}),
-                    }),
-                  ),
+            yield* room.handle(message).pipe(
+              Effect.catch((e) =>
+                writer(
+                  encodeServer({
+                    _tag: "Error",
+                    message: e.message,
+                    ...(message._tag === "SaveDocument" && message.requestId
+                      ? { requestId: message.requestId }
+                      : {}),
+                  }),
                 ),
-              );
+              ),
+            );
           }),
         );
         yield* Effect.raceFirst(

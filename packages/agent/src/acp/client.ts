@@ -29,13 +29,18 @@ import {
 import { makeChildStdio, makeTerminationError } from "./_internal/stdio.ts";
 
 const decodeElicitationRequest = Schema.decodeUnknownEffect(
-  Schema.Union([AcpSchemaV2.CreateElicitationRequest, AcpSchemaV1.CreateElicitationRequest]),
+  Schema.Union([
+    AcpSchemaV2.CreateElicitationRequest,
+    AcpSchemaV1.CreateElicitationRequest,
+  ]),
 );
 
 export interface AcpClientOptions {
   readonly logIncoming?: boolean;
   readonly logOutgoing?: boolean;
-  readonly logger?: (event: AcpProtocol.AcpProtocolLogEvent) => Effect.Effect<void, never>;
+  readonly logger?: (
+    event: AcpProtocol.AcpProtocolLogEvent,
+  ) => Effect.Effect<void, never>;
   readonly onIncomingRequest?: AcpProtocol.AcpPatchedProtocolOptions["onIncomingRequest"];
   readonly onTermination?: AcpProtocol.AcpPatchedProtocolOptions["onTermination"];
   readonly onOutgoingResponseFailure?: AcpProtocol.AcpPatchedProtocolOptions["onOutgoingResponseFailure"];
@@ -52,11 +57,18 @@ export interface AcpClientOptions {
 
 type AcpClientRaw = {
   readonly notifications: Stream.Stream<AcpProtocol.AcpIncomingNotification>;
-  readonly request: (method: string, payload: unknown) => Effect.Effect<unknown, AcpError.AcpError>;
-  readonly notify: (method: string, payload: unknown) => Effect.Effect<void, AcpError.AcpError>;
+  readonly request: (
+    method: string,
+    payload: unknown,
+  ) => Effect.Effect<unknown, AcpError.AcpError>;
+  readonly notify: (
+    method: string,
+    payload: unknown,
+  ) => Effect.Effect<void, AcpError.AcpError>;
 };
 
-export type AcpRequestHandler<Request, Response> = AcpProtocol.AcpRequestHandler<Request, Response>;
+export type AcpRequestHandler<Request, Response> =
+  AcpProtocol.AcpRequestHandler<Request, Response>;
 
 export class AcpClient extends Context.Service<
   AcpClient,
@@ -157,7 +169,10 @@ export class AcpClient extends Context.Service<
       ) => Effect.Effect<AcpSchemaV1.SetSessionModeResponse, AcpError.AcpError>;
       readonly setSessionConfigOption: (
         payload: AcpSchema.SetSessionConfigOptionRequest,
-      ) => Effect.Effect<AcpSchema.SetSessionConfigOptionResponse, AcpError.AcpError>;
+      ) => Effect.Effect<
+        AcpSchema.SetSessionConfigOptionResponse,
+        AcpError.AcpError
+      >;
       /**
        * Sends a prompt turn to the agent.
        * @see https://agentclientprotocol.com/protocol/schema#session/prompt
@@ -194,13 +209,22 @@ export class AcpClient extends Context.Service<
       >,
     ) => Effect.Effect<void>;
     readonly handleMcpConnect: (
-      handler: AcpRequestHandler<AcpSchema.ConnectMcpRequest, AcpSchema.ConnectMcpResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.ConnectMcpRequest,
+        AcpSchema.ConnectMcpResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleMcpMessage: (
-      handler: AcpRequestHandler<AcpSchema.MessageMcpRequest, AcpSchema.MessageMcpResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.MessageMcpRequest,
+        AcpSchema.MessageMcpResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleMcpDisconnect: (
-      handler: AcpRequestHandler<AcpSchema.DisconnectMcpRequest, AcpSchema.DisconnectMcpResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.DisconnectMcpRequest,
+        AcpSchema.DisconnectMcpResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleMcpNotification: (
       handler: (
@@ -209,7 +233,10 @@ export class AcpClient extends Context.Service<
     ) => Effect.Effect<void>;
     /** Legacy ACP v1 hooks retained for policy compatibility; ACP v2 never advertises them. */
     readonly handleReadTextFile: (
-      handler: AcpRequestHandler<AcpSchema.ReadTextFileRequest, AcpSchema.ReadTextFileResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.ReadTextFileRequest,
+        AcpSchema.ReadTextFileResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleWriteTextFile: (
       handler: AcpRequestHandler<
@@ -218,10 +245,16 @@ export class AcpClient extends Context.Service<
       >,
     ) => Effect.Effect<void>;
     readonly handleCreateTerminal: (
-      handler: AcpRequestHandler<AcpSchema.CreateTerminalRequest, AcpSchema.CreateTerminalResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.CreateTerminalRequest,
+        AcpSchema.CreateTerminalResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleTerminalOutput: (
-      handler: AcpRequestHandler<AcpSchema.TerminalOutputRequest, AcpSchema.TerminalOutputResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.TerminalOutputRequest,
+        AcpSchema.TerminalOutputResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleTerminalWaitForExit: (
       handler: AcpRequestHandler<
@@ -275,7 +308,10 @@ export class AcpClient extends Context.Service<
      * @see https://agentclientprotocol.com/protocol/extensibility
      */
     readonly handleUnknownExtNotification: (
-      handler: (method: string, params: unknown) => Effect.Effect<void, AcpError.AcpError>,
+      handler: (
+        method: string,
+        params: unknown,
+      ) => Effect.Effect<void, AcpError.AcpError>,
     ) => Effect.Effect<void>;
     /**
      * Registers a typed extension request handler.
@@ -307,13 +343,22 @@ interface AcpCoreRequestHandlers {
     AcpSchema.CreateElicitationRequest,
     AcpSchema.CreateElicitationResponse
   >;
-  mcpConnect?: AcpRequestHandler<AcpSchema.ConnectMcpRequest, AcpSchema.ConnectMcpResponse>;
-  mcpMessage?: AcpRequestHandler<AcpSchema.MessageMcpRequest, AcpSchema.MessageMcpResponse>;
+  mcpConnect?: AcpRequestHandler<
+    AcpSchema.ConnectMcpRequest,
+    AcpSchema.ConnectMcpResponse
+  >;
+  mcpMessage?: AcpRequestHandler<
+    AcpSchema.MessageMcpRequest,
+    AcpSchema.MessageMcpResponse
+  >;
   mcpDisconnect?: AcpRequestHandler<
     AcpSchema.DisconnectMcpRequest,
     AcpSchema.DisconnectMcpResponse
   >;
-  readTextFile?: AcpRequestHandler<AcpSchema.ReadTextFileRequest, AcpSchema.ReadTextFileResponse>;
+  readTextFile?: AcpRequestHandler<
+    AcpSchema.ReadTextFileRequest,
+    AcpSchema.ReadTextFileResponse
+  >;
   writeTextFile?: AcpRequestHandler<
     AcpSchema.WriteTextFileRequest,
     AcpSchema.WriteTextFileResponse | void
@@ -346,11 +391,15 @@ interface AcpNotificationHandlers {
 }
 
 interface BufferedNotificationHandler<A> {
-  readonly handlers: Array<(notification: A) => Effect.Effect<void, AcpError.AcpError>>;
+  readonly handlers: Array<
+    (notification: A) => Effect.Effect<void, AcpError.AcpError>
+  >;
   readonly pending: Array<A>;
 }
 
-function normalizeContentBlock(content: AcpSchemaV2.ContentBlock): AcpSchema.ContentBlock {
+function normalizeContentBlock(
+  content: AcpSchemaV2.ContentBlock,
+): AcpSchema.ContentBlock {
   switch (content.type) {
     case "text":
     case "image":
@@ -363,22 +412,35 @@ function normalizeContentBlock(content: AcpSchemaV2.ContentBlock): AcpSchema.Con
   }
 }
 
-function normalizeToolCallContent(content: AcpSchemaV2.ToolCallContent): AcpSchema.ToolCallContent {
+function normalizeToolCallContent(
+  content: AcpSchemaV2.ToolCallContent,
+): AcpSchema.ToolCallContent {
   if (content.type === "content") {
-    const known = content as Extract<AcpSchemaV2.ToolCallContent, { readonly type: "content" }>;
+    const known = content as Extract<
+      AcpSchemaV2.ToolCallContent,
+      { readonly type: "content" }
+    >;
     return { ...known, content: normalizeContentBlock(known.content) };
   }
   if (content.type === "terminal") {
-    return content as Extract<AcpSchemaV2.ToolCallContent, { readonly type: "terminal" }>;
+    return content as Extract<
+      AcpSchemaV2.ToolCallContent,
+      { readonly type: "terminal" }
+    >;
   }
   if (content.type !== "diff") {
     return { type: "_t3_unknown", originalType: content.type, raw: content };
   }
 
-  return content as Extract<AcpSchemaV2.ToolCallContent, { readonly type: "diff" }>;
+  return content as Extract<
+    AcpSchemaV2.ToolCallContent,
+    { readonly type: "diff" }
+  >;
 }
 
-function normalizeToolCallUpdate(update: AcpSchemaV2.ToolCallUpdate): AcpSchema.ToolCallUpdate {
+function normalizeToolCallUpdate(
+  update: AcpSchemaV2.ToolCallUpdate,
+): AcpSchema.ToolCallUpdate {
   return {
     toolCallId: update.toolCallId,
     ...(update.name === undefined ? {} : { name: update.name }),
@@ -388,7 +450,10 @@ function normalizeToolCallUpdate(update: AcpSchemaV2.ToolCallUpdate): AcpSchema.
     ...(update.content === undefined
       ? {}
       : {
-          content: update.content === null ? null : update.content.map(normalizeToolCallContent),
+          content:
+            update.content === null
+              ? null
+              : update.content.map(normalizeToolCallContent),
         }),
     ...(update.locations === undefined ? {} : { locations: update.locations }),
     ...(update.rawInput === undefined ? {} : { rawInput: update.rawInput }),
@@ -401,26 +466,36 @@ function normalizeConfigOption(
   option: AcpSchemaV2.SessionConfigOption,
 ): AcpSchema.SessionConfigOption | undefined {
   if (option.type === "boolean") {
-    const known = option as Extract<AcpSchemaV2.SessionConfigOption, { readonly type: "boolean" }>;
+    const known = option as Extract<
+      AcpSchemaV2.SessionConfigOption,
+      { readonly type: "boolean" }
+    >;
     return {
       type: "boolean",
       id: known.configId,
       name: known.name,
       currentValue: known.currentValue,
-      ...(known.description === undefined ? {} : { description: known.description }),
+      ...(known.description === undefined
+        ? {}
+        : { description: known.description }),
       ...(known.category === undefined ? {} : { category: known.category }),
       ...(known._meta === undefined ? {} : { _meta: known._meta }),
     };
   }
   if (option.type === "select") {
-    const known = option as Extract<AcpSchemaV2.SessionConfigOption, { readonly type: "select" }>;
+    const known = option as Extract<
+      AcpSchemaV2.SessionConfigOption,
+      { readonly type: "select" }
+    >;
     return {
       type: "select",
       id: known.configId,
       name: known.name,
       currentValue: known.currentValue,
       options: known.options,
-      ...(known.description === undefined ? {} : { description: known.description }),
+      ...(known.description === undefined
+        ? {}
+        : { description: known.description }),
       ...(known.category === undefined ? {} : { category: known.category }),
       ...(known._meta === undefined ? {} : { _meta: known._meta }),
     };
@@ -467,7 +542,12 @@ function normalizeSessionUpdate(
     case "agent_thought": {
       const known = update as Extract<
         AcpSchemaV2.SessionUpdate,
-        { readonly sessionUpdate: "user_message" | "agent_message" | "agent_thought" }
+        {
+          readonly sessionUpdate:
+            | "user_message"
+            | "agent_message"
+            | "agent_thought";
+        }
       >;
       const content = known.content;
       return {
@@ -494,7 +574,10 @@ function normalizeSessionUpdate(
       >;
       return {
         ...base,
-        update: { sessionUpdate: "tool_call_update", ...normalizeToolCallUpdate(known) },
+        update: {
+          sessionUpdate: "tool_call_update",
+          ...normalizeToolCallUpdate(known),
+        },
       };
     }
     case "tool_call_content_chunk": {
@@ -584,13 +667,17 @@ function normalizeV1SessionUpdate(
     ...notification,
     update: {
       ...notification.update,
-      availableCommands: notification.update.availableCommands.map((command) => {
-        const { input, ...rest } = command;
-        return {
-          ...rest,
-          ...(input == null ? {} : { input: { type: "text" as const, hint: input.hint } }),
-        };
-      }),
+      availableCommands: notification.update.availableCommands.map(
+        (command) => {
+          const { input, ...rest } = command;
+          return {
+            ...rest,
+            ...(input == null
+              ? {}
+              : { input: { type: "text" as const, hint: input.hint } }),
+          };
+        },
+      ),
     },
   };
 }
@@ -614,16 +701,22 @@ function toV2ResumeRequest(
   const { mcpServers, ...rest } = request;
   return {
     ...rest,
-    ...(mcpServers === undefined ? {} : { mcpServers: mcpServers.map(toV2McpServer) }),
+    ...(mcpServers === undefined
+      ? {}
+      : { mcpServers: mcpServers.map(toV2McpServer) }),
     ...(replayFrom === undefined ? {} : { replayFrom }),
   };
 }
 
-function toV2ForkRequest(request: AcpSchema.ForkSessionRequest): AcpSchemaV2.ForkSessionRequest {
+function toV2ForkRequest(
+  request: AcpSchema.ForkSessionRequest,
+): AcpSchemaV2.ForkSessionRequest {
   const { mcpServers, ...rest } = request;
   return {
     ...rest,
-    ...(mcpServers === undefined ? {} : { mcpServers: mcpServers.map(toV2McpServer) }),
+    ...(mcpServers === undefined
+      ? {}
+      : { mcpServers: mcpServers.map(toV2McpServer) }),
   };
 }
 
@@ -657,11 +750,14 @@ function normalizeInitializeResponse(
               close: {},
               ...(session.delete == null ? {} : { delete: {} }),
               ...(session.fork == null ? {} : { fork: {} }),
-              ...(session.additionalDirectories == null ? {} : { additionalDirectories: {} }),
+              ...(session.additionalDirectories == null
+                ? {}
+                : { additionalDirectories: {} }),
             },
           }),
       ...(response.capabilities?.providers == null ? {} : { providers: {} }),
-      ...(response.authMethods === undefined || response.authMethods.length === 0
+      ...(response.authMethods === undefined ||
+      response.authMethods.length === 0
         ? {}
         : { auth: { logout: {} } }),
     },
@@ -674,7 +770,9 @@ function normalizeInitializeResponse(
               const base = {
                 id: record.methodId,
                 name: record.name,
-                ...(record.description === undefined ? {} : { description: record.description }),
+                ...(record.description === undefined
+                  ? {}
+                  : { description: record.description }),
                 ...(record._meta === undefined ? {} : { _meta: record._meta }),
               };
               if (
@@ -684,23 +782,32 @@ function normalizeInitializeResponse(
                   (variable) =>
                     typeof variable === "object" &&
                     variable !== null &&
-                    typeof (variable as { readonly name?: unknown }).name === "string",
+                    typeof (variable as { readonly name?: unknown }).name ===
+                      "string",
                 )
               ) {
                 return {
                   ...base,
                   type: "env_var" as const,
                   vars: record.vars.map((variable) => {
-                    const value = variable as { readonly name: string; readonly label?: unknown };
+                    const value = variable as {
+                      readonly name: string;
+                      readonly label?: unknown;
+                    };
                     return {
                       name: value.name,
-                      ...(typeof value.label === "string" ? { label: value.label } : {}),
+                      ...(typeof value.label === "string"
+                        ? { label: value.label }
+                        : {}),
                     };
                   }),
-                  ...(typeof record.link === "string" ? { link: record.link } : {}),
+                  ...(typeof record.link === "string"
+                    ? { link: record.link }
+                    : {}),
                 };
               }
-              if (record.type === "agent") return { ...base, type: "agent" as const };
+              if (record.type === "agent")
+                return { ...base, type: "agent" as const };
               if (record.type !== "terminal") return undefined;
               return {
                 ...base,
@@ -708,17 +815,17 @@ function normalizeInitializeResponse(
                 ...(Array.isArray(record.args)
                   ? {
                       args: record.args.filter(
-                        (argument): argument is string => typeof argument === "string",
+                        (argument): argument is string =>
+                          typeof argument === "string",
                       ),
                     }
                   : {}),
                 ...(Array.isArray(record.env)
                   ? {
                       env: Object.fromEntries(
-                        (record.env as ReadonlyArray<AcpSchemaV2.EnvVariable>).map((variable) => [
-                          variable.name,
-                          variable.value,
-                        ]),
+                        (
+                          record.env as ReadonlyArray<AcpSchemaV2.EnvVariable>
+                        ).map((variable) => [variable.name, variable.value]),
                       ),
                     }
                   : {}),
@@ -738,9 +845,15 @@ function toV2InitializeRequest(
     protocolVersion: 2,
     info: request.clientInfo ?? { name: "t3-code", version: "unknown" },
     capabilities: {
-      ...(capabilities?.auth?.terminal === true ? { auth: { terminal: {} } } : {}),
-      ...(capabilities?.elicitation == null ? {} : { elicitation: capabilities.elicitation }),
-      ...(capabilities?._meta === undefined ? {} : { _meta: capabilities._meta }),
+      ...(capabilities?.auth?.terminal === true
+        ? { auth: { terminal: {} } }
+        : {}),
+      ...(capabilities?.elicitation == null
+        ? {}
+        : { elicitation: capabilities.elicitation }),
+      ...(capabilities?._meta === undefined
+        ? {}
+        : { _meta: capabilities._meta }),
     },
     ...(request._meta === undefined ? {} : { _meta: request._meta }),
   };
@@ -752,7 +865,9 @@ function toNegotiatingInitializeRequest(
   return {
     ...toV2InitializeRequest(request),
     clientCapabilities: request.clientCapabilities ?? {},
-    ...(request.clientInfo === undefined ? {} : { clientInfo: request.clientInfo }),
+    ...(request.clientInfo === undefined
+      ? {}
+      : { clientInfo: request.clientInfo }),
   } as unknown as AcpSchemaV1.InitializeRequest | AcpSchemaV2.InitializeRequest;
 }
 
@@ -792,12 +907,17 @@ function normalizePermissionRequest(
               ? subject.toolCallId
               : context.requestId,
           title: request.title,
-          kind: subject?.type === "command" ? ("execute" as const) : ("other" as const),
+          kind:
+            subject?.type === "command"
+              ? ("execute" as const)
+              : ("other" as const),
         };
   return {
     sessionId: request.sessionId,
     title: request.title,
-    ...(request.description === undefined ? {} : { description: request.description }),
+    ...(request.description === undefined
+      ? {}
+      : { description: request.description }),
     ...(subject === undefined ? {} : { subject }),
     toolCall,
     options: request.options,
@@ -819,7 +939,10 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
     string,
     Deferred.Deferred<AcpSchema.PromptResponse, AcpError.AcpError>
   >();
-  const extRequestHandlers = new Map<string, AcpRequestHandler<unknown, unknown>>();
+  const extRequestHandlers = new Map<
+    string,
+    AcpRequestHandler<unknown, unknown>
+  >();
   const extNotificationHandlers = new Map<
     string,
     (params: unknown) => Effect.Effect<void, AcpError.AcpError>
@@ -832,7 +955,10 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
       ) => Effect.Effect<unknown, AcpError.AcpError>)
     | undefined;
   let unknownExtNotificationHandler:
-    | ((method: string, params: unknown) => Effect.Effect<void, AcpError.AcpError>)
+    | ((
+        method: string,
+        params: unknown,
+      ) => Effect.Effect<void, AcpError.AcpError>)
     | undefined;
   let negotiatedProtocolGeneration: 1 | 2 | undefined;
 
@@ -847,12 +973,20 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
       { discard: true },
     );
 
-  const flushBufferedNotifications = <A>(registration: BufferedNotificationHandler<A>) =>
+  const flushBufferedNotifications = <A>(
+    registration: BufferedNotificationHandler<A>,
+  ) =>
     Effect.suspend(() => {
-      if (registration.handlers.length === 0 || registration.pending.length === 0) {
+      if (
+        registration.handlers.length === 0 ||
+        registration.pending.length === 0
+      ) {
         return Effect.void;
       }
-      const pending = registration.pending.splice(0, registration.pending.length);
+      const pending = registration.pending.splice(
+        0,
+        registration.pending.length,
+      );
       return Effect.forEach(
         pending,
         (notification) => runNotificationHandlers(registration, notification),
@@ -862,7 +996,9 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
       );
     });
 
-  const dispatchNotification = (notification: AcpProtocol.AcpIncomingNotification) => {
+  const dispatchNotification = (
+    notification: AcpProtocol.AcpIncomingNotification,
+  ) => {
     switch (notification._tag) {
       case "SessionUpdate": {
         const normalized = notification.params as AcpSchema.SessionNotification;
@@ -872,7 +1008,10 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
             ? Effect.suspend(() => {
                 const idle = state as Extract<
                   AcpSchema.SessionUpdate,
-                  { readonly sessionUpdate: "state_update"; readonly state: "idle" }
+                  {
+                    readonly sessionUpdate: "state_update";
+                    readonly state: "idle";
+                  }
                 >;
                 const completion = promptCompletions.get(normalized.sessionId);
                 if (completion === undefined) return Effect.void;
@@ -889,13 +1028,21 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
           return completePrompt;
         }
         return Effect.all(
-          [completePrompt, runNotificationHandlers(notificationHandlers.sessionUpdate, normalized)],
+          [
+            completePrompt,
+            runNotificationHandlers(
+              notificationHandlers.sessionUpdate,
+              normalized,
+            ),
+          ],
           { discard: true },
         );
       }
       case "ElicitationComplete": {
         if (notificationHandlers.elicitationComplete.handlers.length === 0) {
-          notificationHandlers.elicitationComplete.pending.push(notification.params);
+          notificationHandlers.elicitationComplete.pending.push(
+            notification.params,
+          );
           return Effect.void;
         }
         return runNotificationHandlers(
@@ -909,7 +1056,10 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
           return handler(notification.params);
         }
         return unknownExtNotificationHandler
-          ? unknownExtNotificationHandler(notification.method, notification.params)
+          ? unknownExtNotificationHandler(
+              notification.method,
+              notification.params,
+            )
           : Effect.void;
       }
     }
@@ -933,10 +1083,16 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
     stdio: stdio,
     ...(terminationError ? { terminationError } : {}),
     serverRequestMethods: new Set(AcpRpcs.CompatClientRpcs.requests.keys()),
-    ...(options.logIncoming !== undefined ? { logIncoming: options.logIncoming } : {}),
-    ...(options.logOutgoing !== undefined ? { logOutgoing: options.logOutgoing } : {}),
+    ...(options.logIncoming !== undefined
+      ? { logIncoming: options.logIncoming }
+      : {}),
+    ...(options.logOutgoing !== undefined
+      ? { logOutgoing: options.logOutgoing }
+      : {}),
     ...(options.logger ? { logger: options.logger } : {}),
-    ...(options.onIncomingRequest ? { onIncomingRequest: options.onIncomingRequest } : {}),
+    ...(options.onIncomingRequest
+      ? { onIncomingRequest: options.onIncomingRequest }
+      : {}),
     onTermination: (error) =>
       Effect.all(
         [
@@ -956,12 +1112,18 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
     ...(options.onOutgoingResponseFailure
       ? { onOutgoingResponseFailure: options.onOutgoingResponseFailure }
       : {}),
-    ...(options.onOutgoingResponse ? { onOutgoingResponse: options.onOutgoingResponse } : {}),
+    ...(options.onOutgoingResponse
+      ? { onOutgoingResponse: options.onOutgoingResponse }
+      : {}),
     transformSessionUpdate: (notification) => {
       const normalized =
         negotiatedProtocolGeneration === 1
-          ? normalizeV1SessionUpdate(notification as AcpSchemaV1.SessionNotification)
-          : normalizeSessionUpdate(notification as AcpSchemaV2.UpdateSessionNotification);
+          ? normalizeV1SessionUpdate(
+              notification as AcpSchemaV1.SessionNotification,
+            )
+          : normalizeSessionUpdate(
+              notification as AcpSchemaV2.UpdateSessionNotification,
+            );
       return options.transformSessionUpdate?.(normalized) ?? normalized;
     },
     onNotification: dispatchNotification,
@@ -985,29 +1147,44 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
             ? (payload as AcpSchema.RequestPermissionRequest)
             : normalizePermissionRequest(
                 payload,
-                requestContext(requestId, CLIENT_METHODS.session_request_permission),
+                requestContext(
+                  requestId,
+                  CLIENT_METHODS.session_request_permission,
+                ),
               ),
           CLIENT_METHODS.session_request_permission,
           requestContext(requestId, CLIENT_METHODS.session_request_permission),
         ),
-      [AcpRpcs.V1_CLIENT_METHODS.session_elicitation]: (payload, { requestId }) =>
+      [AcpRpcs.V1_CLIENT_METHODS.session_elicitation]: (
+        payload,
+        { requestId },
+      ) =>
         runHandler(
           coreHandlers.elicitation,
           payload,
           AcpRpcs.V1_CLIENT_METHODS.session_elicitation,
-          requestContext(requestId, AcpRpcs.V1_CLIENT_METHODS.session_elicitation),
+          requestContext(
+            requestId,
+            AcpRpcs.V1_CLIENT_METHODS.session_elicitation,
+          ),
         ).pipe(
           Effect.map(({ _meta, ...action }) => ({
             action,
             ...(_meta === undefined ? {} : { _meta }),
           })),
         ),
-      [AcpRpcs.V1_CLIENT_METHODS.unstable_session_elicitation]: (payload, { requestId }) =>
+      [AcpRpcs.V1_CLIENT_METHODS.unstable_session_elicitation]: (
+        payload,
+        { requestId },
+      ) =>
         runHandler(
           coreHandlers.elicitation,
           payload,
           AcpRpcs.V1_CLIENT_METHODS.unstable_session_elicitation,
-          requestContext(requestId, AcpRpcs.V1_CLIENT_METHODS.unstable_session_elicitation),
+          requestContext(
+            requestId,
+            AcpRpcs.V1_CLIENT_METHODS.unstable_session_elicitation,
+          ),
         ).pipe(
           Effect.map(({ _meta, ...action }) => ({
             action,
@@ -1057,14 +1234,23 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
           coreHandlers.readTextFile,
           payload,
           AcpRpcs.V1_CLIENT_METHODS.fs_read_text_file,
-          requestContext(requestId, AcpRpcs.V1_CLIENT_METHODS.fs_read_text_file),
+          requestContext(
+            requestId,
+            AcpRpcs.V1_CLIENT_METHODS.fs_read_text_file,
+          ),
         ),
-      [AcpRpcs.V1_CLIENT_METHODS.fs_write_text_file]: (payload, { requestId }) =>
+      [AcpRpcs.V1_CLIENT_METHODS.fs_write_text_file]: (
+        payload,
+        { requestId },
+      ) =>
         runHandler(
           coreHandlers.writeTextFile,
           payload,
           AcpRpcs.V1_CLIENT_METHODS.fs_write_text_file,
-          requestContext(requestId, AcpRpcs.V1_CLIENT_METHODS.fs_write_text_file),
+          requestContext(
+            requestId,
+            AcpRpcs.V1_CLIENT_METHODS.fs_write_text_file,
+          ),
         ).pipe(Effect.map((result) => result ?? {})),
       [AcpRpcs.V1_CLIENT_METHODS.terminal_create]: (payload, { requestId }) =>
         runHandler(
@@ -1080,12 +1266,18 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
           AcpRpcs.V1_CLIENT_METHODS.terminal_output,
           requestContext(requestId, AcpRpcs.V1_CLIENT_METHODS.terminal_output),
         ),
-      [AcpRpcs.V1_CLIENT_METHODS.terminal_wait_for_exit]: (payload, { requestId }) =>
+      [AcpRpcs.V1_CLIENT_METHODS.terminal_wait_for_exit]: (
+        payload,
+        { requestId },
+      ) =>
         runHandler(
           coreHandlers.terminalWaitForExit,
           payload,
           AcpRpcs.V1_CLIENT_METHODS.terminal_wait_for_exit,
-          requestContext(requestId, AcpRpcs.V1_CLIENT_METHODS.terminal_wait_for_exit),
+          requestContext(
+            requestId,
+            AcpRpcs.V1_CLIENT_METHODS.terminal_wait_for_exit,
+          ),
         ),
       [AcpRpcs.V1_CLIENT_METHODS.terminal_kill]: (payload, { requestId }) =>
         runHandler(
@@ -1104,7 +1296,9 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
     }),
   );
 
-  yield* RpcServer.make(AcpRpcs.CompatClientRpcs, { disableFatalDefects: true }).pipe(
+  yield* RpcServer.make(AcpRpcs.CompatClientRpcs, {
+    disableFatalDefects: true,
+  }).pipe(
     // runHandler logs handler defects with their method. A reporter inherited
     // from the caller (a WebSocket request, say) would log them again.
     Effect.provideService(ErrorReporter.CurrentErrorReporters, new Set()),
@@ -1128,7 +1322,9 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
       initialize: (payload) =>
         callRpc(
           AGENT_METHODS.initialize,
-          rpc[AGENT_METHODS.initialize](toNegotiatingInitializeRequest(payload)),
+          rpc[AGENT_METHODS.initialize](
+            toNegotiatingInitializeRequest(payload),
+          ),
         ).pipe(
           Effect.map((response) => {
             // ACP v1 protocolVersion values were not generation identifiers in
@@ -1149,17 +1345,32 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
               AcpRpcs.V1_AGENT_METHODS.authenticate,
               rpc[AcpRpcs.V1_AGENT_METHODS.authenticate](payload),
             )
-          : callRpc(AGENT_METHODS.auth_login, rpc[AGENT_METHODS.auth_login](payload)),
+          : callRpc(
+              AGENT_METHODS.auth_login,
+              rpc[AGENT_METHODS.auth_login](payload),
+            ),
       logout: (payload) =>
         negotiatedProtocolGeneration === 1
-          ? callRpc(AcpRpcs.V1_AGENT_METHODS.logout, rpc[AcpRpcs.V1_AGENT_METHODS.logout](payload))
-          : callRpc(AGENT_METHODS.auth_logout, rpc[AGENT_METHODS.auth_logout](payload)),
+          ? callRpc(
+              AcpRpcs.V1_AGENT_METHODS.logout,
+              rpc[AcpRpcs.V1_AGENT_METHODS.logout](payload),
+            )
+          : callRpc(
+              AGENT_METHODS.auth_logout,
+              rpc[AGENT_METHODS.auth_logout](payload),
+            ),
       createSession: (payload) =>
         negotiatedProtocolGeneration === 1
           ? callRpc(
               AGENT_METHODS.session_new,
-              rpc[AGENT_METHODS.session_new](payload as AcpSchemaV1.NewSessionRequest),
-            ).pipe(Effect.map((response) => response as AcpSchema.NewSessionResponse))
+              rpc[AGENT_METHODS.session_new](
+                payload as AcpSchemaV1.NewSessionRequest,
+              ),
+            ).pipe(
+              Effect.map(
+                (response) => response as AcpSchema.NewSessionResponse,
+              ),
+            )
           : callRpc(
               AGENT_METHODS.session_new,
               rpc[AGENT_METHODS.session_new]({
@@ -1178,11 +1389,19 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
         negotiatedProtocolGeneration === 1
           ? callRpc(
               AcpRpcs.V1_AGENT_METHODS.session_load,
-              rpc[AcpRpcs.V1_AGENT_METHODS.session_load](payload as AcpSchemaV1.LoadSessionRequest),
-            ).pipe(Effect.map((response) => response as AcpSchema.LoadSessionResponse))
+              rpc[AcpRpcs.V1_AGENT_METHODS.session_load](
+                payload as AcpSchemaV1.LoadSessionRequest,
+              ),
+            ).pipe(
+              Effect.map(
+                (response) => response as AcpSchema.LoadSessionResponse,
+              ),
+            )
           : callRpc(
               AGENT_METHODS.session_resume,
-              rpc[AGENT_METHODS.session_resume](toV2ResumeRequest(payload, { type: "start" })),
+              rpc[AGENT_METHODS.session_resume](
+                toV2ResumeRequest(payload, { type: "start" }),
+              ),
             ).pipe(
               Effect.map(
                 (response) =>
@@ -1192,15 +1411,24 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
               ),
             ),
       listSessions: (payload) =>
-        callRpc(AGENT_METHODS.session_list, rpc[AGENT_METHODS.session_list](payload)).pipe(
+        callRpc(
+          AGENT_METHODS.session_list,
+          rpc[AGENT_METHODS.session_list](payload),
+        ).pipe(
           Effect.map((response) => response as AcpSchema.ListSessionsResponse),
         ),
       forkSession: (payload) =>
         negotiatedProtocolGeneration === 1
           ? callRpc(
               AGENT_METHODS.session_fork,
-              rpc[AGENT_METHODS.session_fork](payload as AcpSchemaV1.ForkSessionRequest),
-            ).pipe(Effect.map((response) => response as AcpSchema.ForkSessionResponse))
+              rpc[AGENT_METHODS.session_fork](
+                payload as AcpSchemaV1.ForkSessionRequest,
+              ),
+            ).pipe(
+              Effect.map(
+                (response) => response as AcpSchema.ForkSessionResponse,
+              ),
+            )
           : callRpc(
               AGENT_METHODS.session_fork,
               rpc[AGENT_METHODS.session_fork](toV2ForkRequest(payload)),
@@ -1216,8 +1444,14 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
         negotiatedProtocolGeneration === 1
           ? callRpc(
               AGENT_METHODS.session_resume,
-              rpc[AGENT_METHODS.session_resume](payload as AcpSchemaV1.ResumeSessionRequest),
-            ).pipe(Effect.map((response) => response as AcpSchema.ResumeSessionResponse))
+              rpc[AGENT_METHODS.session_resume](
+                payload as AcpSchemaV1.ResumeSessionRequest,
+              ),
+            ).pipe(
+              Effect.map(
+                (response) => response as AcpSchema.ResumeSessionResponse,
+              ),
+            )
           : callRpc(
               AGENT_METHODS.session_resume,
               rpc[AGENT_METHODS.session_resume](
@@ -1232,25 +1466,56 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
               ),
             ),
       closeSession: (payload) =>
-        callRpc(AGENT_METHODS.session_close, rpc[AGENT_METHODS.session_close](payload)).pipe(
+        callRpc(
+          AGENT_METHODS.session_close,
+          rpc[AGENT_METHODS.session_close](payload),
+        ).pipe(
           Effect.map((response) => response as AcpSchema.CloseSessionResponse),
         ),
       deleteSession: (payload) =>
         negotiatedProtocolGeneration === 1
-          ? Effect.fail(AcpError.AcpRequestError.methodNotFound(AGENT_METHODS.session_delete))
-          : callRpc(AGENT_METHODS.session_delete, rpc[AGENT_METHODS.session_delete](payload)),
+          ? Effect.fail(
+              AcpError.AcpRequestError.methodNotFound(
+                AGENT_METHODS.session_delete,
+              ),
+            )
+          : callRpc(
+              AGENT_METHODS.session_delete,
+              rpc[AGENT_METHODS.session_delete](payload),
+            ),
       listProviders: (payload) =>
         negotiatedProtocolGeneration === 1
-          ? Effect.fail(AcpError.AcpRequestError.methodNotFound(AGENT_METHODS.providers_list))
-          : callRpc(AGENT_METHODS.providers_list, rpc[AGENT_METHODS.providers_list](payload)),
+          ? Effect.fail(
+              AcpError.AcpRequestError.methodNotFound(
+                AGENT_METHODS.providers_list,
+              ),
+            )
+          : callRpc(
+              AGENT_METHODS.providers_list,
+              rpc[AGENT_METHODS.providers_list](payload),
+            ),
       setProvider: (payload) =>
         negotiatedProtocolGeneration === 1
-          ? Effect.fail(AcpError.AcpRequestError.methodNotFound(AGENT_METHODS.providers_set))
-          : callRpc(AGENT_METHODS.providers_set, rpc[AGENT_METHODS.providers_set](payload)),
+          ? Effect.fail(
+              AcpError.AcpRequestError.methodNotFound(
+                AGENT_METHODS.providers_set,
+              ),
+            )
+          : callRpc(
+              AGENT_METHODS.providers_set,
+              rpc[AGENT_METHODS.providers_set](payload),
+            ),
       disableProvider: (payload) =>
         negotiatedProtocolGeneration === 1
-          ? Effect.fail(AcpError.AcpRequestError.methodNotFound(AGENT_METHODS.providers_disable))
-          : callRpc(AGENT_METHODS.providers_disable, rpc[AGENT_METHODS.providers_disable](payload)),
+          ? Effect.fail(
+              AcpError.AcpRequestError.methodNotFound(
+                AGENT_METHODS.providers_disable,
+              ),
+            )
+          : callRpc(
+              AGENT_METHODS.providers_disable,
+              rpc[AGENT_METHODS.providers_disable](payload),
+            ),
       setSessionModel: (payload) =>
         negotiatedProtocolGeneration === 1
           ? callRpc(
@@ -1258,7 +1523,9 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
               rpc[AcpRpcs.V1_AGENT_METHODS.session_set_model](payload),
             )
           : Effect.fail(
-              AcpError.AcpRequestError.methodNotFound(AcpRpcs.V1_AGENT_METHODS.session_set_model),
+              AcpError.AcpRequestError.methodNotFound(
+                AcpRpcs.V1_AGENT_METHODS.session_set_model,
+              ),
             ),
       setSessionMode: (payload) =>
         negotiatedProtocolGeneration === 1
@@ -1267,7 +1534,9 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
               rpc[AcpRpcs.V1_AGENT_METHODS.session_set_mode](payload),
             )
           : Effect.fail(
-              AcpError.AcpRequestError.methodNotFound(AcpRpcs.V1_AGENT_METHODS.session_set_mode),
+              AcpError.AcpRequestError.methodNotFound(
+                AcpRpcs.V1_AGENT_METHODS.session_set_mode,
+              ),
             ),
       setSessionConfigOption: (payload) =>
         negotiatedProtocolGeneration === 1
@@ -1276,18 +1545,27 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
               rpc[AGENT_METHODS.session_set_config_option](
                 payload as AcpSchemaV1.SetSessionConfigOptionRequest,
               ),
-            ).pipe(Effect.map((response) => response as AcpSchema.SetSessionConfigOptionResponse))
+            ).pipe(
+              Effect.map(
+                (response) =>
+                  response as AcpSchema.SetSessionConfigOptionResponse,
+              ),
+            )
           : callRpc(
               AGENT_METHODS.session_set_config_option,
               rpc[AGENT_METHODS.session_set_config_option]({
                 ...payload,
-                type: "type" in payload && payload.type === "boolean" ? "boolean" : "id",
+                type:
+                  "type" in payload && payload.type === "boolean"
+                    ? "boolean"
+                    : "id",
               }),
             ).pipe(
               Effect.map((response) => ({
                 configOptions:
                   normalizeConfigOptions(
-                    (response as AcpSchemaV2.SetSessionConfigOptionResponse).configOptions,
+                    (response as AcpSchemaV2.SetSessionConfigOptionResponse)
+                      .configOptions,
                   ) ?? [],
               })),
             ),
@@ -1295,8 +1573,12 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
         negotiatedProtocolGeneration === 1
           ? callRpc(
               AGENT_METHODS.session_prompt,
-              rpc[AGENT_METHODS.session_prompt](payload as AcpSchemaV1.PromptRequest),
-            ).pipe(Effect.map((response) => response as AcpSchema.PromptResponse))
+              rpc[AGENT_METHODS.session_prompt](
+                payload as AcpSchemaV1.PromptRequest,
+              ),
+            ).pipe(
+              Effect.map((response) => response as AcpSchema.PromptResponse),
+            )
           : Effect.gen(function* () {
               const existing = promptCompletions.get(payload.sessionId);
               if (existing !== undefined) {
@@ -1311,19 +1593,24 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
               promptCompletions.set(payload.sessionId, completion);
               return yield* callRpc(
                 AGENT_METHODS.session_prompt,
-                rpc[AGENT_METHODS.session_prompt](payload as AcpSchemaV2.PromptRequest),
+                rpc[AGENT_METHODS.session_prompt](
+                  payload as AcpSchemaV2.PromptRequest,
+                ),
               ).pipe(
                 Effect.andThen(Deferred.await(completion)),
                 Effect.ensuring(
                   Effect.sync(() => {
-                    if (promptCompletions.get(payload.sessionId) === completion) {
+                    if (
+                      promptCompletions.get(payload.sessionId) === completion
+                    ) {
                       promptCompletions.delete(payload.sessionId);
                     }
                   }),
                 ),
               );
             }),
-      cancel: (payload) => transport.notify(AGENT_METHODS.session_cancel, payload),
+      cancel: (payload) =>
+        transport.notify(AGENT_METHODS.session_cancel, payload),
     },
     handleRequestPermission: (handler) =>
       Effect.suspend(() => {
@@ -1350,7 +1637,9 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
     handleMcpNotification: (handler) =>
       Effect.sync(() => {
         extNotificationHandlers.set(CLIENT_METHODS.mcp_message, (params) =>
-          Schema.decodeUnknownEffect(AcpSchemaV2.MessageMcpNotification)(params).pipe(
+          Schema.decodeUnknownEffect(AcpSchemaV2.MessageMcpNotification)(
+            params,
+          ).pipe(
             Effect.mapError(() => AcpError.AcpRequestError.invalidParams()),
             Effect.flatMap(handler),
           ),
@@ -1392,7 +1681,9 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
     handleElicitationComplete: (handler) =>
       Effect.suspend(() => {
         notificationHandlers.elicitationComplete.handlers.push(handler);
-        return flushBufferedNotifications(notificationHandlers.elicitationComplete);
+        return flushBufferedNotifications(
+          notificationHandlers.elicitationComplete,
+        );
       }),
     handleUnknownExtRequest: (handler) =>
       Effect.suspend(() => {
@@ -1406,7 +1697,10 @@ export const make = Effect.fn("effect-acp/AcpClient.make")(function* (
       }),
     handleExtRequest: (method, payload, handler) =>
       Effect.suspend(() => {
-        extRequestHandlers.set(method, decodeExtRequestRegistration(method, payload, handler));
+        extRequestHandlers.set(
+          method,
+          decodeExtRequestRegistration(method, payload, handler),
+        );
         return Effect.void;
       }),
     handleExtNotification: (method, payload, handler) =>

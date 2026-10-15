@@ -37,7 +37,9 @@ interface AcpSchemaIssueDiagnostics {
   readonly maximumPathDepth: number;
 }
 
-const schemaIssueDiagnostics = (root: SchemaIssue.Issue): AcpSchemaIssueDiagnostics => {
+const schemaIssueDiagnostics = (
+  root: SchemaIssue.Issue,
+): AcpSchemaIssueDiagnostics => {
   let issueCount = 0;
   let maximumPathDepth = 0;
   const issueKinds = new Set<AcpSchemaIssueKind>();
@@ -79,10 +81,13 @@ export interface AcpRequestDiagnostics {
   readonly maximumPathDepth?: number;
 }
 
-export class AcpSpawnError extends Schema.TaggedError<AcpSpawnError>()("AcpSpawnError", {
-  command: Schema.optional(Schema.String),
-  cause: Schema.Defect(),
-}) {
+export class AcpSpawnError extends Schema.TaggedError<AcpSpawnError>()(
+  "AcpSpawnError",
+  {
+    command: Schema.optional(Schema.String),
+    cause: Schema.Defect(),
+  },
+) {
   override get message() {
     return this.command
       ? `Failed to spawn ACP process for command: ${this.command}`
@@ -101,7 +106,9 @@ export class AcpProcessExitedError extends Schema.TaggedError<AcpProcessExitedEr
 ) {
   override get message() {
     const base =
-      this.code === undefined ? "ACP process exited" : `ACP process exited with code ${this.code}`;
+      this.code === undefined
+        ? "ACP process exited"
+        : `ACP process exited with code ${this.code}`;
     const excerpt = this.stderr?.trim();
     return excerpt && excerpt.length > 0 ? `${base}\n${excerpt}` : base;
   }
@@ -127,7 +134,8 @@ export class AcpProtocolParseError extends Schema.TaggedError<AcpProtocolParseEr
   },
 ) {
   override get message() {
-    const method = this.method === undefined ? "" : ` for method '${this.method}'`;
+    const method =
+      this.method === undefined ? "" : ` for method '${this.method}'`;
     return `ACP protocol operation '${this.operation}' failed${method}.`;
   }
 
@@ -162,7 +170,11 @@ export class AcpTransportError extends Schema.TaggedError<AcpTransportError>()(
   "AcpTransportError",
   {
     operation: Schema.optional(
-      Schema.Literals(["call-rpc", "read-input-stream", "read-process-exit-status"]),
+      Schema.Literals([
+        "call-rpc",
+        "read-input-stream",
+        "read-process-exit-status",
+      ]),
     ),
     method: Schema.optional(Schema.String),
     detail: Schema.optional(Schema.String),
@@ -187,18 +199,21 @@ export class AcpInputStreamEndedError extends Schema.TaggedError<AcpInputStreamE
   }
 }
 
-export class AcpRequestError extends Schema.TaggedError<AcpRequestError>()("AcpRequestError", {
-  code: AcpSchema.ErrorCode,
-  errorMessage: Schema.String,
-  data: Schema.optional(Schema.Unknown),
-  method: Schema.optionalKey(Schema.String),
-  requestId: Schema.optionalKey(AcpRequestId),
-  operation: Schema.optionalKey(AcpRequestOperation),
-  issueCount: Schema.optionalKey(Schema.Number),
-  issueKinds: Schema.optionalKey(Schema.Array(AcpSchemaIssueKind)),
-  maximumPathDepth: Schema.optionalKey(Schema.Number),
-  cause: Schema.optionalKey(Schema.Defect()),
-}) {
+export class AcpRequestError extends Schema.TaggedError<AcpRequestError>()(
+  "AcpRequestError",
+  {
+    code: AcpSchema.ErrorCode,
+    errorMessage: Schema.String,
+    data: Schema.optional(Schema.Unknown),
+    method: Schema.optionalKey(Schema.String),
+    requestId: Schema.optionalKey(AcpRequestId),
+    operation: Schema.optionalKey(AcpRequestOperation),
+    issueCount: Schema.optionalKey(Schema.Number),
+    issueKinds: Schema.optionalKey(Schema.Array(AcpSchemaIssueKind)),
+    maximumPathDepth: Schema.optionalKey(Schema.Number),
+    cause: Schema.optionalKey(Schema.Defect()),
+  },
+) {
   override get message() {
     return this.errorMessage;
   }
@@ -216,19 +231,29 @@ export class AcpRequestError extends Schema.TaggedError<AcpRequestError>()("AcpR
       errorMessage: error.message,
       ...(error.data !== undefined ? { data: error.data } : {}),
       method: context.method,
-      ...(context.requestId === undefined ? {} : { requestId: context.requestId }),
+      ...(context.requestId === undefined
+        ? {}
+        : { requestId: context.requestId }),
       operation: "receive-response",
       cause: context.cause ?? error,
     });
   }
 
-  static fromExtensionResponseFailure(method: string, requestId: AcpRequestId, cause: unknown) {
-    return AcpRequestError.internalError("Extension request failed", undefined, {
-      method,
-      requestId,
-      operation: "receive-response",
-      cause,
-    });
+  static fromExtensionResponseFailure(
+    method: string,
+    requestId: AcpRequestId,
+    cause: unknown,
+  ) {
+    return AcpRequestError.internalError(
+      "Extension request failed",
+      undefined,
+      {
+        method,
+        requestId,
+        operation: "receive-response",
+        cause,
+      },
+    );
   }
 
   static fromExtensionResponseEncodingError(

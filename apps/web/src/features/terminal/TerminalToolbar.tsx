@@ -9,14 +9,14 @@ import {
   ServerIcon,
   RotateCcwIcon,
   TerminalIcon,
-  UnplugIcon
+  UnplugIcon,
 } from "lucide-react";
 import type { ThreadVmModel } from "@threadvm/shared/domain";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
-  TooltipTrigger
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ClipboardNotice, TerminalSessionState } from "./terminalAtoms";
@@ -52,7 +52,7 @@ const sessionStatusClass: Record<TerminalSessionState["status"], string> = {
   connecting: "text-status-blocked",
   attached: "text-status-attached",
   disconnected: "text-status-failed",
-  exited: "text-muted-foreground"
+  exited: "text-muted-foreground",
 };
 
 const vmStateClass: Record<ThreadVmModel["state"], string> = {
@@ -65,13 +65,13 @@ const vmStateClass: Record<ThreadVmModel["state"], string> = {
   stopped: "text-muted-foreground",
   failed: "text-status-failed",
   destroying: "text-status-failed",
-  unknown: "text-muted-foreground"
+  unknown: "text-muted-foreground",
 };
 
 const BreadcrumbItem = ({
   icon: Icon,
   children,
-  value
+  value,
 }: {
   readonly icon?: typeof GitBranchIcon;
   readonly children?: ReactNode;
@@ -95,7 +95,7 @@ const WorkbenchButton = ({
     size="sm"
     className={cn(
       "h-7 rounded-none px-2 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground",
-      className
+      className,
     )}
     {...props}
   >
@@ -108,7 +108,7 @@ export function TerminalToolbar({
   session,
   clipboardNotice,
   onAttach,
-  onCopyPendingClipboard
+  onCopyPendingClipboard,
 }: TerminalToolbarProps) {
   const [now, setNow] = useState(() => Date.now());
   const primaryLabel =
@@ -122,7 +122,7 @@ export function TerminalToolbar({
       session.connection
         ? formatSessionAge(session.connection.createdAt, now)
         : undefined,
-    [now, session.connection]
+    [now, session.connection],
   );
 
   useEffect(() => {
@@ -145,7 +145,7 @@ export function TerminalToolbar({
           <CircleIcon
             className={cn(
               "size-2 shrink-0 fill-current",
-              sessionStatusClass[session.status]
+              sessionStatusClass[session.status],
             )}
             aria-hidden="true"
           />
@@ -180,7 +180,11 @@ export function TerminalToolbar({
                 variant="ghost"
                 size="icon-sm"
                 className="h-7 rounded-none text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
-                disabled={!selected || selected.id.startsWith("run-") || session.status === "connecting"}
+                disabled={
+                  !selected ||
+                  selected.id.startsWith("run-") ||
+                  session.status === "connecting"
+                }
                 onClick={() => onAttach(true)}
                 aria-label="Restart terminal session"
               >
@@ -196,7 +200,7 @@ export function TerminalToolbar({
         <div className="flex min-w-0 items-center gap-1.5">
           <BreadcrumbItem value="ThreadVM">ThreadVM</BreadcrumbItem>
           <ChevronRightIcon className="size-3 shrink-0 text-muted-foreground" />
-          <BreadcrumbItem value={selected?.project}> 
+          <BreadcrumbItem value={selected?.project}>
             {selected?.project}
           </BreadcrumbItem>
           {selected?.project ? (
@@ -222,7 +226,9 @@ export function TerminalToolbar({
             />
             {selected?.state ?? "unknown"}
           </span>
-          <span className={cn("capitalize", sessionStatusClass[session.status])}>
+          <span
+            className={cn("capitalize", sessionStatusClass[session.status])}
+          >
             {session.status}
           </span>
           {sessionAge ? (
@@ -239,7 +245,8 @@ export function TerminalToolbar({
           ) : null}
           {selected?.ports.length ? (
             <span>
-              {selected.ports.length} port{selected.ports.length === 1 ? "" : "s"}
+              {selected.ports.length} port
+              {selected.ports.length === 1 ? "" : "s"}
             </span>
           ) : null}
         </div>

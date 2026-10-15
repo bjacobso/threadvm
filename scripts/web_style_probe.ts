@@ -25,7 +25,7 @@ const sourceFiles = async (dir: string): Promise<Array<string>> => {
       return fullPath.endsWith(".ts") || fullPath.endsWith(".tsx")
         ? [[fullPath]]
         : [];
-    })
+    }),
   );
   return files.flat();
 };
@@ -42,18 +42,18 @@ const checkFile = async (file: string): Promise<Array<Violation>> => {
             file,
             line: index + 1,
             text: text.trim(),
-            reason: "use semantic shadcn/Tailwind tokens instead of raw colors"
-          }
+            reason: "use semantic shadcn/Tailwind tokens instead of raw colors",
+          },
         ]
-      : []
+      : [],
   );
 };
 
 const files = (
   await Promise.all(
     [webSourceRoot, path.join(repoRoot, "apps/outline/src/client")].map(
-      sourceFiles
-    )
+      sourceFiles,
+    ),
   )
 ).flat();
 const violations = (await Promise.all(files.map(checkFile))).flat();
@@ -62,7 +62,7 @@ if (violations.length > 0) {
   console.error("web style probe failed");
   for (const violation of violations) {
     console.error(
-      `- ${path.relative(repoRoot, violation.file)}:${violation.line}: ${violation.reason}`
+      `- ${path.relative(repoRoot, violation.file)}:${violation.line}: ${violation.reason}`,
     );
     console.error(`  ${violation.text}`);
   }

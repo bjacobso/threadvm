@@ -7,13 +7,13 @@ import {
   activeTerminalVmKey,
   clipboardNoticeAtom,
   terminalSessionAtomFamily,
-  useAtomRef
+  useAtomRef,
 } from "./terminalAtoms";
 import { terminalShortcutAction } from "./keyboardShortcuts";
 import { parseOsc52 } from "./osc52";
 import {
   focusTerminalPane,
-  forwardSurfaceMouseEventToTerminal
+  forwardSurfaceMouseEventToTerminal,
 } from "./terminalFocus";
 import { TerminalToolbar } from "./TerminalToolbar";
 import { terminalSessionActionAtom } from "./terminalSessionActions";
@@ -37,7 +37,7 @@ const isEditableTarget = (target: EventTarget | null) => {
 
 export function TerminalPane({
   selected,
-  autoAttach = false
+  autoAttach = false,
 }: TerminalPaneProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -53,7 +53,7 @@ export function TerminalPane({
   const selectedIdRef = useRef<string | undefined>(selected?.id);
   const sessionAtom = useMemo(
     () => terminalSessionAtomFamily(selected?.id),
-    [selected?.id]
+    [selected?.id],
   );
   const session = useAtomRef(sessionAtom);
   const clipboardNotice = useAtomRef(clipboardNoticeAtom);
@@ -66,14 +66,14 @@ export function TerminalPane({
       await navigator.clipboard.writeText(text);
       clipboardNoticeAtom.set({
         status: "copied",
-        message: `Copied ${text.length.toLocaleString()} chars`
+        message: `Copied ${text.length.toLocaleString()} chars`,
       });
       toast.success("Copied terminal selection to clipboard");
     } catch {
       clipboardNoticeAtom.set({
         status: "pending",
         message: "Browser blocked terminal clipboard copy",
-        text
+        text,
       });
       toast.warning("Terminal requested clipboard access");
     }
@@ -90,13 +90,13 @@ export function TerminalPane({
       } catch {
         clipboardNoticeAtom.set({
           status: "failed",
-          message: "Terminal clipboard payload could not be decoded"
+          message: "Terminal clipboard payload could not be decoded",
         });
         toast.error("Terminal clipboard payload could not be decoded");
       }
       return true;
     },
-    [copyToClipboard]
+    [copyToClipboard],
   );
 
   const getTerminalSize = useCallback(() => {
@@ -107,7 +107,7 @@ export function TerminalPane({
 
     return {
       cols: terminal.cols,
-      rows: terminal.rows
+      rows: terminal.rows,
     };
   }, []);
 
@@ -133,7 +133,7 @@ export function TerminalPane({
         cursorBlink: true,
         fontFamily: terminalFontStack,
         fontSize: 13,
-        theme: xtermTheme
+        theme: xtermTheme,
       });
       const fit = new FitAddon();
       terminal.loadAddon(fit);
@@ -149,7 +149,7 @@ export function TerminalPane({
       terminalDisposablesRef.current = { data, osc52 };
       terminal.writeln(message);
     },
-    [disposeTerminal, handleOsc52]
+    [disposeTerminal, handleOsc52],
   );
 
   const fitAndSync = useCallback(() => {
@@ -173,7 +173,7 @@ export function TerminalPane({
       resizeTimerRef.current = undefined;
       void terminalSessionActionAtom.resize(
         selectedIdRef.current,
-        getTerminalSize()
+        getTerminalSize(),
       );
     }, 80);
   }, [getTerminalSize, sessionAtom]);
@@ -232,11 +232,11 @@ export function TerminalPane({
           replace: replaceTerminal,
           write: (data) => terminalRef.current?.write(data),
           writeln: (data) => terminalRef.current?.writeln(data),
-          getSize: getTerminalSize
-        }
+          getSize: getTerminalSize,
+        },
       });
     },
-    [fitAndSync, getTerminalSize, replaceTerminal, selected]
+    [fitAndSync, getTerminalSize, replaceTerminal, selected],
   );
 
   useEffect(() => {
@@ -297,14 +297,14 @@ export function TerminalPane({
           forwardSurfaceMouseEventToTerminal(
             event.nativeEvent,
             terminalRef.current,
-            elementRef.current
+            elementRef.current,
           )
         }
         onMouseUp={(event) =>
           forwardSurfaceMouseEventToTerminal(
             event.nativeEvent,
             terminalRef.current,
-            elementRef.current
+            elementRef.current,
           )
         }
         onPointerDownCapture={() => focusTerminalPane(terminalRef.current)}

@@ -32,14 +32,26 @@ const outline: Items = [
       ),
     ]),
     item("questions", "Open questions", [
-      item("q-auth", "How do agents authenticate against private repos? #decision"),
+      item(
+        "q-auth",
+        "How do agents authenticate against private repos? #decision",
+      ),
       item("q-pricing", "Do agent minutes count against the team plan?"),
     ]),
   ]),
   item("scratch", "Scratchpad", [
-    item("try-1", "Write a task, mention @claude, @cursor, @codex, or @conductor, then press Return"),
-    item("try-2", "Agents never edit the outline directly. Their changes arrive as suggestions"),
-    item("try-3", "Questions from agents stack up on every folded branch above them"),
+    item(
+      "try-1",
+      "Write a task, mention @claude, @cursor, @codex, or @conductor, then press Return",
+    ),
+    item(
+      "try-2",
+      "Agents never edit the outline directly. Their changes arrive as suggestions",
+    ),
+    item(
+      "try-3",
+      "Questions from agents stack up on every folded branch above them",
+    ),
   ]),
 ];
 
@@ -62,17 +74,23 @@ const dispatch = (
   });
 };
 
-export const seed = (now: number): Readonly<{ items: Items; threads: ReadonlyArray<Thread> }> => {
+export const seed = (
+  now: number,
+): Readonly<{ items: Items; threads: ReadonlyArray<Thread> }> => {
   let items = outline;
   const threads: Thread[] = [];
 
   // A finished thread whose suggestions were accepted earlier today.
-  const invite = fastForward(dispatch(items, "invite-mail", "t-invite", null, now - 95 * MINUTE), items, {
-    depth: 0,
-    answer: "After 7 days",
-    accept: true,
-    now: now - 95 * MINUTE,
-  });
+  const invite = fastForward(
+    dispatch(items, "invite-mail", "t-invite", null, now - 95 * MINUTE),
+    items,
+    {
+      depth: 0,
+      answer: "After 7 days",
+      accept: true,
+      now: now - 95 * MINUTE,
+    },
+  );
   items = invite.items;
   threads.push(invite.thread);
   // Its accepted follow-up asked Codex for a review; keep the bullet, skip the run.
@@ -82,34 +100,50 @@ export const seed = (now: number): Readonly<{ items: Items; threads: ReadonlyArr
   }));
 
   // Conductor planned the backend; the plan was accepted and fanned out.
-  const plan = fastForward(dispatch(items, "plan", "t-plan", null, now - 40 * MINUTE), items, {
-    depth: 0,
-    accept: true,
-    now: now - 40 * MINUTE,
-  });
+  const plan = fastForward(
+    dispatch(items, "plan", "t-plan", null, now - 40 * MINUTE),
+    items,
+    {
+      depth: 0,
+      accept: true,
+      now: now - 40 * MINUTE,
+    },
+  );
   items = plan.items;
   threads.push(plan.thread);
   const [api, ui, tests] = find(items, "plan")!.children;
 
   // Deep in the folded backend, two agents are waiting on a person.
   threads.push(
-    fastForward(dispatch(items, api!.id, "t-api", "t-plan", now - 38 * MINUTE), items, {
-      depth: 1,
-      now: now - 38 * MINUTE,
-    }).thread,
+    fastForward(
+      dispatch(items, api!.id, "t-api", "t-plan", now - 38 * MINUTE),
+      items,
+      {
+        depth: 1,
+        now: now - 38 * MINUTE,
+      },
+    ).thread,
   );
   threads.push(
-    fastForward(dispatch(items, ui!.id, "t-ui", "t-plan", now - 38 * MINUTE), items, {
-      depth: 1,
-      now: now - 37 * MINUTE,
-    }).thread,
+    fastForward(
+      dispatch(items, ui!.id, "t-ui", "t-plan", now - 38 * MINUTE),
+      items,
+      {
+        depth: 1,
+        now: now - 37 * MINUTE,
+      },
+    ).thread,
   );
   // And one has suggestions ready for review.
   threads.push(
-    fastForward(dispatch(items, tests!.id, "t-tests", "t-plan", now - 38 * MINUTE), items, {
-      depth: 1,
-      now: now - 36 * MINUTE,
-    }).thread,
+    fastForward(
+      dispatch(items, tests!.id, "t-tests", "t-plan", now - 38 * MINUTE),
+      items,
+      {
+        depth: 1,
+        now: now - 36 * MINUTE,
+      },
+    ).thread,
   );
 
   // The share dialog starts fresh, so the room has live work when it opens.

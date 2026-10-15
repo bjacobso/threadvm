@@ -11,14 +11,14 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
-  AlertDialogTrigger
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   threadVmLifecycleActionAtom,
   threadVmLifecycleAtom,
-  useAtomRef
+  useAtomRef,
 } from "@/state/atoms";
 
 interface LifecycleActionsProps {
@@ -42,7 +42,7 @@ export function LifecycleActions({ threadVm }: LifecycleActionsProps) {
       toast.success(response.message);
     } catch (cause) {
       toast.error("Stop failed", {
-        description: cause instanceof Error ? cause.message : String(cause)
+        description: cause instanceof Error ? cause.message : String(cause),
       });
     }
   };
@@ -53,7 +53,7 @@ export function LifecycleActions({ threadVm }: LifecycleActionsProps) {
       toast.success(response.message);
     } catch (cause) {
       toast.error("Remove failed", {
-        description: cause instanceof Error ? cause.message : String(cause)
+        description: cause instanceof Error ? cause.message : String(cause),
       });
     }
   };

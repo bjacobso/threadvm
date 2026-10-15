@@ -14,12 +14,15 @@ export const callRpc = <A>(
 ): Effect.Effect<A, AcpError.AcpError> =>
   effect.pipe(
     Effect.catchIf(isError, (error) =>
-      Effect.fail(AcpError.AcpRequestError.fromProtocolError(error, { method })),
+      Effect.fail(
+        AcpError.AcpRequestError.fromProtocolError(error, { method }),
+      ),
     ),
     Effect.catchTags({
       RpcClientError: (cause) =>
         Effect.fail(
-          cause.reason._tag === "RpcClientDefect" && isAcpError(cause.reason.cause)
+          cause.reason._tag === "RpcClientDefect" &&
+            isAcpError(cause.reason.cause)
             ? cause.reason.cause
             : new AcpError.AcpTransportError({
                 operation: "call-rpc",
@@ -34,7 +37,9 @@ export const callRpc = <A>(
  * Runs a notification handler so it cannot stop the caller: a typed failure is
  * dropped, as notifications have no reply, and a defect is logged.
  */
-export const isolateNotificationHandler = <E, R>(effect: Effect.Effect<void, E, R>) =>
+export const isolateNotificationHandler = <E, R>(
+  effect: Effect.Effect<void, E, R>,
+) =>
   effect.pipe(
     Effect.catchCause((cause) =>
       Cause.hasDies(cause)
@@ -43,21 +48,32 @@ export const isolateNotificationHandler = <E, R>(effect: Effect.Effect<void, E, 
     ),
   );
 
-export const runHandler = Effect.fnUntraced(function* <A, B, Args extends ReadonlyArray<unknown>>(
-  handler: ((payload: A, ...args: Args) => Effect.Effect<B, AcpError.AcpError>) | undefined,
+export const runHandler = Effect.fnUntraced(function* <
+  A,
+  B,
+  Args extends ReadonlyArray<unknown>,
+>(
+  handler:
+    | ((payload: A, ...args: Args) => Effect.Effect<B, AcpError.AcpError>)
+    | undefined,
   payload: A,
   method: string,
   ...args: Args
 ) {
   if (!handler) {
-    return yield* Effect.fail(AcpError.AcpRequestError.methodNotFound(method).toProtocolError());
+    return yield* Effect.fail(
+      AcpError.AcpRequestError.methodNotFound(method).toProtocolError(),
+    );
   }
   return yield* handler(payload, ...args).pipe(
     Effect.tapDefect((defect) =>
       Effect.logError(`ACP request handler failed for '${method}'`, defect),
     ),
     Effect.mapError((error) =>
-      AcpError.AcpRequestError.fromCoreHandlerError(error, method).toProtocolError(),
+      AcpError.AcpRequestError.fromCoreHandlerError(
+        error,
+        method,
+      ).toProtocolError(),
     ),
   );
 });
@@ -75,7 +91,9 @@ export function decodeExtRequestRegistration<A, I>(
     context: { readonly requestId: string; readonly method: string },
   ): Effect.Effect<unknown, AcpError.AcpError> =>
     Schema.decodeUnknownEffect(payload)(params).pipe(
-      Effect.mapError((error) => AcpError.AcpRequestError.invalidExtensionPayload(method, error)),
+      Effect.mapError((error) =>
+        AcpError.AcpRequestError.invalidExtensionPayload(method, error),
+      ),
       Effect.flatMap((decoded) => handler(decoded, context)),
     );
 }
@@ -103,16 +121,24 @@ const encoder = new TextEncoder();
 const JsonRpcId = Schema.Union([Schema.Number, Schema.String]);
 const JsonRpcHeaders = Schema.Array(Schema.Unknown);
 
-export const jsonRpcRequest = <A, I>(method: string, params: Schema.Codec<A, I>) =>
+export const jsonRpcRequest = <A, I>(
+  method: string,
+  params: Schema.Codec<A, I>,
+) =>
   Schema.Struct({
     jsonrpc: Schema.Literal("2.0"),
     id: JsonRpcId,
     method: Schema.Literal(method),
     params,
-    headers: JsonRpcHeaders.pipe(Schema.withDecodingDefaultKey(Effect.succeed([]))),
+    headers: JsonRpcHeaders.pipe(
+      Schema.withDecodingDefaultKey(Effect.succeed([])),
+    ),
   });
 
-export const jsonRpcNotification = <A, I>(method: string, params: Schema.Codec<A, I>) =>
+export const jsonRpcNotification = <A, I>(
+  method: string,
+  params: Schema.Codec<A, I>,
+) =>
   Schema.Struct({
     jsonrpc: Schema.Literal("2.0"),
     method: Schema.Literal(method),
@@ -127,6 +153,7 @@ export const jsonRpcResponse = <A, I>(result: Schema.Codec<A, I>) =>
   });
 
 export const encodeJsonl = <A, I>(schema: Schema.Codec<A, I>, value: A) =>
-  Effect.map(Schema.encodeEffect(Schema.fromJsonString(schema))(value), (encoded) =>
-    encoder.encode(`${encoded}\n`),
+  Effect.map(
+    Schema.encodeEffect(Schema.fromJsonString(schema))(value),
+    (encoded) => encoder.encode(`${encoded}\n`),
   );

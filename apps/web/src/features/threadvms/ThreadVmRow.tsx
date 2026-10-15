@@ -5,7 +5,7 @@ import {
   MoreVerticalIcon,
   PinIcon,
   RadarIcon,
-  ServerIcon
+  ServerIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,7 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { ThreadVmStateDot } from "./ThreadVmStateBadge";
@@ -34,7 +34,7 @@ export function ThreadVmRow({
   onSelect,
   onCheckPorts,
   onCopyHost,
-  onOpenPreview
+  onOpenPreview,
 }: ThreadVmRowProps) {
   const previewUrl = firstPreviewUrl(threadVm);
   const description = threadVm.branch ?? threadVm.project ?? threadVm.host;
@@ -44,7 +44,7 @@ export function ThreadVmRow({
       className={cn(
         "group grid h-5 w-full grid-cols-[minmax(0,1fr)_auto] border-l-2 border-transparent",
         "text-workbench-foreground hover:bg-workbench-hover",
-        selected && "border-l-workbench-accent bg-workbench-hover"
+        selected && "border-l-workbench-accent bg-workbench-hover",
       )}
     >
       <Button
@@ -55,7 +55,7 @@ export function ThreadVmRow({
         title={`${threadVm.name} - ${description}`}
         className={cn(
           "h-5 min-w-0 justify-start rounded-none border-0 py-0 pr-2 pl-3 text-left text-[11px] font-normal",
-          "hover:bg-transparent hover:text-workbench-foreground"
+          "hover:bg-transparent hover:text-workbench-foreground",
         )}
       >
         <span className="flex min-w-0 flex-1 items-center gap-1.5">

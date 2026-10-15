@@ -26,16 +26,22 @@ export default class Api extends Cloudflare.Worker<Api>()(
       fetch: Effect.gen(function* () {
         const request = yield* HttpServerRequest;
         const pathname = new URL(request.url, "http://outline").pathname;
-        if (pathname === "/api/health") return yield* HttpServerResponse.json({ ok: true });
+        if (pathname === "/api/health")
+          return yield* HttpServerResponse.json({ ok: true });
         const outlineId = SOCKET_PATH.exec(pathname)?.[1];
-        if (outlineId === undefined) return HttpServerResponse.text("Not found", { status: 404 });
+        if (outlineId === undefined)
+          return HttpServerResponse.text("Not found", { status: 404 });
         if (request.headers.upgrade !== "websocket")
-          return HttpServerResponse.text("Expected a WebSocket upgrade", { status: 426 });
+          return HttpServerResponse.text("Expected a WebSocket upgrade", {
+            status: 426,
+          });
         return yield* rooms.getByName(outlineId).fetch(request);
       }).pipe(
         Effect.tapCause((cause) => Effect.logError("Request failed", cause)),
         Effect.catch(() =>
-          Effect.succeed(HttpServerResponse.text("Internal error", { status: 500 })),
+          Effect.succeed(
+            HttpServerResponse.text("Internal error", { status: 500 }),
+          ),
         ),
       ),
     };

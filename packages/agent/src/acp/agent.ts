@@ -26,10 +26,13 @@ import {
 export interface AcpAgentOptions {
   readonly logIncoming?: boolean;
   readonly logOutgoing?: boolean;
-  readonly logger?: (event: AcpProtocol.AcpProtocolLogEvent) => Effect.Effect<void, never>;
+  readonly logger?: (
+    event: AcpProtocol.AcpProtocolLogEvent,
+  ) => Effect.Effect<void, never>;
 }
 
-export type AcpRequestHandler<Request, Response> = AcpProtocol.AcpRequestHandler<Request, Response>;
+export type AcpRequestHandler<Request, Response> =
+  AcpProtocol.AcpRequestHandler<Request, Response>;
 
 export class AcpAgent extends Context.Service<
   AcpAgent,
@@ -51,7 +54,10 @@ export class AcpAgent extends Context.Service<
        * Sends a generic ACP extension notification.
        * @see https://agentclientprotocol.com/protocol/extensibility
        */
-      readonly notify: (method: string, payload: unknown) => Effect.Effect<void, AcpError.AcpError>;
+      readonly notify: (
+        method: string,
+        payload: unknown,
+      ) => Effect.Effect<void, AcpError.AcpError>;
     };
     readonly client: {
       /**
@@ -60,14 +66,20 @@ export class AcpAgent extends Context.Service<
        */
       readonly requestPermission: (
         payload: AcpSchema.RequestPermissionRequest,
-      ) => Effect.Effect<AcpSchema.RequestPermissionResponse, AcpError.AcpError>;
+      ) => Effect.Effect<
+        AcpSchema.RequestPermissionResponse,
+        AcpError.AcpError
+      >;
       /**
        * Requests structured user input from the client.
        * @see https://agentclientprotocol.com/protocol/schema#elicitation/create
        */
       readonly elicit: (
         payload: AcpSchema.CreateElicitationRequest,
-      ) => Effect.Effect<AcpSchema.CreateElicitationResponse, AcpError.AcpError>;
+      ) => Effect.Effect<
+        AcpSchema.CreateElicitationResponse,
+        AcpError.AcpError
+      >;
       /**
        * Sends a `session/update` notification to the client.
        * @see https://agentclientprotocol.com/protocol/schema#session/update
@@ -116,44 +128,80 @@ export class AcpAgent extends Context.Service<
      * @see https://agentclientprotocol.com/protocol/schema#initialize
      */
     readonly handleInitialize: (
-      handler: AcpRequestHandler<AcpSchema.InitializeRequest, AcpSchema.InitializeResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.InitializeRequest,
+        AcpSchema.InitializeResponse
+      >,
     ) => Effect.Effect<void>;
     /**
      * Registers a handler for `authenticate`.
      * @see https://agentclientprotocol.com/protocol/schema#authenticate
      */
     readonly handleAuthenticate: (
-      handler: AcpRequestHandler<AcpSchema.AuthenticateRequest, AcpSchema.AuthenticateResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.AuthenticateRequest,
+        AcpSchema.AuthenticateResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleLogout: (
-      handler: AcpRequestHandler<AcpSchema.LogoutRequest, AcpSchema.LogoutResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.LogoutRequest,
+        AcpSchema.LogoutResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleCreateSession: (
-      handler: AcpRequestHandler<AcpSchema.NewSessionRequest, AcpSchema.NewSessionResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.NewSessionRequest,
+        AcpSchema.NewSessionResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleLoadSession: (
-      handler: AcpRequestHandler<AcpSchema.LoadSessionRequest, AcpSchema.LoadSessionResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.LoadSessionRequest,
+        AcpSchema.LoadSessionResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleListSessions: (
-      handler: AcpRequestHandler<AcpSchema.ListSessionsRequest, AcpSchema.ListSessionsResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.ListSessionsRequest,
+        AcpSchema.ListSessionsResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleForkSession: (
-      handler: AcpRequestHandler<AcpSchema.ForkSessionRequest, AcpSchema.ForkSessionResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.ForkSessionRequest,
+        AcpSchema.ForkSessionResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleResumeSession: (
-      handler: AcpRequestHandler<AcpSchema.ResumeSessionRequest, AcpSchema.ResumeSessionResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.ResumeSessionRequest,
+        AcpSchema.ResumeSessionResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleCloseSession: (
-      handler: AcpRequestHandler<AcpSchema.CloseSessionRequest, AcpSchema.CloseSessionResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.CloseSessionRequest,
+        AcpSchema.CloseSessionResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleDeleteSession: (
-      handler: AcpRequestHandler<AcpSchema.DeleteSessionRequest, AcpSchema.DeleteSessionResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.DeleteSessionRequest,
+        AcpSchema.DeleteSessionResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleListProviders: (
-      handler: AcpRequestHandler<AcpSchema.ListProvidersRequest, AcpSchema.ListProvidersResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.ListProvidersRequest,
+        AcpSchema.ListProvidersResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleSetProvider: (
-      handler: AcpRequestHandler<AcpSchema.SetProviderRequest, AcpSchema.SetProviderResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.SetProviderRequest,
+        AcpSchema.SetProviderResponse
+      >,
     ) => Effect.Effect<void>;
     readonly handleDisableProvider: (
       handler: AcpRequestHandler<
@@ -168,7 +216,10 @@ export class AcpAgent extends Context.Service<
       >,
     ) => Effect.Effect<void>;
     readonly handlePrompt: (
-      handler: AcpRequestHandler<AcpSchema.PromptRequest, AcpSchema.PromptResponse>,
+      handler: AcpRequestHandler<
+        AcpSchema.PromptRequest,
+        AcpSchema.PromptResponse
+      >,
     ) => Effect.Effect<void>;
     /**
      * Registers a handler for `session/cancel`.
@@ -187,7 +238,10 @@ export class AcpAgent extends Context.Service<
       ) => Effect.Effect<unknown, AcpError.AcpError>,
     ) => Effect.Effect<void>;
     readonly handleUnknownExtNotification: (
-      handler: (method: string, params: unknown) => Effect.Effect<void, AcpError.AcpError>,
+      handler: (
+        method: string,
+        params: unknown,
+      ) => Effect.Effect<void, AcpError.AcpError>,
     ) => Effect.Effect<void>;
     readonly handleExtRequest: <A, I>(
       method: string,
@@ -203,18 +257,39 @@ export class AcpAgent extends Context.Service<
 >()("effect-acp/agent/AcpAgent") {}
 
 interface AcpCoreAgentRequestHandlers {
-  initialize?: AcpRequestHandler<AcpSchema.InitializeRequest, AcpSchema.InitializeResponse>;
-  authenticate?: AcpRequestHandler<AcpSchema.AuthenticateRequest, AcpSchema.AuthenticateResponse>;
+  initialize?: AcpRequestHandler<
+    AcpSchema.InitializeRequest,
+    AcpSchema.InitializeResponse
+  >;
+  authenticate?: AcpRequestHandler<
+    AcpSchema.AuthenticateRequest,
+    AcpSchema.AuthenticateResponse
+  >;
   logout?: AcpRequestHandler<AcpSchema.LogoutRequest, AcpSchema.LogoutResponse>;
-  createSession?: AcpRequestHandler<AcpSchema.NewSessionRequest, AcpSchema.NewSessionResponse>;
-  loadSession?: AcpRequestHandler<AcpSchema.LoadSessionRequest, AcpSchema.LoadSessionResponse>;
-  listSessions?: AcpRequestHandler<AcpSchema.ListSessionsRequest, AcpSchema.ListSessionsResponse>;
-  forkSession?: AcpRequestHandler<AcpSchema.ForkSessionRequest, AcpSchema.ForkSessionResponse>;
+  createSession?: AcpRequestHandler<
+    AcpSchema.NewSessionRequest,
+    AcpSchema.NewSessionResponse
+  >;
+  loadSession?: AcpRequestHandler<
+    AcpSchema.LoadSessionRequest,
+    AcpSchema.LoadSessionResponse
+  >;
+  listSessions?: AcpRequestHandler<
+    AcpSchema.ListSessionsRequest,
+    AcpSchema.ListSessionsResponse
+  >;
+  forkSession?: AcpRequestHandler<
+    AcpSchema.ForkSessionRequest,
+    AcpSchema.ForkSessionResponse
+  >;
   resumeSession?: AcpRequestHandler<
     AcpSchema.ResumeSessionRequest,
     AcpSchema.ResumeSessionResponse
   >;
-  closeSession?: AcpRequestHandler<AcpSchema.CloseSessionRequest, AcpSchema.CloseSessionResponse>;
+  closeSession?: AcpRequestHandler<
+    AcpSchema.CloseSessionRequest,
+    AcpSchema.CloseSessionResponse
+  >;
   deleteSession?: AcpRequestHandler<
     AcpSchema.DeleteSessionRequest,
     AcpSchema.DeleteSessionResponse
@@ -223,7 +298,10 @@ interface AcpCoreAgentRequestHandlers {
     AcpSchema.ListProvidersRequest,
     AcpSchema.ListProvidersResponse
   >;
-  setProvider?: AcpRequestHandler<AcpSchema.SetProviderRequest, AcpSchema.SetProviderResponse>;
+  setProvider?: AcpRequestHandler<
+    AcpSchema.SetProviderRequest,
+    AcpSchema.SetProviderResponse
+  >;
   disableProvider?: AcpRequestHandler<
     AcpSchema.DisableProviderRequest,
     AcpSchema.DisableProviderResponse
@@ -235,7 +313,9 @@ interface AcpCoreAgentRequestHandlers {
   prompt?: AcpRequestHandler<AcpSchema.PromptRequest, AcpSchema.PromptResponse>;
 }
 
-const decodeCancelNotification = Schema.decodeUnknownEffect(AcpSchema.CancelNotification);
+const decodeCancelNotification = Schema.decodeUnknownEffect(
+  AcpSchema.CancelNotification,
+);
 
 /** @public Service construction is part of the canonical Effect module API. */
 export const make = Effect.fn("effect-acp/AcpAgent.make")(function* (
@@ -244,9 +324,14 @@ export const make = Effect.fn("effect-acp/AcpAgent.make")(function* (
 ): Effect.fn.Return<AcpAgent["Service"], never, Scope.Scope> {
   const coreHandlers: AcpCoreAgentRequestHandlers = {};
   const cancelHandlers: Array<
-    (notification: AcpSchema.CancelNotification) => Effect.Effect<void, AcpError.AcpError>
+    (
+      notification: AcpSchema.CancelNotification,
+    ) => Effect.Effect<void, AcpError.AcpError>
   > = [];
-  const extRequestHandlers = new Map<string, AcpRequestHandler<unknown, unknown>>();
+  const extRequestHandlers = new Map<
+    string,
+    AcpRequestHandler<unknown, unknown>
+  >();
   const extNotificationHandlers = new Map<
     string,
     (params: unknown) => Effect.Effect<void, AcpError.AcpError>
@@ -259,14 +344,21 @@ export const make = Effect.fn("effect-acp/AcpAgent.make")(function* (
       ) => Effect.Effect<unknown, AcpError.AcpError>)
     | undefined;
   let unknownExtNotificationHandler:
-    | ((method: string, params: unknown) => Effect.Effect<void, AcpError.AcpError>)
+    | ((
+        method: string,
+        params: unknown,
+      ) => Effect.Effect<void, AcpError.AcpError>)
     | undefined;
 
   const transport = yield* AcpProtocol.makeAcpPatchedProtocol({
     stdio,
     serverRequestMethods: new Set(AcpRpcs.AgentRpcs.requests.keys()),
-    ...(options.logIncoming !== undefined ? { logIncoming: options.logIncoming } : {}),
-    ...(options.logOutgoing !== undefined ? { logOutgoing: options.logOutgoing } : {}),
+    ...(options.logIncoming !== undefined
+      ? { logIncoming: options.logIncoming }
+      : {}),
+    ...(options.logOutgoing !== undefined
+      ? { logOutgoing: options.logOutgoing }
+      : {}),
     ...(options.logger ? { logger: options.logger } : {}),
     onNotification: (notification) => {
       if (
@@ -300,7 +392,10 @@ export const make = Effect.fn("effect-acp/AcpAgent.make")(function* (
         return handler(notification.params);
       }
       return unknownExtNotificationHandler
-        ? unknownExtNotificationHandler(notification.method, notification.params)
+        ? unknownExtNotificationHandler(
+            notification.method,
+            notification.params,
+          )
         : Effect.void;
     },
     onExtRequest: (method, params, context) => {
@@ -454,17 +549,31 @@ export const make = Effect.fn("effect-acp/AcpAgent.make")(function* (
           rpc[CLIENT_METHODS.session_request_permission](payload),
         ),
       elicit: (payload) =>
-        callRpc(CLIENT_METHODS.elicitation_create, rpc[CLIENT_METHODS.elicitation_create](payload)),
-      sessionUpdate: (payload) => transport.notify(CLIENT_METHODS.session_update, payload),
+        callRpc(
+          CLIENT_METHODS.elicitation_create,
+          rpc[CLIENT_METHODS.elicitation_create](payload),
+        ),
+      sessionUpdate: (payload) =>
+        transport.notify(CLIENT_METHODS.session_update, payload),
       elicitationComplete: (payload) =>
         transport.notify(CLIENT_METHODS.elicitation_complete, payload),
       connectMcp: (payload) =>
-        callRpc(CLIENT_METHODS.mcp_connect, rpc[CLIENT_METHODS.mcp_connect](payload)),
+        callRpc(
+          CLIENT_METHODS.mcp_connect,
+          rpc[CLIENT_METHODS.mcp_connect](payload),
+        ),
       messageMcp: (payload) =>
-        callRpc(CLIENT_METHODS.mcp_message, rpc[CLIENT_METHODS.mcp_message](payload)),
+        callRpc(
+          CLIENT_METHODS.mcp_message,
+          rpc[CLIENT_METHODS.mcp_message](payload),
+        ),
       disconnectMcp: (payload) =>
-        callRpc(CLIENT_METHODS.mcp_disconnect, rpc[CLIENT_METHODS.mcp_disconnect](payload)),
-      notifyMcp: (payload) => transport.notify(CLIENT_METHODS.mcp_message, payload),
+        callRpc(
+          CLIENT_METHODS.mcp_disconnect,
+          rpc[CLIENT_METHODS.mcp_disconnect](payload),
+        ),
+      notifyMcp: (payload) =>
+        transport.notify(CLIENT_METHODS.mcp_message, payload),
       extRequest: transport.request,
       extNotification: transport.notify,
     },
@@ -560,7 +669,10 @@ export const make = Effect.fn("effect-acp/AcpAgent.make")(function* (
       }),
     handleExtRequest: (method, payload, handler) =>
       Effect.suspend(() => {
-        extRequestHandlers.set(method, decodeExtRequestRegistration(method, payload, handler));
+        extRequestHandlers.set(
+          method,
+          decodeExtRequestRegistration(method, payload, handler),
+        );
         return Effect.void;
       }),
     handleExtNotification: (method, payload, handler) =>
@@ -574,13 +686,17 @@ export const make = Effect.fn("effect-acp/AcpAgent.make")(function* (
   });
 });
 
-export const layer = (stdio: Stdio.Stdio, options: AcpAgentOptions = {}): Layer.Layer<AcpAgent> =>
-  Layer.effect(AcpAgent, make(stdio, options));
+export const layer = (
+  stdio: Stdio.Stdio,
+  options: AcpAgentOptions = {},
+): Layer.Layer<AcpAgent> => Layer.effect(AcpAgent, make(stdio, options));
 
 export const layerStdio = (
   options: AcpAgentOptions = {},
 ): Layer.Layer<AcpAgent, never, Stdio.Stdio> =>
   Layer.effect(
     AcpAgent,
-    Effect.flatMap(Effect.service(Stdio.Stdio), (stdio) => make(stdio, options)),
+    Effect.flatMap(Effect.service(Stdio.Stdio), (stdio) =>
+      make(stdio, options),
+    ),
   );

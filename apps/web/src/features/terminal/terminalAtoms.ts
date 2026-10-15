@@ -5,12 +5,12 @@ export {
   terminalSessionAtomFamily,
   terminalStatusAtomFamily,
   terminalUiAtom,
-  useAtomRef
+  useAtomRef,
 } from "@/state/atoms";
 
 export type {
   ClipboardNotice,
   TerminalSessionState,
   TerminalStatus,
-  TerminalUiState
+  TerminalUiState,
 } from "@/state/atoms";

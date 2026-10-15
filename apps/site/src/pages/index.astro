@@ -68,15 +68,23 @@ const idea: ReadonlyArray<Row> = [
     <span class="status-pill" data-status="needs">
       <i aria-hidden="true"></i> An open exploration in agentic software
     </span>
-    <h1>A place for thoughts.<br />A workspace for agents.</h1>
+    <h1>
+      A place for thoughts.
+      <br />A workspace for agents.
+    </h1>
     <p class="lead">
       What if the outline you think in was also the place where work happens?
       Below is the actual outliner, playing a short story with scripted agents.
       Watch, or click in and take over.
     </p>
     <div class="actions">
-      <a class="button button-primary" href="#demo">Try the outline ↓</a>
-      <a class="button button-ghost" href="https://github.com/bjacobso/threadvm">
+      <a class="button button-primary" href="#demo">
+        Try the outline ↓
+      </a>
+      <a
+        class="button button-ghost"
+        href="https://github.com/bjacobso/threadvm"
+      >
         Read the source ↗
       </a>
     </div>
@@ -125,8 +133,10 @@ const idea: ReadonlyArray<Row> = [
             href="/screenshots/outline.png"
             target="_blank"
             rel="noreferrer"
-            aria-label="Open full-size outline screenshot">↗</a
+            aria-label="Open full-size outline screenshot"
           >
+            ↗
+          </a>
         </div>
         <a href="/screenshots/outline.png" target="_blank" rel="noreferrer">
           <img
@@ -222,26 +232,26 @@ const idea: ReadonlyArray<Row> = [
       </a>
     </div>
     <div class="notes">
-      {
-        notes.map((note) => (
-          <a class="inbox-card" href={`/notes/${note.slug}/`}>
-            <span class="inbox-card__path">
-              Field notes › {note.category.toLowerCase()}
-            </span>
-            <span class="inbox-card__title">{note.title}</span>
-            <span class="inbox-card__detail">{note.description}</span>
-            <span class="inbox-card__foot">
-              <span class="option">Read · {note.readTime} min</span>
-            </span>
-          </a>
-        ))
-      }
+      {notes.map((note) => (
+        <a class="inbox-card" href={`/notes/${note.slug}/`}>
+          <span class="inbox-card__path">
+            Field notes › {note.category.toLowerCase()}
+          </span>
+          <span class="inbox-card__title">{note.title}</span>
+          <span class="inbox-card__detail">{note.description}</span>
+          <span class="inbox-card__foot">
+            <span class="option">Read · {note.readTime} min</span>
+          </span>
+        </a>
+      ))}
     </div>
   </section>
 
   <section class="section">
     <div class="question" role="group" aria-labelledby="closing-question">
-      <span class="question__mark" aria-hidden="true">?</span>
+      <span class="question__mark" aria-hidden="true">
+        ?
+      </span>
       <div>
         <h2 id="closing-question">What should come next?</h2>
         <p>

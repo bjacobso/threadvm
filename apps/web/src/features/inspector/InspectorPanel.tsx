@@ -4,18 +4,13 @@ import {
   FileTextIcon,
   GitBranchIcon,
   RefreshCwIcon,
-  ServerIcon
+  ServerIcon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger
-} from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   devLogActionAtom,
   devLogAtom,
@@ -23,7 +18,7 @@ import {
   portStatusAtom,
   provisioningStreamStateAtom,
   useAtomRef,
-  useSelectedThreadVm
+  useSelectedThreadVm,
 } from "@/state/atoms";
 import { ThreadVmStateBadge } from "../threadvms/ThreadVmStateBadge";
 import { LifecycleActions } from "./LifecycleActions";
@@ -31,18 +26,22 @@ import { MetadataTable } from "./MetadataTable";
 import { PortLinks } from "./PortLinks";
 
 const formatObservedAt = (observedAt: number | undefined) =>
-  observedAt === undefined ? "pending" : new Date(observedAt).toLocaleTimeString();
+  observedAt === undefined
+    ? "pending"
+    : new Date(observedAt).toLocaleTimeString();
 
 const SectionHeader = ({
   title,
-  children
+  children,
 }: {
   readonly title: string;
   readonly children?: React.ReactNode;
 }) => (
   <div className="flex h-7 items-center justify-between gap-2 border-b border-workbench-border text-[11px] uppercase text-workbench-muted">
     <span className="font-semibold">{title}</span>
-    {children ? <div className="flex items-center gap-1">{children}</div> : null}
+    {children ? (
+      <div className="flex items-center gap-1">{children}</div>
+    ) : null}
   </div>
 );
 
@@ -77,7 +76,9 @@ export function InspectorPanel() {
               aria-hidden="true"
             />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-medium">{selected.name}</div>
+              <div className="truncate text-xs font-medium">
+                {selected.name}
+              </div>
               <div className="flex min-w-0 items-center gap-2 text-[10px] text-workbench-muted">
                 <ServerIcon className="size-3 shrink-0" aria-hidden="true" />
                 <span className="truncate">{selected.host}</span>
@@ -85,7 +86,9 @@ export function InspectorPanel() {
             </div>
           </>
         ) : (
-          <span className="text-xs text-workbench-muted">No ThreadVM selected</span>
+          <span className="text-xs text-workbench-muted">
+            No ThreadVM selected
+          </span>
         )}
       </div>
       <ScrollArea className="min-h-0 flex-1">
@@ -97,7 +100,10 @@ export function InspectorPanel() {
                 <span className="text-workbench-muted">{selected.source}</span>
                 {selected.branch ? (
                   <span className="flex min-w-0 items-center gap-1.5 text-workbench-muted">
-                    <GitBranchIcon className="size-3 shrink-0" aria-hidden="true" />
+                    <GitBranchIcon
+                      className="size-3 shrink-0"
+                      aria-hidden="true"
+                    />
                     <span className="truncate">{selected.branch}</span>
                   </span>
                 ) : null}
@@ -123,139 +129,151 @@ export function InspectorPanel() {
                 <TabsContent value="overview" className="flex flex-col gap-3">
                   <section>
                     <SectionHeader title="Properties" />
-                  <MetadataTable
-                    rows={[
-                      ["Host", selected.host],
-                      ["Project", selected.project ?? "unknown"],
-                      ["Pinned", selected.pinned ? "yes" : "no"],
-                      ["Branch", selected.branch ?? "unknown"],
-                      ["Source", selected.source],
-                      [
-                        "Prompt",
-                        selected.startingPrompt ? (
-                          <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
-                            {selected.startingPrompt}
-                          </pre>
-                        ) : (
-                          "none"
-                        )
-                      ],
-                      [
-                        "Tags",
-                        selected.tags?.length ? selected.tags.join(", ") : "none"
-                      ],
-                      ["Metadata", selected.metadataPath ?? "unknown"],
-                      ["Dev log", selected.devLogPath ?? "unknown"],
-                      ["Dev pid", selected.devPidPath ?? "unknown"],
-                      [
-                        "Raw",
-                        <span className="whitespace-pre-wrap">
-                          {selected.raw ?? "none"}
-                        </span>
-                      ]
-                    ]}
-                  />
+                    <MetadataTable
+                      rows={[
+                        ["Host", selected.host],
+                        ["Project", selected.project ?? "unknown"],
+                        ["Pinned", selected.pinned ? "yes" : "no"],
+                        ["Branch", selected.branch ?? "unknown"],
+                        ["Source", selected.source],
+                        [
+                          "Prompt",
+                          selected.startingPrompt ? (
+                            <pre className="max-h-40 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
+                              {selected.startingPrompt}
+                            </pre>
+                          ) : (
+                            "none"
+                          ),
+                        ],
+                        [
+                          "Tags",
+                          selected.tags?.length
+                            ? selected.tags.join(", ")
+                            : "none",
+                        ],
+                        ["Metadata", selected.metadataPath ?? "unknown"],
+                        ["Dev log", selected.devLogPath ?? "unknown"],
+                        ["Dev pid", selected.devPidPath ?? "unknown"],
+                        [
+                          "Raw",
+                          <span className="whitespace-pre-wrap">
+                            {selected.raw ?? "none"}
+                          </span>,
+                        ],
+                      ]}
+                    />
                   </section>
                   <section className="flex flex-col gap-2">
                     <SectionHeader title="Lifecycle" />
-                  <LifecycleActions threadVm={selected} />
+                    <LifecycleActions threadVm={selected} />
                   </section>
                 </TabsContent>
 
                 <TabsContent value="ports" className="flex flex-col gap-3">
                   <section className="flex flex-col gap-2">
                     <SectionHeader title="Ports">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 rounded-none px-1.5 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
-                      disabled={selected.ports.length === 0 || loadingPortStatus}
-                      onClick={() => void portStatusActionAtom.load(selected.id)}
-                    >
-                      <RefreshCwIcon data-icon="inline-start" />
-                      {loadingPortStatus ? "Checking..." : "Check"}
-                    </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 rounded-none px-1.5 text-[11px] text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
+                        disabled={
+                          selected.ports.length === 0 || loadingPortStatus
+                        }
+                        onClick={() =>
+                          void portStatusActionAtom.load(selected.id)
+                        }
+                      >
+                        <RefreshCwIcon data-icon="inline-start" />
+                        {loadingPortStatus ? "Checking..." : "Check"}
+                      </Button>
                     </SectionHeader>
-                  <PortLinks
-                    ports={selected.ports}
-                    statuses={
-                      portStatusMatchesSelection
-                        ? portStatus.response?.ports
-                        : undefined
-                    }
-                  />
-                  {portStatusMatchesSelection && portStatus.error ? (
-                    <Alert variant="destructive">
-                      <FileTextIcon />
-                      <AlertTitle>Port check unavailable</AlertTitle>
-                      <AlertDescription className="break-words">
-                        {portStatus.error}
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
-                  {portStatusMatchesSelection && portStatus.response ? (
-                    <span className="text-xs text-muted-foreground">
-                      observed {formatObservedAt(portStatus.response.observedAt)}
-                    </span>
-                  ) : null}
+                    <PortLinks
+                      ports={selected.ports}
+                      statuses={
+                        portStatusMatchesSelection
+                          ? portStatus.response?.ports
+                          : undefined
+                      }
+                    />
+                    {portStatusMatchesSelection && portStatus.error ? (
+                      <Alert variant="destructive">
+                        <FileTextIcon />
+                        <AlertTitle>Port check unavailable</AlertTitle>
+                        <AlertDescription className="break-words">
+                          {portStatus.error}
+                        </AlertDescription>
+                      </Alert>
+                    ) : null}
+                    {portStatusMatchesSelection && portStatus.response ? (
+                      <span className="text-xs text-muted-foreground">
+                        observed{" "}
+                        {formatObservedAt(portStatus.response.observedAt)}
+                      </span>
+                    ) : null}
                   </section>
                 </TabsContent>
 
                 <TabsContent value="logs" className="flex flex-col gap-3">
                   <section>
                     <SectionHeader title="Provisioning" />
-                  <MetadataTable
-                    rows={[
-                      [
-                        "Stream",
-                        streamMatchesSelection ? (
-                          provisioningStream.error ? (
+                    <MetadataTable
+                      rows={[
+                        [
+                          "Stream",
+                          streamMatchesSelection ? (
+                            provisioningStream.error ? (
+                              <span className="text-destructive">
+                                {provisioningStream.error}
+                              </span>
+                            ) : (
+                              formatObservedAt(
+                                provisioningStream.lastObservedAt,
+                              )
+                            )
+                          ) : (
+                            "idle"
+                          ),
+                        ],
+                        [
+                          "Provisioning",
+                          selected.lastProvisioningError ? (
                             <span className="text-destructive">
-                              {provisioningStream.error}
+                              {selected.lastProvisioningError}
                             </span>
                           ) : (
-                            formatObservedAt(provisioningStream.lastObservedAt)
-                          )
-                        ) : (
-                          "idle"
-                        )
-                      ],
-                      [
-                        "Provisioning",
-                        selected.lastProvisioningError ? (
-                          <span className="text-destructive">
-                            {selected.lastProvisioningError}
-                          </span>
-                        ) : (
-                          "ok"
-                        )
-                      ],
-                      [
-                        "Steps",
-                        selected.provisioningSteps?.length ? (
-                          <ol className="flex flex-col gap-1">
-                            {selected.provisioningSteps.map((step) => (
-                              <li key={step.id} className="flex flex-col gap-0.5">
-                                <span>{step.label}</span>
-                                <span className="text-muted-foreground">
-                                  {step.status}
-                                  {step.message ? ` - ${step.message}` : ""}
-                                </span>
-                                {step.outputExcerpt ? (
-                                  <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
-                                    {step.outputExcerpt}
-                                  </pre>
-                                ) : null}
-                              </li>
-                            ))}
-                          </ol>
-                        ) : (
-                          "none"
-                        )
-                      ]
-                    ]}
-                  />
+                            "ok"
+                          ),
+                        ],
+                        [
+                          "Steps",
+                          selected.provisioningSteps?.length ? (
+                            <ol className="flex flex-col gap-1">
+                              {selected.provisioningSteps.map((step) => (
+                                <li
+                                  key={step.id}
+                                  className="flex flex-col gap-0.5"
+                                >
+                                  <span>{step.label}</span>
+                                  <span className="text-muted-foreground">
+                                    {step.status}
+                                    {step.message ? ` - ${step.message}` : ""}
+                                  </span>
+                                  {step.outputExcerpt ? (
+                                    <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-sm border border-border/60 bg-background/60 p-2 text-[10px] leading-snug text-muted-foreground">
+                                      {step.outputExcerpt}
+                                    </pre>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ol>
+                          ) : (
+                            "none"
+                          ),
+                        ],
+                      ]}
+                    />
                   </section>
                   <section className="flex flex-col gap-3">
                     <SectionHeader title="Dev Log">

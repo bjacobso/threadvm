@@ -56,19 +56,19 @@ session creation race.
 
 ## Verification Matrix
 
-| Scenario | Evidence |
-| --- | --- |
-| Initial attach and typing | Terminal integration and UI probes |
-| Browser refresh / explicit reconnect | Fresh socket/xterm lifecycle probe; repeated tmux reattach probe |
-| Frontend HMR | Component cleanup/replacement lifecycle probe plus stable-process topology |
-| Backend restart | Live server process is terminated, restarted, and reattached to the same tmux session |
-| Temporary network loss | Disconnected input rejection probe |
-| Window and rapid resize | Ordered socket resize and remote `stty size` assertions |
-| Vim/TUI keyboard and mouse | PTY byte forwarding, native xterm pointer forwarding, and mouse-mode renegotiation assertions |
-| Text selection and OSC 52 | Existing xterm selection path retained; OSC 52 parser and clipboard callback probe |
-| Slow client | A deliberately unconsumed PTY flood overflows the bounded queue, fails visibly, and cleans up |
-| Multiple ThreadVMs | Distinct session-name hashes and concurrent per-VM browser input-routing assertions |
-| Cleanup | Socket close, process-table, and interrupted-command orphan-process assertions |
+| Scenario                             | Evidence                                                                                      |
+| ------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Initial attach and typing            | Terminal integration and UI probes                                                            |
+| Browser refresh / explicit reconnect | Fresh socket/xterm lifecycle probe; repeated tmux reattach probe                              |
+| Frontend HMR                         | Component cleanup/replacement lifecycle probe plus stable-process topology                    |
+| Backend restart                      | Live server process is terminated, restarted, and reattached to the same tmux session         |
+| Temporary network loss               | Disconnected input rejection probe                                                            |
+| Window and rapid resize              | Ordered socket resize and remote `stty size` assertions                                       |
+| Vim/TUI keyboard and mouse           | PTY byte forwarding, native xterm pointer forwarding, and mouse-mode renegotiation assertions |
+| Text selection and OSC 52            | Existing xterm selection path retained; OSC 52 parser and clipboard callback probe            |
+| Slow client                          | A deliberately unconsumed PTY flood overflows the bounded queue, fails visibly, and cleans up |
+| Multiple ThreadVMs                   | Distinct session-name hashes and concurrent per-VM browser input-routing assertions           |
+| Cleanup                              | Socket close, process-table, and interrupted-command orphan-process assertions                |
 
 Structured-log assertions cover socket open/close, attachment request, remote
 session preparation, PTY spawn/exit, ready state, and cleanup. The probe also

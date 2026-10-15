@@ -25,16 +25,16 @@ example:
 ```yaml
 agents:
   claude:
-    acp: {command: claude-agent-acp}
+    acp: { command: claude-agent-acp }
   codex:
-    acp: {command: codex-acp}
+    acp: { command: codex-acp }
   claude-review:
-    acp: {command: claude-agent-acp, args: []}
+    acp: { command: claude-agent-acp, args: [] }
   conductor:
-    acp: {command: claude-agent-acp}
-  shell: {kind: terminal}
+    acp: { command: claude-agent-acp }
+  shell: { kind: terminal }
 sandboxes:
-  local: {provider: local}
+  local: { provider: local }
   exe:
     provider: exe
     baseDevbox: my-agent-base
@@ -42,9 +42,9 @@ sandboxes:
     callbackUrl: https://my-threadvm-control-plane.example
     workdir: /home/exedev/threadvm
     bootstrap: ["command -v tmux", "command -v claude-agent-acp"]
-  vercel: {provider: vercel}
-  cloudflare: {provider: cloudflare}
-defaults: {sandbox: local}
+  vercel: { provider: vercel }
+  cloudflare: { provider: cloudflare }
+defaults: { sandbox: local }
 ```
 
 Mention `@claude`, `@claude-review`, or `@claude/exe` in a bullet, then leave it.

@@ -111,7 +111,7 @@ shows a real need.
 type TerminalClientMessage =
   | { readonly type: "input"; readonly data: string }
   | { readonly type: "resize"; readonly cols: number; readonly rows: number }
-  | { readonly type: "ping"; readonly timestamp: number }
+  | { readonly type: "ping"; readonly timestamp: number };
 ```
 
 The WebSocket URL identifies the ThreadVM and includes the initial dimensions:
@@ -129,11 +129,11 @@ type TerminalServerMessage =
   | { readonly type: "ready"; readonly attachmentId: string }
   | { readonly type: "output"; readonly data: string }
   | {
-      readonly type: "status"
-      readonly status: "connecting" | "attached" | "disconnected"
+      readonly type: "status";
+      readonly status: "connecting" | "attached" | "disconnected";
     }
   | { readonly type: "pong"; readonly timestamp: number }
-  | { readonly type: "error"; readonly message: string }
+  | { readonly type: "error"; readonly message: string };
 ```
 
 The browser must not send input until it receives `ready`. Input is disabled as
@@ -157,8 +157,8 @@ durable terminal screen state.
 ```ts
 interface TerminalGateway {
   readonly attach: (
-    request: TerminalAttachmentRequest
-  ) => Effect.Effect<TerminalAttachment, TerminalGatewayError, Scope.Scope>
+    request: TerminalAttachmentRequest,
+  ) => Effect.Effect<TerminalAttachment, TerminalGatewayError, Scope.Scope>;
 }
 ```
 
@@ -332,24 +332,24 @@ Exit criteria: no production code depends on the old terminal session model.
 Automated integration coverage should exercise real xterm/browser behavior
 where practical, not only mocked action functions.
 
-| Scenario | Expected result |
-| --- | --- |
-| Initial attach | Prompt appears, typing is visible, commands execute |
-| Browser refresh | Existing remote TUI redraws and accepts input |
-| Explicit reconnect | Fresh attachment reaches the same remote session |
-| Frontend HMR | Terminal reconnects; remote process survives |
-| Backend restart | Connection drops clearly; reconnect restores remote session |
-| Temporary network loss | No hidden input is accepted while disconnected |
-| Window resize | Remote `stty size` and full-screen TUI match the browser |
-| Rapid resize | Final rows and columns are correct without layout drift |
-| Vim/TUI keyboard | Normal, control, escape, and modifier keys work |
-| TUI mouse | Clicking the intended pane, row, or control works |
-| Mouse after refresh | Mouse behavior remains correct after reattachment |
-| Text selection | Browser selection and copy behavior remain intentional |
-| OSC 52 copy | Remote copy reaches the browser clipboard with user feedback |
-| Slow client | Output memory remains bounded and failure is visible |
-| Multiple ThreadVMs | Attachments and input cannot cross VM boundaries |
-| Cleanup | Closed sockets leave no local SSH or PTY process behind |
+| Scenario               | Expected result                                              |
+| ---------------------- | ------------------------------------------------------------ |
+| Initial attach         | Prompt appears, typing is visible, commands execute          |
+| Browser refresh        | Existing remote TUI redraws and accepts input                |
+| Explicit reconnect     | Fresh attachment reaches the same remote session             |
+| Frontend HMR           | Terminal reconnects; remote process survives                 |
+| Backend restart        | Connection drops clearly; reconnect restores remote session  |
+| Temporary network loss | No hidden input is accepted while disconnected               |
+| Window resize          | Remote `stty size` and full-screen TUI match the browser     |
+| Rapid resize           | Final rows and columns are correct without layout drift      |
+| Vim/TUI keyboard       | Normal, control, escape, and modifier keys work              |
+| TUI mouse              | Clicking the intended pane, row, or control works            |
+| Mouse after refresh    | Mouse behavior remains correct after reattachment            |
+| Text selection         | Browser selection and copy behavior remain intentional       |
+| OSC 52 copy            | Remote copy reaches the browser clipboard with user feedback |
+| Slow client            | Output memory remains bounded and failure is visible         |
+| Multiple ThreadVMs     | Attachments and input cannot cross VM boundaries             |
+| Cleanup                | Closed sockets leave no local SSH or PTY process behind      |
 
 Add a repeated stability probe that performs attach, type, resize, disconnect,
 and reconnect cycles many times. The test should fail on leaked processes,

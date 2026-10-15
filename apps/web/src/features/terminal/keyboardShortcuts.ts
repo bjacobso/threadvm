@@ -9,7 +9,7 @@ interface TerminalShortcutEvent {
 }
 
 export const terminalShortcutAction = (
-  event: TerminalShortcutEvent
+  event: TerminalShortcutEvent,
 ): TerminalShortcutAction | undefined => {
   if (event.key !== "Enter" || event.altKey) {
     return undefined;

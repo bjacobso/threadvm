@@ -17,4 +17,3 @@ export const writeStored = (key: string, value: string | undefined) => {
     // Storage is best-effort UI state.
   }
 };
-

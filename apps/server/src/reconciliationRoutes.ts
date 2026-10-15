@@ -2,14 +2,14 @@ import { HttpRouter, HttpServerResponse } from "effect/unstable/http";
 import { Effect, Layer, Schedule, Schema, Stream } from "effect";
 import {
   ThreadVmProvisioningEvent,
-  ThreadVmReconciliationEvent
+  ThreadVmReconciliationEvent,
 } from "@threadvm/shared/domain";
 import { WorkspaceService } from "@threadvm/shared/services/WorkspaceService";
 
 const encoder = new TextEncoder();
 
 const IdParams = Schema.Struct({
-  id: Schema.String
+  id: Schema.String,
 });
 
 const encodeSse = (event: string, data: unknown) =>
@@ -32,31 +32,31 @@ const reconciliationStreamRoute = HttpRouter.add(
         (threadVms) =>
           new ThreadVmReconciliationEvent({
             threadVms,
-            observedAt: Date.now()
-          })
+            observedAt: Date.now(),
+          }),
       ),
       Effect.map((event) => encodeSse("snapshot", event)),
       Effect.catch((error) =>
-        Effect.succeed(encodeSse("reconciliation-error", errorMessage(error)))
-      )
+        Effect.succeed(encodeSse("reconciliation-error", errorMessage(error))),
+      ),
     );
 
     const snapshots = Stream.fromEffectSchedule(
       snapshot,
-      Schedule.spaced("5 seconds")
+      Schedule.spaced("5 seconds"),
     );
     const heartbeat = Stream.make(encoder.encode(": heartbeat\n\n")).pipe(
-      Stream.repeat(Schedule.spaced("15 seconds"))
+      Stream.repeat(Schedule.spaced("15 seconds")),
     );
 
     return HttpServerResponse.stream(snapshots.pipe(Stream.merge(heartbeat)), {
       headers: {
         "cache-control": "no-cache",
-        connection: "keep-alive"
+        connection: "keep-alive",
       },
-      contentType: "text/event-stream"
+      contentType: "text/event-stream",
     });
-  })
+  }),
 );
 
 const provisioningStreamRoute = HttpRouter.add(
@@ -70,34 +70,34 @@ const provisioningStreamRoute = HttpRouter.add(
         (threadVm) =>
           new ThreadVmProvisioningEvent({
             threadVm,
-            observedAt: Date.now()
-          })
+            observedAt: Date.now(),
+          }),
       ),
       Effect.map((event) => encodeSse("provisioning", event)),
       Effect.catch((error) =>
-        Effect.succeed(encodeSse("provisioning-error", errorMessage(error)))
-      )
+        Effect.succeed(encodeSse("provisioning-error", errorMessage(error))),
+      ),
     );
 
     const snapshots = Stream.fromEffectSchedule(
       snapshot,
-      Schedule.spaced("2 seconds")
+      Schedule.spaced("2 seconds"),
     );
     const heartbeat = Stream.make(encoder.encode(": heartbeat\n\n")).pipe(
-      Stream.repeat(Schedule.spaced("15 seconds"))
+      Stream.repeat(Schedule.spaced("15 seconds")),
     );
 
     return HttpServerResponse.stream(snapshots.pipe(Stream.merge(heartbeat)), {
       headers: {
         "cache-control": "no-cache",
-        connection: "keep-alive"
+        connection: "keep-alive",
       },
-      contentType: "text/event-stream"
+      contentType: "text/event-stream",
     });
-  })
+  }),
 );
 
 export const ReconciliationRoutesLive = Layer.mergeAll(
   reconciliationStreamRoute,
-  provisioningStreamRoute
+  provisioningStreamRoute,
 );

@@ -10,5 +10,9 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "../../packages/shared/src/domain", "../../packages/shared/src/api/ThreadVmApi.ts"]
+  "include": [
+    "src",
+    "../../packages/shared/src/domain",
+    "../../packages/shared/src/api/ThreadVmApi.ts"
+  ]
 }

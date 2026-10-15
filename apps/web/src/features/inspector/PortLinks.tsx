@@ -1,6 +1,6 @@
 import type {
   ThreadVmModel,
-  ThreadVmPortStatusModel
+  ThreadVmPortStatusModel,
 } from "@threadvm/shared/domain";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ const statusClass = (status: ThreadVmPortStatusModel["status"]) => {
 
 export function PortLinks({
   ports,
-  statuses
+  statuses,
 }: {
   readonly ports: ThreadVmModel["ports"];
   readonly statuses?: ReadonlyArray<ThreadVmPortStatusModel>;
@@ -26,7 +26,9 @@ export function PortLinks({
     return <span className="text-[11px] text-workbench-muted">none</span>;
   }
 
-  const statusByPort = new Map(statuses?.map((status) => [status.port, status]));
+  const statusByPort = new Map(
+    statuses?.map((status) => [status.port, status]),
+  );
 
   return (
     <span className="flex flex-col">
@@ -47,7 +49,7 @@ export function PortLinks({
               <span
                 className={cn(
                   "ml-auto flex items-center gap-1.5 text-[10px] uppercase",
-                  statusClass(status.status)
+                  statusClass(status.status),
                 )}
               >
                 <span className="size-1.5 rounded-full bg-current" />

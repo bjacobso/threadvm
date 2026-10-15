@@ -16,7 +16,7 @@ export class CommandError {
     readonly message: string,
     readonly stdout = "",
     readonly stderr = "",
-    readonly exitCode?: number
+    readonly exitCode?: number,
   ) {}
 }
 
@@ -26,7 +26,7 @@ export class CommandService extends Context.Service<
     readonly execFile: (
       command: string,
       args: ReadonlyArray<string>,
-      options?: { readonly cwd?: string; readonly timeoutMs?: number }
+      options?: { readonly cwd?: string; readonly timeoutMs?: number },
     ) => Effect.Effect<CommandResult, CommandError>;
   }
 >()("CommandService") {}
@@ -40,7 +40,7 @@ export const CommandServiceLive = Layer.succeed(CommandService, {
         {
           cwd: options?.cwd,
           timeout: options?.timeoutMs ?? 30_000,
-          maxBuffer: 1024 * 1024 * 8
+          maxBuffer: 1024 * 1024 * 8,
         },
         (error, stdout, stderr) => {
           if (error) {
@@ -55,9 +55,11 @@ export const CommandServiceLive = Layer.succeed(CommandService, {
                   nodeError.message,
                   stdout,
                   stderr,
-                  typeof nodeError.code === "number" ? nodeError.code : undefined
-                )
-              )
+                  typeof nodeError.code === "number"
+                    ? nodeError.code
+                    : undefined,
+                ),
+              ),
             );
             return;
           }
@@ -66,15 +68,15 @@ export const CommandServiceLive = Layer.succeed(CommandService, {
             Effect.succeed({
               stdout,
               stderr,
-              exitCode: 0
-            })
+              exitCode: 0,
+            }),
           );
-        }
+        },
       );
       return Effect.sync(() => {
         if (child.exitCode === null && child.signalCode === null) {
           child.kill("SIGTERM");
         }
       });
-    })
+    }),
 });

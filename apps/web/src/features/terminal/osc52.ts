@@ -5,7 +5,7 @@ const decodeBase64Utf8 = (encoded: string): string => {
     .replace(/_/g, "/");
   const padded = normalized.padEnd(
     normalized.length + ((4 - (normalized.length % 4)) % 4),
-    "="
+    "=",
   );
   const binary = atob(padded);
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
@@ -26,4 +26,3 @@ export const parseOsc52 = (data: string): string | undefined => {
 
   return decodeBase64Utf8(encoded);
 };
-

@@ -1,7 +1,7 @@
 import {
   HttpRouter,
   HttpServerRequest,
-  HttpServerResponse
+  HttpServerResponse,
 } from "effect/unstable/http";
 import { Socket } from "effect/unstable/socket";
 import { Effect, Fiber, Layer, Queue, Result, Schema, Stream } from "effect";
@@ -15,17 +15,17 @@ import {
   TerminalReadyMessage,
   TerminalSocketRequest,
   TerminalStatusMessage,
-  type TerminalServerMessageModel
+  type TerminalServerMessageModel,
 } from "@threadvm/shared/domain";
 import {
   TerminalBridge,
-  type TerminalAttachment
+  type TerminalAttachment,
 } from "@threadvm/shared/services/TerminalBridge";
 import { AgentRuns } from "@threadvm/shared/services/AgentRuns";
 import { WorkspaceService } from "@threadvm/shared/services/WorkspaceService";
 
 const ThreadVmParams = Schema.Struct({
-  threadVmId: Schema.String
+  threadVmId: Schema.String,
 });
 
 const decodeSocketRequest = Schema.decodeUnknownEffect(TerminalSocketRequest);
@@ -40,7 +40,7 @@ const errorMessage = (error: unknown): string =>
 
 const isAllowedOrigin = (
   origin: string | undefined,
-  host: string | undefined
+  host: string | undefined,
 ) => {
   if (!origin) {
     return true;
@@ -66,7 +66,7 @@ const terminalSocketRoute = HttpRouter.add(
     const request = yield* HttpServerRequest.HttpServerRequest;
     if (!isAllowedOrigin(request.headers.origin, request.headers.host)) {
       return HttpServerResponse.text("WebSocket origin is not allowed", {
-        status: 403
+        status: 403,
       });
     }
 
@@ -78,15 +78,15 @@ const terminalSocketRoute = HttpRouter.add(
         rows: Number(url.searchParams.get("rows")),
         restart:
           url.searchParams.get("restart") === "1" ||
-          url.searchParams.get("restart") === "true"
-      })
+          url.searchParams.get("restart") === "true",
+      }),
     );
     if (Result.isFailure(socketRequestResult)) {
       return HttpServerResponse.jsonUnsafe(
         {
-          message: `Invalid terminal socket request: ${errorMessage(socketRequestResult.failure)}`
+          message: `Invalid terminal socket request: ${errorMessage(socketRequestResult.failure)}`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const socketRequest = socketRequestResult.success;
@@ -100,7 +100,7 @@ const terminalSocketRoute = HttpRouter.add(
       writer(new Socket.CloseEvent(code, reason));
 
     yield* Effect.log("Terminal WebSocket opened").pipe(
-      Effect.annotateLogs({ threadVmId, attachmentId })
+      Effect.annotateLogs({ threadVmId, attachmentId }),
     );
 
     let attachment: TerminalAttachment | undefined;
@@ -110,19 +110,21 @@ const terminalSocketRoute = HttpRouter.add(
         const parsed = yield* Effect.try({
           try: () => JSON.parse(raw) as unknown,
           catch: (cause) =>
-            new Error(`Invalid terminal WebSocket JSON: ${errorMessage(cause)}`)
+            new Error(
+              `Invalid terminal WebSocket JSON: ${errorMessage(cause)}`,
+            ),
         });
         const message = yield* decodeClientMessage(parsed).pipe(
           Effect.mapError(
-            (cause) => new Error(`Invalid terminal message: ${cause}`)
-          )
+            (cause) => new Error(`Invalid terminal message: ${cause}`),
+          ),
         );
 
         switch (message.type) {
           case "input":
             if (!attachment) {
               yield* Effect.logWarning(
-                "Terminal input rejected before attachment was ready"
+                "Terminal input rejected before attachment was ready",
               ).pipe(Effect.annotateLogs({ threadVmId, attachmentId }));
               return;
             }
@@ -131,7 +133,7 @@ const terminalSocketRoute = HttpRouter.add(
           case "resize":
             if (!attachment) {
               yield* Effect.logWarning(
-                "Terminal resize rejected before attachment was ready"
+                "Terminal resize rejected before attachment was ready",
               ).pipe(Effect.annotateLogs({ threadVmId, attachmentId }));
               return;
             }
@@ -141,16 +143,16 @@ const terminalSocketRoute = HttpRouter.add(
                 threadVmId,
                 attachmentId: attachment.id,
                 cols: message.cols,
-                rows: message.rows
-              })
+                rows: message.rows,
+              }),
             );
             break;
           case "ping":
             yield* send(
               new TerminalPongMessage({
                 type: "pong",
-                timestamp: message.timestamp
-              })
+                timestamp: message.timestamp,
+              }),
             );
             break;
         }
@@ -159,28 +161,28 @@ const terminalSocketRoute = HttpRouter.add(
           send(
             new TerminalErrorMessage({
               type: "error",
-              message: errorMessage(cause)
-            })
-          ).pipe(Effect.andThen(close(1008, "invalid-terminal-message")))
-        )
+              message: errorMessage(cause),
+            }),
+          ).pipe(Effect.andThen(close(1008, "invalid-terminal-message"))),
+        ),
       );
     const inputLoop = socket.runString((raw) => {
       if (!Queue.offerUnsafe(clientMessages, raw)) {
         return Effect.logWarning("Terminal input queue overflowed").pipe(
           Effect.annotateLogs({ threadVmId, attachmentId }),
-          Effect.andThen(close(1013, "terminal-input-overflow"))
+          Effect.andThen(close(1013, "terminal-input-overflow")),
         );
       }
     });
     const inputFiber = yield* Effect.forkScoped(inputLoop);
     const messageLoop = Stream.runForEach(
       Stream.fromQueue(clientMessages),
-      handleClientMessage
+      handleClientMessage,
     );
     yield* Effect.forkScoped(messageLoop);
 
     yield* send(
-      new TerminalStatusMessage({ type: "status", status: "connecting" })
+      new TerminalStatusMessage({ type: "status", status: "connecting" }),
     );
 
     const workspaces = yield* WorkspaceService;
@@ -188,22 +190,38 @@ const terminalSocketRoute = HttpRouter.add(
     const openedResult = yield* Effect.result(
       Effect.gen(function* () {
         if (socketRequest.threadVmId.startsWith("run-")) {
-          if (socketRequest.restart) return yield* Effect.fail(new Error("Start a new run explicitly from the outline"));
+          if (socketRequest.restart)
+            return yield* Effect.fail(
+              new Error("Start a new run explicitly from the outline"),
+            );
           const localRuns = yield* AgentRuns;
-          const prepared = yield* localRuns.prepare(socketRequest.threadVmId.slice(4));
-          const vm = new ThreadVm({ id: socketRequest.threadVmId, name: "Local run", host: "localhost", state: "running", source: "cache", ports: [] });
-          return yield* bridge.open(vm, { ...socketRequest, attachmentId, prepared });
+          const prepared = yield* localRuns.prepare(
+            socketRequest.threadVmId.slice(4),
+          );
+          const vm = new ThreadVm({
+            id: socketRequest.threadVmId,
+            name: "Local run",
+            host: "localhost",
+            state: "running",
+            source: "cache",
+            ports: [],
+          });
+          return yield* bridge.open(vm, {
+            ...socketRequest,
+            attachmentId,
+            prepared,
+          });
         }
         const vm = yield* workspaces.getThreadVm(socketRequest.threadVmId);
         return yield* bridge.open(vm, { ...socketRequest, attachmentId });
-      })
+      }),
     );
     if (Result.isFailure(openedResult)) {
       yield* send(
         new TerminalErrorMessage({
           type: "error",
-          message: errorMessage(openedResult.failure)
-        })
+          message: errorMessage(openedResult.failure),
+        }),
       );
       yield* close(1011, "terminal-attach-failed");
       return HttpServerResponse.empty();
@@ -217,23 +235,23 @@ const terminalSocketRoute = HttpRouter.add(
         attachmentId: openedAttachment.id,
         sessionName: openedAttachment.sessionName,
         createdAt: openedAttachment.createdAt,
-        reused: openedAttachment.reused
-      })
+        reused: openedAttachment.reused,
+      }),
     );
     yield* send(
-      new TerminalStatusMessage({ type: "status", status: "attached" })
+      new TerminalStatusMessage({ type: "status", status: "attached" }),
     );
     yield* Effect.log("Terminal client reached ready state").pipe(
       Effect.annotateLogs({
         threadVmId,
         attachmentId,
         sessionName: openedAttachment.sessionName,
-        reused: openedAttachment.reused
-      })
+        reused: openedAttachment.reused,
+      }),
     );
 
     const outputLoop = Stream.runForEach(openedAttachment.output, (data) =>
-      send(new TerminalOutputMessage({ type: "output", data }))
+      send(new TerminalOutputMessage({ type: "output", data })),
     );
     yield* Effect.forkScoped(outputLoop);
 
@@ -245,17 +263,17 @@ const terminalSocketRoute = HttpRouter.add(
             send(
               new TerminalStatusMessage({
                 type: "status",
-                status: "disconnected"
-              })
-            )
+                status: "disconnected",
+              }),
+            ),
           ),
           Effect.andThen(
             close(
               1000,
-              reason === "replaced" ? "terminal-replaced" : "terminal-exited"
-            )
-          )
-        )
+              reason === "replaced" ? "terminal-replaced" : "terminal-exited",
+            ),
+          ),
+        ),
       ),
       Effect.catch((cause) =>
         Effect.logWarning("Terminal attachment failed", cause).pipe(
@@ -264,25 +282,25 @@ const terminalSocketRoute = HttpRouter.add(
             send(
               new TerminalErrorMessage({
                 type: "error",
-                message: errorMessage(cause)
-              })
-            )
+                message: errorMessage(cause),
+              }),
+            ),
           ),
-          Effect.andThen(close(1011, "terminal-failed"))
-        )
-      )
+          Effect.andThen(close(1011, "terminal-failed")),
+        ),
+      ),
     );
 
     yield* Effect.raceFirst(
       Fiber.join(inputFiber).pipe(Effect.catch(() => Effect.void)),
-      processExit
+      processExit,
     );
 
     yield* Effect.log("Terminal WebSocket closed").pipe(
       Effect.annotateLogs({
         threadVmId,
-        attachmentId: openedAttachment.id
-      })
+        attachmentId: openedAttachment.id,
+      }),
     );
     return HttpServerResponse.empty();
   }).pipe(
@@ -291,11 +309,11 @@ const terminalSocketRoute = HttpRouter.add(
         yield* Effect.logError("Terminal WebSocket failed", cause);
         return HttpServerResponse.jsonUnsafe(
           { message: errorMessage(cause) },
-          { status: 500 }
+          { status: 500 },
         );
-      })
-    )
-  )
+      }),
+    ),
+  ),
 );
 
 export const TerminalRoutesLive = Layer.mergeAll(terminalSocketRoute);

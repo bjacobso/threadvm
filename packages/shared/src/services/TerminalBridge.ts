@@ -1,12 +1,4 @@
-import {
-  Context,
-  Deferred,
-  Effect,
-  Layer,
-  Queue,
-  Scope,
-  Stream
-} from "effect";
+import { Context, Deferred, Effect, Layer, Queue, Scope, Stream } from "effect";
 import type * as pty from "node-pty";
 import { createRequire } from "node:module";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
@@ -17,25 +9,26 @@ import type { ThreadVm } from "../domain/schema.js";
 import {
   RemoteTerminalSession,
   type PreparedRemoteTerminalSession,
-  type TerminalCommand
+  type TerminalCommand,
 } from "./RemoteTerminalSession.js";
 
 export class TerminalBridgeError {
   readonly _tag = "TerminalBridgeError";
 
-  constructor(readonly message: string, readonly cause?: unknown) {}
+  constructor(
+    readonly message: string,
+    readonly cause?: unknown,
+  ) {}
 }
 
 interface TerminalProcess {
   readonly write: (data: string) => void;
   readonly resize: (cols: number, rows: number) => void;
   readonly kill: () => void;
-  readonly onData: (
-    handler: (data: string) => void
-  ) => { readonly dispose: () => void };
-  readonly onExit: (
-    handler: () => void
-  ) => { readonly dispose: () => void };
+  readonly onData: (handler: (data: string) => void) => {
+    readonly dispose: () => void;
+  };
+  readonly onExit: (handler: () => void) => { readonly dispose: () => void };
 }
 
 export interface TerminalAttachment {
@@ -45,11 +38,14 @@ export interface TerminalAttachment {
   readonly reused: boolean;
   readonly createdAt: number;
   readonly output: Stream.Stream<string>;
-  readonly exited: Effect.Effect<"process-exited" | "replaced", TerminalBridgeError>;
+  readonly exited: Effect.Effect<
+    "process-exited" | "replaced",
+    TerminalBridgeError
+  >;
   readonly write: (data: string) => Effect.Effect<void, TerminalBridgeError>;
   readonly resize: (
     cols: number,
-    rows: number
+    rows: number,
   ) => Effect.Effect<void, TerminalBridgeError>;
 }
 
@@ -64,12 +60,8 @@ export class TerminalBridge extends Context.Service<
         readonly rows: number;
         readonly restart?: boolean;
         readonly prepared?: PreparedRemoteTerminalSession;
-      }
-    ) => Effect.Effect<
-      TerminalAttachment,
-      TerminalBridgeError,
-      Scope.Scope
-    >;
+      },
+    ) => Effect.Effect<TerminalAttachment, TerminalBridgeError, Scope.Scope>;
   }
 >()("TerminalBridge") {}
 
@@ -86,12 +78,12 @@ const sanitizeEnv = (): Record<string, string> =>
     Object.entries(process.env).filter((entry): entry is [string, string] => {
       const [, value] = entry;
       return typeof value === "string";
-    })
+    }),
   );
 
 const wrapChildProcess = (
   child: ChildProcessWithoutNullStreams,
-  control?: Writable
+  control?: Writable,
 ): TerminalProcess => ({
   write: (data) => {
     if (control) {
@@ -115,7 +107,7 @@ const wrapChildProcess = (
       dispose: () => {
         child.stdout.off("data", stdout);
         child.stderr.off("data", stderr);
-      }
+      },
     };
   },
   onExit: (handler) => {
@@ -123,9 +115,9 @@ const wrapChildProcess = (
     return {
       dispose: () => {
         child.off("exit", handler);
-      }
+      },
     };
-  }
+  },
 });
 
 const wrapPty = (terminal: pty.IPty): TerminalProcess => ({
@@ -133,12 +125,12 @@ const wrapPty = (terminal: pty.IPty): TerminalProcess => ({
   resize: (cols, rows) => terminal.resize(cols, rows),
   kill: () => terminal.kill(),
   onData: (handler) => terminal.onData(handler),
-  onExit: (handler) => terminal.onExit(handler)
+  onExit: (handler) => terminal.onExit(handler),
 });
 
 const ptyBridgeScript = (): string => {
   const script = fileURLToPath(
-    new URL("../../../../scripts/pty_bridge.py", import.meta.url)
+    new URL("../../../../scripts/pty_bridge.py", import.meta.url),
   );
   if (!existsSync(script)) {
     throw new TerminalBridgeError(`PTY bridge helper not found: ${script}`);
@@ -149,7 +141,7 @@ const ptyBridgeScript = (): string => {
 const spawnTerminalProcess = (
   command: TerminalCommand,
   cols: number,
-  rows: number
+  rows: number,
 ): TerminalProcess => {
   const env = {
     ...sanitizeEnv(),
@@ -157,17 +149,21 @@ const spawnTerminalProcess = (
     TERM: "xterm-256color",
     COLORTERM: "truecolor",
     THREADVM_COLS: String(cols),
-    THREADVM_ROWS: String(rows)
+    THREADVM_ROWS: String(rows),
   };
   try {
     return wrapPty(
-      (createRequire(import.meta.url)("node-pty") as typeof pty).spawn(command.file, [...command.args], {
-        name: "xterm-256color",
-        cols,
-        rows,
-        cwd: process.cwd(),
-        env
-      })
+      (createRequire(import.meta.url)("node-pty") as typeof pty).spawn(
+        command.file,
+        [...command.args],
+        {
+          name: "xterm-256color",
+          cols,
+          rows,
+          cwd: process.cwd(),
+          env,
+        },
+      ),
     );
   } catch {
     const child = spawn(
@@ -176,8 +172,8 @@ const spawnTerminalProcess = (
       {
         cwd: process.cwd(),
         env,
-        stdio: ["pipe", "pipe", "pipe", "pipe"]
-      }
+        stdio: ["pipe", "pipe", "pipe", "pipe"],
+      },
     ) as ChildProcessWithoutNullStreams & {
       readonly stdio: ReadonlyArray<unknown>;
     };
@@ -187,11 +183,11 @@ const spawnTerminalProcess = (
 
 const processOperation = (
   message: string,
-  operation: () => void
+  operation: () => void,
 ): Effect.Effect<void, TerminalBridgeError> =>
   Effect.try({
     try: operation,
-    catch: (cause) => new TerminalBridgeError(message, cause)
+    catch: (cause) => new TerminalBridgeError(message, cause),
   });
 
 export const TerminalBridgeLive = Layer.effect(
@@ -208,27 +204,29 @@ export const TerminalBridgeLive = Layer.effect(
             attachmentId: id,
             cols: options.cols,
             rows: options.rows,
-            restart: options.restart === true
-          })
+            restart: options.restart === true,
+          }),
         );
-        const prepared = yield* (options.prepared ? Effect.succeed(options.prepared) : remoteSessions
-          .prepare(vm, { restart: options.restart }))
-          .pipe(
-            Effect.mapError(
-              (cause) =>
-                new TerminalBridgeError(
-                  `Failed to prepare terminal for ${vm.name}`,
-                  cause
-                )
-            )
-          );
+        const prepared = yield* (
+          options.prepared
+            ? Effect.succeed(options.prepared)
+            : remoteSessions.prepare(vm, { restart: options.restart })
+        ).pipe(
+          Effect.mapError(
+            (cause) =>
+              new TerminalBridgeError(
+                `Failed to prepare terminal for ${vm.name}`,
+                cause,
+              ),
+          ),
+        );
         yield* Effect.log("Remote terminal session prepared").pipe(
           Effect.annotateLogs({
             threadVmId: vm.id,
             attachmentId: id,
             sessionName: prepared.sessionName,
-            reused: prepared.reused
-          })
+            reused: prepared.reused,
+          }),
         );
         const outputQueue = yield* Queue.bounded<string>(outputQueueCapacity);
         const exited = yield* Deferred.make<
@@ -242,7 +240,7 @@ export const TerminalBridgeLive = Layer.effect(
               const process = spawnTerminalProcess(
                 prepared.command,
                 options.cols,
-                options.rows
+                options.rows,
               );
               let closed = false;
               const close = (reason: "replaced" | "detached") => {
@@ -254,8 +252,8 @@ export const TerminalBridgeLive = Layer.effect(
                 Deferred.doneUnsafe(
                   exited,
                   Effect.succeed(
-                    reason === "replaced" ? "replaced" : "process-exited"
-                  )
+                    reason === "replaced" ? "replaced" : "process-exited",
+                  ),
                 );
               };
               const dataSubscription = process.onData((data) => {
@@ -264,9 +262,9 @@ export const TerminalBridgeLive = Layer.effect(
                     exited,
                     Effect.fail(
                       new TerminalBridgeError(
-                        `Terminal output queue overflowed for ${vm.name}`
-                      )
-                    )
+                        `Terminal output queue overflowed for ${vm.name}`,
+                      ),
+                    ),
                   );
                   close("detached");
                 }
@@ -281,14 +279,14 @@ export const TerminalBridgeLive = Layer.effect(
                 active,
                 dataSubscription,
                 exitSubscription,
-                close
+                close,
               };
             },
             catch: (cause) =>
               new TerminalBridgeError(
                 `Failed to spawn terminal for ${vm.name}`,
-                cause
-              )
+                cause,
+              ),
           }),
           ({ active, close, dataSubscription, exitSubscription }) =>
             Effect.sync(() => {
@@ -305,12 +303,12 @@ export const TerminalBridgeLive = Layer.effect(
                   Effect.annotateLogs({
                     threadVmId: vm.id,
                     attachmentId: id,
-                    sessionName: prepared.sessionName
-                  })
-                )
+                    sessionName: prepared.sessionName,
+                  }),
+                ),
               ),
-              Effect.asVoid
-            )
+              Effect.asVoid,
+            ),
         );
 
         yield* Effect.log("Terminal attachment PTY spawned").pipe(
@@ -319,8 +317,8 @@ export const TerminalBridgeLive = Layer.effect(
             attachmentId: id,
             sessionName: prepared.sessionName,
             cols: options.cols,
-            rows: options.rows
-          })
+            rows: options.rows,
+          }),
         );
 
         const attachment: TerminalAttachment = {
@@ -338,7 +336,7 @@ export const TerminalBridgeLive = Layer.effect(
           resize: (cols, rows) =>
             processOperation("Failed to resize terminal", () => {
               resource.process.resize(cols, rows);
-            })
+            }),
         };
 
         yield* Effect.log("Terminal attachment opened").pipe(
@@ -348,13 +346,13 @@ export const TerminalBridgeLive = Layer.effect(
             sessionName: prepared.sessionName,
             reused: prepared.reused,
             cols: options.cols,
-            rows: options.rows
-          })
+            rows: options.rows,
+          }),
         );
 
         return attachment;
       });
 
     return { open } as const;
-  })
+  }),
 );

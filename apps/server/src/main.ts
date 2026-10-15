@@ -3,7 +3,7 @@ import { HttpApiBuilder, HttpApiScalar } from "effect/unstable/httpapi";
 import {
   HttpMiddleware,
   HttpRouter,
-  HttpServerResponse
+  HttpServerResponse,
 } from "effect/unstable/http";
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
 import { Effect, Layer } from "effect";
@@ -51,13 +51,13 @@ const indexResponse = () =>
               ? html
               : html.replace(
                   "<head>",
-                  '<head><meta name="threadvm-local" content="true">'
-                )
-          )
+                  '<head><meta name="threadvm-local" content="true">',
+                ),
+          ),
         ),
         Effect.catch(() =>
-          Effect.succeed(HttpServerResponse.html(devFallbackHtml))
-        )
+          Effect.succeed(HttpServerResponse.html(devFallbackHtml)),
+        ),
       )
     : Effect.succeed(HttpServerResponse.html(devFallbackHtml));
 
@@ -86,7 +86,7 @@ const assetResponse = (url: string) => {
     ? staticPath
     : resolve(legacyClient, relativePath);
   return HttpServerResponse.file(chosen).pipe(
-    Effect.catch(() => notFoundEffect)
+    Effect.catch(() => notFoundEffect),
   );
 };
 
@@ -94,7 +94,7 @@ const spaFallbackResponse = (url: string) => {
   const pathname = requestPath(url);
   if (
     reservedBrowserPrefixes.some(
-      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     )
   ) {
     return notFoundEffect;
@@ -110,33 +110,33 @@ const spaFallbackResponse = (url: string) => {
 };
 
 const ApiRoutesLive = HttpApiBuilder.layer(ThreadVmApi, {
-  openapiPath: "/docs/openapi.json"
+  openapiPath: "/docs/openapi.json",
 }).pipe(Layer.provide(ThreadVmApiHandlersLive));
 
 const DocsRouteLive = HttpApiScalar.layer(ThreadVmApi, {
-  path: "/docs"
+  path: "/docs",
 });
 
 const StaticRoutesLive = Layer.mergeAll(
   HttpRouter.add("GET", "/", indexResponse()),
   HttpRouter.add("GET", "/assets/*", (request) => assetResponse(request.url)),
-  HttpRouter.add("GET", "*", (request) => spaFallbackResponse(request.url))
+  HttpRouter.add("GET", "*", (request) => spaFallbackResponse(request.url)),
 );
 
 const ExeDevServiceComposed = ExeDevServiceLive.pipe(
-  Layer.provide(CommandServiceLive)
+  Layer.provide(CommandServiceLive),
 );
 
 const SshServiceComposed = SshServiceLive.pipe(
-  Layer.provide(CommandServiceLive)
+  Layer.provide(CommandServiceLive),
 );
 
 const RemoteTerminalSessionComposed = RemoteTerminalSessionLive.pipe(
-  Layer.provide(SshServiceComposed)
+  Layer.provide(SshServiceComposed),
 );
 
 const TerminalBridgeComposed = TerminalBridgeLive.pipe(
-  Layer.provide(RemoteTerminalSessionComposed)
+  Layer.provide(RemoteTerminalSessionComposed),
 );
 
 const WorkspaceServiceComposed = WorkspaceServiceLive.pipe(
@@ -146,9 +146,9 @@ const WorkspaceServiceComposed = WorkspaceServiceLive.pipe(
       ExeDevServiceComposed,
       LocalStoreLive,
       RemoteTerminalSessionComposed,
-      SshServiceComposed
-    )
-  )
+      SshServiceComposed,
+    ),
+  ),
 );
 
 const OutlineServices = OutlineServicesLive();
@@ -161,7 +161,7 @@ const AppServicesLive = Layer.mergeAll(
   SshServiceComposed,
   WorkspaceServiceComposed,
   RemoteTerminalSessionComposed,
-  TerminalBridgeComposed
+  TerminalBridgeComposed,
 );
 
 const RoutesLive = Layer.mergeAll(
@@ -171,14 +171,14 @@ const RoutesLive = Layer.mergeAll(
   DocsRouteLive,
   ReconciliationRoutesLive,
   TerminalRoutesLive,
-  StaticRoutesLive
+  StaticRoutesLive,
 );
 
 HttpRouter.serve(RoutesLive, {
-  middleware: HttpMiddleware.logger
+  middleware: HttpMiddleware.logger,
 }).pipe(
   Layer.provide(AppServicesLive),
   Layer.provide(NodeHttpServer.layer(createServer, { port })),
   Layer.launch,
-  NodeRuntime.runMain
+  NodeRuntime.runMain,
 );
