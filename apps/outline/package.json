@@ -8,6 +8,7 @@
     "dev:worker": "mkdir -p dist && ALCHEMY_LOCAL_STATE=1 alchemy dev --env-file .env.dev",
     "dev:client": "vite",
     "build": "vite build",
+    "build:embed": "vite build --mode embed",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "deploy": "vite build && alchemy deploy --stage prod",

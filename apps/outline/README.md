@@ -11,6 +11,10 @@ and connects Foldworks editing to the Git outline store, CLI proposals, worktree
 tmux, the existing terminal gateway and the ACP runner. Its source is `src/local`;
 launching an agent always requires an explicit Run action. See the root README.
 
+**Embed mode** (`pnpm build:embed`) builds the same demo for the homepage in
+`apps/site`: `src/embed/room.ts` plays the room in the page, with a short
+scripted story on top. See the site README.
+
 **Cloudflare demo mode**, described below, is an experience prototype. Its agents are deterministic simulations played
 by a Durable Object. The demo does not connect to the local harness.
 

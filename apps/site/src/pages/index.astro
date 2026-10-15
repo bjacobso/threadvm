@@ -1,0 +1,268 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Demo from "../components/Demo.astro";
+import Outline, { type Row } from "../components/Outline.astro";
+import { notes } from "../content/notes";
+
+const idea: ReadonlyArray<Row> = [
+  {
+    text: "Humans author intent. Agents do the work. The outline is where both meet.",
+    badge: { kind: "tally", needs: 1, review: 1 },
+    children: [
+      {
+        text: "Intent has a shape #principle",
+        children: [
+          { text: "A bullet is a thought. Nesting gives it context" },
+          {
+            text: "Each bullet keeps a stable ID, so a thought can move and evolve without losing its history",
+          },
+        ],
+      },
+      {
+        text: "Work needs its own space #principle",
+        children: [
+          {
+            text: "@claude implement the invite flow",
+            badge: { kind: "working", agent: "claude", label: "Working" },
+            children: [
+              {
+                text: "Each run gets an isolated workspace: its own branch, terminal, and observations",
+              },
+              {
+                text: "All of it stays connected to the bullet that asked for it",
+              },
+            ],
+          },
+          {
+            text: "@cursor build the share dialog",
+            badge: { kind: "needs", agent: "cursor", label: "Needs you" },
+          },
+        ],
+      },
+      {
+        text: "Changes are a conversation #principle",
+        children: [
+          {
+            text: "@codex review the sharing tests",
+            badge: { kind: "review", agent: "codex", label: "2 to review" },
+            children: [
+              {
+                text: "Agents propose. You accept or reject",
+                suggested: true,
+              },
+              {
+                text: "Accepted changes become thought history; code lives in the project’s own Git",
+                suggested: true,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+];
+---
+
+<Layout>
+  <section class="hero">
+    <span class="status-pill" data-status="needs">
+      <i aria-hidden="true"></i> An open exploration in agentic software
+    </span>
+    <h1>A place for thoughts.<br />A workspace for agents.</h1>
+    <p class="lead">
+      What if the outline you think in was also the place where work happens?
+      Below is the actual outliner, playing a short story with scripted agents.
+      Watch, or click in and take over.
+    </p>
+    <div class="actions">
+      <a class="button button-primary" href="#demo">Try the outline ↓</a>
+      <a class="button button-ghost" href="https://github.com/bjacobso/threadvm">
+        Read the source ↗
+      </a>
+    </div>
+  </section>
+
+  <section id="demo" class="section section-demo" aria-label="Live demo">
+    <Demo />
+    <p class="fine-print">
+      Everything runs in this page: the outline, the room, and the agents, which
+      are deterministic simulations. Nothing is sent anywhere, and a reload
+      starts over.
+    </p>
+  </section>
+
+  <section id="idea" class="section split">
+    <div class="section-heading">
+      <span class="eyebrow">The idea</span>
+      <h2>Start small. Keep the thread.</h2>
+      <p>
+        Before the infrastructure, a few simple ideas about how working together
+        should feel. Written, naturally, as an outline.
+      </p>
+    </div>
+    <div class="surface">
+      <Outline rows={idea} label="First principles" />
+    </div>
+  </section>
+
+  <section id="local" class="section">
+    <div class="section-heading section-heading--wide">
+      <span class="eyebrow">On the workbench</span>
+      <h2>The agents above are scripted. The local harness is not.</h2>
+      <p>
+        <code>threadvm open</code> serves the same outliner against a Git-backed
+        outline in your project. Delegated bullets run real agents in their own
+        worktrees and tmux sessions, and report back as proposals.
+      </p>
+    </div>
+    <div class="workbench">
+      <figure class="window">
+        <div class="window__bar">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>Outline</span>
+          <span class="brand-doc">Local project</span>
+          <a
+            href="/screenshots/outline.png"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Open full-size outline screenshot">↗</a
+          >
+        </div>
+        <a href="/screenshots/outline.png" target="_blank" rel="noreferrer">
+          <img
+            src="/screenshots/outline.png"
+            alt="The running ThreadVM outline with nested project tasks, inline agent suggestions, and an Inbox for human review"
+            width="1440"
+            height="960"
+            loading="lazy"
+          />
+        </a>
+        <figcaption>
+          A real local capture, with a seeded example project and proposals
+          submitted through the CLI.
+        </figcaption>
+      </figure>
+      <div class="workbench__side">
+        <dl class="sandbox">
+          <dt>Built</dt>
+          <dd>Git worktrees, tmux sessions, ACP agents</dd>
+          <dt></dt>
+          <dd>Inline proposals and review</dd>
+          <dt></dt>
+          <dd>One outline across browser windows</dd>
+          <dt>Exploring</dt>
+          <dd>Markdown round-trip editing</dd>
+          <dt></dt>
+          <dd>From the local harness to a workspace runtime</dd>
+        </dl>
+        <a
+          class="button button-ghost"
+          href="https://github.com/bjacobso/threadvm#local-outline-workflow"
+        >
+          Try the local workflow ↗
+        </a>
+        <details class="capture">
+          <summary>Look closer: proposals in review</summary>
+          <a href="/screenshots/review.png" target="_blank" rel="noreferrer">
+            <img
+              src="/screenshots/review.png"
+              alt="ThreadVM showing proposed outline changes waiting for a person to accept or reject them"
+              width="1440"
+              height="960"
+              loading="lazy"
+            />
+          </a>
+          <p>Proposals stay separate until a person accepts them.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section id="architecture" class="section split">
+    <div class="section-heading">
+      <span class="eyebrow">Under the surface</span>
+      <h2>Three histories. One connected story.</h2>
+      <p>
+        The document, the execution, and the code have different jobs. Keep each
+        history where it belongs, and connect them with stable IDs.
+      </p>
+      <a class="text-link" href="/notes/three-histories/">
+        Read the architecture note →
+      </a>
+    </div>
+    <div class="histories">
+      <article class="history">
+        <span class="history__name">Thought</span>
+        <p>The outline and accepted proposals</p>
+        <code>.threadvm/ → nested Git repository</code>
+      </article>
+      <article class="history">
+        <span class="history__name">Execution</span>
+        <p>Runs, observations, and agent activity</p>
+        <code>events.jsonl → append-only events</code>
+      </article>
+      <article class="history">
+        <span class="history__name">Code</span>
+        <p>The actual changes to your project</p>
+        <code>project Git → worktrees + branches</code>
+      </article>
+    </div>
+  </section>
+
+  <section id="notes" class="section">
+    <div class="section-heading section-heading--row">
+      <div>
+        <span class="eyebrow">
+          Field notes <span class="count">{notes.length}</span>
+        </span>
+        <h2>Thinking out in the open.</h2>
+      </div>
+      <a class="text-link" href="https://github.com/bjacobso/threadvm">
+        All plans & source ↗
+      </a>
+    </div>
+    <div class="notes">
+      {
+        notes.map((note) => (
+          <a class="inbox-card" href={`/notes/${note.slug}/`}>
+            <span class="inbox-card__path">
+              Field notes › {note.category.toLowerCase()}
+            </span>
+            <span class="inbox-card__title">{note.title}</span>
+            <span class="inbox-card__detail">{note.description}</span>
+            <span class="inbox-card__foot">
+              <span class="option">Read · {note.readTime} min</span>
+            </span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="question" role="group" aria-labelledby="closing-question">
+      <span class="question__mark" aria-hidden="true">?</span>
+      <div>
+        <h2 id="closing-question">What should come next?</h2>
+        <p>
+          This is a work in progress, built in the open. Good tools start with
+          good questions.
+        </p>
+        <div class="question__options">
+          <a class="option" href="https://github.com/bjacobso/threadvm">
+            Explore the code
+          </a>
+          <a
+            class="option"
+            href="https://github.com/bjacobso/threadvm/blob/main/VISION.md"
+          >
+            Read the vision
+          </a>
+          <a class="option" href="https://github.com/bjacobso/threadvm/issues">
+            Open an issue
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>

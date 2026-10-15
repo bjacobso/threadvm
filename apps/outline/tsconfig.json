@@ -13,7 +13,7 @@
     "exactOptionalPropertyTypes": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node", "vite/client"]
   },
   "include": ["src", "test", "alchemy.run.ts", "vite.config.ts", "vitest.config.ts"]
 }

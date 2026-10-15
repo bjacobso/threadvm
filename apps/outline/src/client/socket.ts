@@ -18,14 +18,22 @@ const socketUrl = (outlineId: string): string => {
   return `${scheme}://${location.host}/api/outlines/${encodeURIComponent(outlineId)}/socket`;
 };
 
+/** The homepage embed plays its room inside the page; every other build dials one. */
+const socketFactory: Effect.Effect<(outlineId: string) => WebSocket> =
+  import.meta.env.MODE === "embed"
+    ? Effect.promise(() => import("../embed/room.ts")).pipe(
+        Effect.map(({ openDemoSocket }) => openDemoSocket),
+      )
+    : Effect.succeed((outlineId) => new WebSocket(socketUrl(outlineId)));
+
 export const managedResources = ManagedResource.make<Model, Message>()((entry) => ({
   roomSocket: entry(S.Option(S.String), {
     resource: RoomSocket,
     modelToMaybeRequirements: (model) =>
       model.connection === "Offline" ? Option.none() : Option.some(model.outlineId),
     acquire: (outlineId) =>
-      Effect.callback<WebSocket, Error>((resume) => {
-        const socket = new WebSocket(socketUrl(outlineId));
+      Effect.flatMap(socketFactory, (open) => Effect.callback<WebSocket, Error>((resume) => {
+        const socket = open(outlineId);
         const opened = () => {
           socket.removeEventListener("error", failed);
           resume(Effect.succeed(socket));
@@ -40,7 +48,7 @@ export const managedResources = ManagedResource.make<Model, Message>()((entry) =
           socket.removeEventListener("open", opened);
           socket.removeEventListener("error", failed);
         });
-      }).pipe(
+      })).pipe(
         Effect.timeout(CONNECT_TIMEOUT),
         Effect.catchTag("TimeoutError", () => Effect.fail(new Error("Connection timed out"))),
       ),
