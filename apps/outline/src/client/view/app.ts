@@ -1,5 +1,5 @@
-import { Monitor, Moon, RotateCcw, Sun } from "@lucide/icons";
-import { Button, Icon } from "@foldworks/ui";
+import { RotateCcw } from "@lucide/icons";
+import { Button } from "@foldworks/ui";
 import type { Document, HtmlBuilder } from "foldkit/html";
 
 import { totals } from "../attention.ts";
@@ -9,30 +9,6 @@ import { realItems } from "../projection.ts";
 import { outlinePane } from "./outline.ts";
 import { panel } from "./panel.ts";
 import type { H } from "./parts.ts";
-
-const themeOptions = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "device", label: "Device", icon: Monitor },
-] as const;
-
-const themeToggle = (model: Model, h: H) => h.div(
-  [h.Class("theme-toggle"), h.Role("group"), h.AriaLabel("Color theme")],
-  themeOptions.map(({ value, label, icon }) => h.button(
-    [
-      h.Type("button"),
-      h.Class("theme-toggle__option"),
-      h.AriaLabel(`${label} theme`),
-      h.AriaPressed(model.theme === value ? "true" : "false"),
-      h.Title(value === "device" ? "Follow device appearance" : `${label} theme`),
-      h.OnClick(Message.SelectedTheme({ preference: value })),
-    ],
-    [
-      Icon.view({ icon, size: 14 }, h),
-      h.span([h.Class("theme-toggle__label")], [label]),
-    ],
-  )),
-);
 
 const CONNECTION_LABELS: Readonly<Record<Model["connection"], string>> = {
   Connecting: "Connecting",
@@ -90,7 +66,6 @@ const header = (model: Model, h: H) => {
       h.div(
         [h.Class("app-header__end")],
         [
-          themeToggle(model, h),
           h.span(
             [h.Class("connection"), h.DataAttribute("state", model.connection)],
             [

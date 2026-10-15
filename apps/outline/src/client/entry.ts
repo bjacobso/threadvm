@@ -7,7 +7,6 @@ import { managedResources } from "./socket.ts";
 import { subscriptions } from "./subscriptions.ts";
 import { update } from "./update.ts";
 import { view } from "./view/app.ts";
-import { readThemePreference } from "./theme.ts";
 
 const randomId = (length: number): string =>
   Array.from(crypto.getRandomValues(new Uint8Array(length)), (byte) =>
@@ -16,7 +15,8 @@ const randomId = (length: number): string =>
 
 /** Each outline lives at `/o/<id>`; the root starts a fresh one. The homepage embed has just one. */
 const flags = Effect.sync((): Flags => {
-  if (import.meta.env.MODE === "embed") return { outlineId: "demo", sessionId: randomId(6) };
+  if (import.meta.env.MODE === "embed")
+    return { outlineId: "demo", sessionId: randomId(6) };
   const match = /^\/o\/([A-Za-z0-9_-]{1,64})\/?$/u.exec(location.pathname);
   const outlineId =
     match?.[1] ??
@@ -30,7 +30,7 @@ const flags = Effect.sync((): Flags => {
 const application = Runtime.makeApplication({
   Model,
   Flags,
-  init: (flags: Flags) => ({ model: { ...init(flags), theme: readThemePreference() } }),
+  init: (flags: Flags) => ({ model: init(flags) }),
   update,
   view,
   subscriptions,

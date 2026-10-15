@@ -5,8 +5,8 @@ import {
   replay,
   toItems,
 } from "@threadvm/outline-protocol/document";
-import { Effect, Option } from "effect";
-import { Command, Update } from "foldkit";
+import { Option } from "effect";
+import { Update } from "foldkit";
 import { Outliner, reparented, type Policy } from "@foldworks/outliner";
 
 import { agentInfo, mentionedAgent, sandboxOf } from "../shared/agents.ts";
@@ -34,16 +34,6 @@ import {
   sameItems,
 } from "./projection.ts";
 import { Reconnect, Send, type RoomSocketService } from "./socket.ts";
-import { applyTheme, ThemePreference } from "./theme.ts";
-
-const ApplyTheme = Command.define("ApplyTheme", {
-  args: { preference: ThemePreference },
-  messages: [Message.CompletedApplyTheme],
-  execute: ({ preference }) => Effect.sync(() => {
-    applyTheme(preference);
-    return Message.CompletedApplyTheme();
-  }),
-});
 
 type Return = Update.Return<Model, Message, RoomSocketService>;
 type Commands = NonNullable<Return["commands"]>;
@@ -638,15 +628,6 @@ const fromServer = (
 
 const reduce = (model: Model, message: Message): Step =>
   Message.match<Step>(message, {
-    SelectedTheme: ({ preference }) => ({
-      model: { ...model, theme: preference },
-      commands: [ApplyTheme({ preference })],
-    }),
-    ChangedDeviceTheme: () => ({
-      model,
-      commands: model.theme === "device" ? [ApplyTheme({ preference: "device" })] : [],
-    }),
-    CompletedApplyTheme: () => ({ model }),
     GotOutlinerMessage: ({ message }) => outlinerMessage(model, message),
 
     OpenedSocket: () => ({
