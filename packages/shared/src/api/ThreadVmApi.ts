@@ -8,7 +8,15 @@ import {
 import { Schema } from "effect";
 import {
   ApiError,
-  OutlineView, OutlineSnapshot, OperationBatch, Proposal, ProposalRequest, ReviewRequest, StartRunRequest, Run, ObserveRequest,
+  OutlineView,
+  OutlineSnapshot,
+  OperationBatch,
+  Proposal,
+  ProposalRequest,
+  ReviewRequest,
+  StartRunRequest,
+  Run,
+  ObserveRequest,
   CreateThreadVmRequest,
   CreateThreadVmResponse,
   Project,
@@ -107,12 +115,47 @@ const ThreadVmsGroup = HttpApiGroup.make("threadvms")
   .prefix("/api");
 
 const OutlineGroup = HttpApiGroup.make("outline")
-  .add(HttpApiEndpoint.get("read", "/outline", { success: OutlineView, error: ApiErrorResponse }))
-  .add(HttpApiEndpoint.post("apply", "/outline/batches", { payload: OperationBatch, success: OutlineSnapshot, error: ApiErrorResponse }))
-  .add(HttpApiEndpoint.post("propose", "/outline/proposals", { payload: ProposalRequest, success: Proposal, error: ApiErrorResponse }))
-  .add(HttpApiEndpoint.post("review", "/outline/review", { payload: ReviewRequest, success: OutlineSnapshot, error: ApiErrorResponse }))
-  .add(HttpApiEndpoint.post("run", "/outline/runs", { payload: StartRunRequest, success: Run, error: ApiErrorResponse }))
-  .add(HttpApiEndpoint.post("observe", "/outline/observations", { payload: ObserveRequest, success: Schema.Void, error: ApiErrorResponse }))
+  .add(
+    HttpApiEndpoint.get("read", "/outline", {
+      success: OutlineView,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("apply", "/outline/batches", {
+      payload: OperationBatch,
+      success: OutlineSnapshot,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("propose", "/outline/proposals", {
+      payload: ProposalRequest,
+      success: Proposal,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("review", "/outline/review", {
+      payload: ReviewRequest,
+      success: OutlineSnapshot,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("run", "/outline/runs", {
+      payload: StartRunRequest,
+      success: Run,
+      error: ApiErrorResponse
+    })
+  )
+  .add(
+    HttpApiEndpoint.post("observe", "/outline/observations", {
+      payload: ObserveRequest,
+      success: Schema.Void,
+      error: ApiErrorResponse
+    })
+  )
   .prefix("/api");
 
 export class ThreadVmApi extends HttpApi.make("ThreadVmApi")

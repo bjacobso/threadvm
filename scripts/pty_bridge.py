@@ -47,7 +47,7 @@ def write_all(fd, data):
             raise
 
 
-def spawn_child(argv, cols, rows):
+def spawn_child(argv, cols, rows, previous_mask):
     master_fd, slave_fd = pty.openpty()
     set_winsize(slave_fd, cols, rows)
 
@@ -62,6 +62,7 @@ def spawn_child(argv, cols, rows):
             os.dup2(slave_fd, 2)
             if slave_fd > 2:
                 os.close(slave_fd)
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
             os.execvp(argv[0], argv)
         except BaseException as error:
             message = f"pty bridge exec failed: {error}\n".encode()
@@ -101,7 +102,12 @@ def main():
         return 2
 
     cols, rows = parse_size()
-    child_pid, master_fd = spawn_child(argv, cols, rows)
+    # Do not allow a disconnect between fork and installing the parent's cleanup
+    # handlers to leave an orphan tmux client. The child unmasks after setsid.
+    previous_mask = signal.pthread_sigmask(
+        signal.SIG_BLOCK, {signal.SIGTERM, signal.SIGINT}
+    )
+    child_pid, master_fd = spawn_child(argv, cols, rows, previous_mask)
 
     set_nonblocking(0)
     set_nonblocking(master_fd)
@@ -117,10 +123,14 @@ def main():
         try:
             os.killpg(child_pid, signal.SIGTERM)
         except OSError:
-            pass
+            try:
+                os.kill(child_pid, signal.SIGTERM)
+            except OSError:
+                pass
 
     signal.signal(signal.SIGTERM, stop_child)
     signal.signal(signal.SIGINT, stop_child)
+    signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
 
     input_open = True
     control_open = control_fd is not None
@@ -183,7 +193,9 @@ def main():
                         continue
                     try:
                         message = json.loads(line.decode("utf8"))
-                        if message.get("type") == "resize":
+                        if message.get("type") == "input":
+                            write_all(master_fd, message["data"].encode("utf8"))
+                        elif message.get("type") == "resize":
                             next_cols = max(1, int(message["cols"]))
                             next_rows = max(1, int(message["rows"]))
                             set_winsize(master_fd, next_cols, next_rows)

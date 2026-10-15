@@ -94,7 +94,11 @@ const wrapChildProcess = (
   control?: Writable
 ): TerminalProcess => ({
   write: (data) => {
-    child.stdin.write(data);
+    if (control) {
+      control.write(`${JSON.stringify({ type: "input", data })}\n`);
+    } else {
+      child.stdin.write(data);
+    }
   },
   resize: (cols, rows) => {
     control?.write(`${JSON.stringify({ type: "resize", cols, rows })}\n`);
