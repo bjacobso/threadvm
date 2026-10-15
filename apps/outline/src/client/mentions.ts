@@ -2,7 +2,7 @@
 import type { TextSpan } from "@foldworks/outliner";
 import { Mentions, segments } from "@foldworks/text-intelligence";
 
-import { AGENTS, AGENT_IDS } from "../shared/agents.ts";
+import { agentInfo, AGENT_IDS } from "../shared/agents.ts";
 import type { Items } from "../shared/protocol.ts";
 import { walk } from "../shared/tree.ts";
 
@@ -10,8 +10,8 @@ const entities: ReadonlyArray<Mentions.Entity> = AGENT_IDS.map((id) => ({
   id,
   kind: "mention",
   name: id,
-  label: `${AGENTS[id].name} · ${AGENTS[id].harness}`,
-  description: AGENTS[id].description,
+  label: `${agentInfo(id).name} · ${agentInfo(id).harness}`,
+  description: agentInfo(id).description,
 }));
 
 const tagCache = new WeakMap<Items, ReadonlyArray<string>>();

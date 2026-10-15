@@ -1,8 +1,15 @@
+import { renewDeletedIds } from "./history.ts";
+import {
+  asNodes,
+  diff,
+  replay,
+  toItems,
+} from "@threadvm/outline-protocol/document";
 import { Option } from "effect";
 import { Update } from "foldkit";
 import { Outliner, reparented, type Policy } from "@foldworks/outliner";
 
-import { AGENTS, mentionedAgent } from "../shared/agents.ts";
+import { agentInfo, mentionedAgent, sandboxOf } from "../shared/agents.ts";
 import {
   isActive,
   pendingOps,
@@ -32,7 +39,11 @@ type Return = Update.Return<Model, Message, RoomSocketService>;
 type Commands = NonNullable<Return["commands"]>;
 
 /** One update's result, plus what it tells the room. Messages are sent in order. */
-type Step = Readonly<{ model: Model; commands?: Commands; outbox?: ReadonlyArray<ClientMessage> }>;
+type Step = Readonly<{
+  model: Model;
+  commands?: Commands;
+  outbox?: ReadonlyArray<ClientMessage>;
+}>;
 
 const merge = (first: Step, second: Step): Step => ({
   model: second.model,
@@ -48,7 +59,8 @@ export const policy: Policy = {
   isReadOnly: (node) => isGhost(node.id),
   canMove: ({ before, after }) =>
     reparented(before, after).every(
-      ({ id, parentId }) => !isGhost(id) && (parentId === null || !isGhost(parentId)),
+      ({ id, parentId }) =>
+        !isGhost(id) && (parentId === null || !isGhost(parentId)),
     ),
 };
 
@@ -60,7 +72,8 @@ const foldOutliner = Update.foldChild({
   toParentMessage: (message) => Message.GotOutlinerMessage({ message }),
 });
 
-const outline = (model: Model, message: Outliner.Message): Step => foldOutliner(model, message);
+const outline = (model: Model, message: Outliner.Message): Step =>
+  foldOutliner(model, message);
 
 /** Keeps ghost rows in step with the threads, outside of undo history. */
 const reproject = (model: Model): Model => {
@@ -74,38 +87,54 @@ const reproject = (model: Model): Model => {
 const replaceReal = (model: Model, real: Items, announcement: string): Step =>
   outline(
     model,
-    Outliner.Message.Replace({ items: project(real, model.threads), announcement }),
+    Outliner.Message.Replace({
+      items: project(real, model.threads),
+      announcement,
+    }),
   );
 
 const isUndoOrRedo = (message: Outliner.Message): boolean =>
   message._tag === "ClickedUndo" ||
   message._tag === "ClickedRedo" ||
-  (message._tag === "Pressed" && (message.action === "Undo" || message.action === "Redo"));
+  (message._tag === "Pressed" &&
+    (message.action === "Undo" || message.action === "Redo"));
 
 /** Offers agents after `@` and tags after `#`, as soon as one is being typed. */
 const offerCompletions = (step: Step, message: Outliner.Message): Step => {
-  if (message._tag !== "EditedText" && message._tag !== "RequestedCompletion") return step;
+  if (message._tag !== "EditedText" && message._tag !== "RequestedCompletion")
+    return step;
   const current = step.model.outline;
   const node = find(current.items, message.id);
-  if (node === undefined || isGhost(node.id) || current.focus?.start !== current.focus?.end)
+  if (
+    node === undefined ||
+    isGhost(node.id) ||
+    current.focus?.start !== current.focus?.end
+  )
     return step;
   const offer = suggestionsAt(current.items, node.text, message.end);
   if (offer === undefined) return step;
   return merge(
     step,
-    outline(step.model, Outliner.Message.ShowCompletions({ id: message.id, ...offer })),
+    outline(
+      step.model,
+      Outliner.Message.ShowCompletions({ id: message.id, ...offer }),
+    ),
   );
 };
 
 /** Opens the thread behind the row the caret moved to, if it has one. */
 const followCaret = (model: Model, message: Outliner.Message): Model => {
   const id =
-    message._tag === "FocusedText" || message._tag === "ClickedBullet" ? message.id : undefined;
+    message._tag === "FocusedText" || message._tag === "ClickedBullet"
+      ? message.id
+      : undefined;
   if (id === undefined) return model;
   const thread = isGhost(id)
     ? ghostsOf(model.threads).get(id)?.thread
     : latestByNode(model.threads).get(id);
-  return thread === undefined ? model : { ...model, selectedThreadId: thread.id };
+  return thread === undefined
+    ? model
+    : { ...model, selectedThreadId: thread.id };
 };
 
 /**
@@ -119,14 +148,20 @@ const syncAccepted = (model: Model): Step => {
   for (const thread of Object.values(model.threads)) {
     const changed: Array<Readonly<{ id: string; state: Op["state"] }>> = [];
     for (const op of thread.proposal?.ops ?? []) {
-      if (!model.acceptedHere.includes(op.id) || op.state === "Rejected") continue;
+      if (!model.acceptedHere.includes(op.id) || op.state === "Rejected")
+        continue;
       const state = isApplied(real, op) ? "Accepted" : "Pending";
       if (state !== op.state) changed.push({ id: op.id, state });
     }
     for (const state of ["Accepted", "Pending"] as const) {
-      const opIds = changed.filter((op) => op.state === state).map((op) => op.id);
+      const opIds = changed
+        .filter((op) => op.state === state)
+        .map((op) => op.id);
       if (opIds.length === 0) continue;
-      threads = { ...threads, [thread.id]: withOpStates(threads[thread.id]!, opIds, state) };
+      threads = {
+        ...threads,
+        [thread.id]: withOpStates(threads[thread.id]!, opIds, state),
+      };
       outbox.push({ _tag: "Resolve", threadId: thread.id, opIds, state });
     }
   }
@@ -145,7 +180,8 @@ const outlinerMessage = (model: Model, message: Outliner.Message): Step => {
   if (typedIn !== undefined && !isGhost(typedIn))
     next = { ...next, edited: { ...next.edited, [typedIn]: true } };
   step = { ...step, model: next };
-  if (isUndoOrRedo(message)) step = merge(step, syncAccepted(step.model));
+  if (!model.backend && isUndoOrRedo(message))
+    step = merge(step, syncAccepted(step.model));
   return { ...step, model: refreshCountdowns(step.model) };
 };
 
@@ -163,9 +199,16 @@ const refreshCountdowns = (model: Model): Model => {
   const countdowns = { ...model.countdowns };
   for (const nodeId of Object.keys(edited)) {
     const node = find(real, nodeId);
-    const agent = node === undefined ? undefined : mentionedAgent(node.text);
+    const agent =
+      node === undefined
+        ? undefined
+        : mentionedAgent(node.text, model.backend?.available);
     if (node === undefined) delete edited[nodeId];
-    if (agent === undefined || caret === nodeId || activeOn(model.threads, nodeId)) {
+    if (
+      agent === undefined ||
+      caret === nodeId ||
+      activeOn(model.threads, nodeId)
+    ) {
       delete countdowns[nodeId];
       continue;
     }
@@ -183,7 +226,10 @@ const dispatch = (
   model: Model,
   nodeId: string,
   agent: AgentId,
-  options: Readonly<{ parentThreadId?: string | null; instruction?: string }> = {},
+  options: Readonly<{
+    parentThreadId?: string | null;
+    instruction?: string;
+  }> = {},
 ): Step => {
   const real = realItems(model.outline.items);
   const node = find(real, nodeId);
@@ -198,7 +244,7 @@ const dispatch = (
     contextSize: contextOf(real, nodeId).size,
     parentThreadId: options.parentThreadId ?? null,
     status: "Queued",
-    headline: `Starting ${AGENTS[agent].harness}`,
+    headline: `Starting ${agentInfo(agent).harness}`,
     createdAt: at,
     updatedAt: at,
     sandbox: null,
@@ -219,7 +265,7 @@ const dispatch = (
       nextThreadNumber: model.nextThreadNumber + 1,
       edited,
       countdowns,
-      announcement: `Sent to ${AGENTS[agent].name}.`,
+      announcement: `Sent to ${agentInfo(agent).name}.`,
     },
     outbox: [
       {
@@ -227,6 +273,7 @@ const dispatch = (
         threadId,
         nodeId,
         agent,
+        sandbox: sandboxOf(node.text),
         instruction: options.instruction ?? "",
         parentThreadId: options.parentThreadId ?? null,
       },
@@ -244,7 +291,10 @@ const tick = (model: Model, elapsed: number): Step => {
             ...step,
             model: {
               ...step.model,
-              countdowns: { ...step.model.countdowns, [nodeId]: { ...countdown, remaining } },
+              countdowns: {
+                ...step.model.countdowns,
+                [nodeId]: { ...countdown, remaining },
+              },
             },
           }
         : merge(step, dispatch(step.model, nodeId, countdown.agent));
@@ -255,18 +305,28 @@ const tick = (model: Model, elapsed: number): Step => {
 // ---------------------------------------------------------------------------
 // Answering and reviewing
 
-const withOpStates = (thread: Thread, opIds: ReadonlyArray<string>, state: Op["state"]): Thread =>
+const withOpStates = (
+  thread: Thread,
+  opIds: ReadonlyArray<string>,
+  state: Op["state"],
+): Thread =>
   thread.proposal === null
     ? thread
     : {
         ...thread,
         proposal: {
           ...thread.proposal,
-          ops: thread.proposal.ops.map((op) => (opIds.includes(op.id) ? { ...op, state } : op)),
+          ops: thread.proposal.ops.map((op) =>
+            opIds.includes(op.id) ? { ...op, state } : op,
+          ),
         },
       };
 
-const updateThread = (model: Model, threadId: string, f: (thread: Thread) => Thread): Model => {
+const updateThread = (
+  model: Model,
+  threadId: string,
+  f: (thread: Thread) => Thread,
+): Model => {
   const thread = model.threads[threadId];
   return thread === undefined
     ? model
@@ -276,6 +336,13 @@ const updateThread = (model: Model, threadId: string, f: (thread: Thread) => Thr
 const answer = (model: Model, threadId: string, text: string): Step => {
   const thread = model.threads[threadId];
   if (thread?.question == null || text.trim() === "") return { model };
+  if (thread.question.response === "expired")
+    return {
+      model: {
+        ...model,
+        error: "This request expired when the agent disconnected.",
+      },
+    };
   const questionId = thread.question.id;
   return {
     model: updateThread(model, threadId, (current) => ({
@@ -296,15 +363,24 @@ const resolveOps = (
 ): Step => {
   const thread = model.threads[threadId];
   if (thread === undefined) return { model };
+  if (model.backend)
+    return { model, outbox: [{ _tag: "Resolve", threadId, opIds, state }] };
   const ops = pendingOps(thread).filter((op) => opIds.includes(op.id));
   if (ops.length === 0) return { model };
   const ids = ops.map((op) => op.id);
   const resolved: Model = {
-    ...updateThread(model, threadId, (current) => withOpStates(current, ids, state)),
-    acceptedHere: state === "Accepted" ? [...model.acceptedHere, ...ids] : model.acceptedHere,
+    ...updateThread(model, threadId, (current) =>
+      withOpStates(current, ids, state),
+    ),
+    acceptedHere:
+      state === "Accepted"
+        ? [...model.acceptedHere, ...ids]
+        : model.acceptedHere,
   };
-  const outbox: ReadonlyArray<ClientMessage> = [{ _tag: "Resolve", threadId, opIds: ids, state }];
-  const name = AGENTS[thread.agent].name;
+  const outbox: ReadonlyArray<ClientMessage> = [
+    { _tag: "Resolve", threadId, opIds: ids, state },
+  ];
+  const name = agentInfo(thread.agent).name;
   if (state === "Rejected")
     return {
       model: {
@@ -329,7 +405,10 @@ const resolveOps = (
     for (const node of walk(op.items)) {
       const agent = mentionedAgent(node.text);
       if (agent !== undefined)
-        step = merge(step, dispatch(step.model, node.id, agent, { parentThreadId: threadId }));
+        step = merge(
+          step,
+          dispatch(step.model, node.id, agent, { parentThreadId: threadId }),
+        );
     }
   }
   return step;
@@ -341,7 +420,7 @@ const submitDraft = (model: Model, threadId: string): Step => {
   if (thread === undefined || text === "") return { model };
   const cleared = { ...model, drafts: { ...model.drafts, [threadId]: "" } };
   if (thread.status === "NeedsInput") return answer(cleared, threadId, text);
-  if (isActive(thread.status))
+  if (isActive(thread.status) || thread.execution?.persistent)
     return {
       model: cleared,
       outbox: [{ _tag: "Steer", threadId, text }],
@@ -351,17 +430,25 @@ const submitDraft = (model: Model, threadId: string): Step => {
     parentThreadId: thread.parentThreadId,
     instruction: text,
   });
-  const created = Object.keys(followUp.model.threads).find((id) => !(id in model.threads));
-  return { ...followUp, model: { ...followUp.model, selectedThreadId: created ?? threadId } };
+  const created = Object.keys(followUp.model.threads).find(
+    (id) => !(id in model.threads),
+  );
+  return {
+    ...followUp,
+    model: { ...followUp.model, selectedThreadId: created ?? threadId },
+  };
 };
 
 const jump = (model: Model, kind: Kind | "Any"): Step => {
-  const queue = attentionQueue(realItems(model.outline.items), model.threads).filter(
-    (entry) => kind === "Any" || entry.kind === kind,
-  );
+  const queue = attentionQueue(
+    realItems(model.outline.items),
+    model.threads,
+  ).filter((entry) => kind === "Any" || entry.kind === kind);
   if (queue.length === 0)
     return { model: { ...model, announcement: "Nothing is waiting on you." } };
-  const current = queue.findIndex((entry) => entry.thread.id === model.selectedThreadId);
+  const current = queue.findIndex(
+    (entry) => entry.thread.id === model.selectedThreadId,
+  );
   const { thread } = queue[(current + 1) % queue.length]!;
   return outline(
     { ...model, selectedThreadId: thread.id },
@@ -372,11 +459,105 @@ const jump = (model: Model, kind: Kind | "Any"): Step => {
 // ---------------------------------------------------------------------------
 // The room
 
-const fromServer = (model: Model, message: Message & { _tag: "ReceivedServerMessage" }): Step => {
+const fromServer = (
+  model: Model,
+  message: Message & { _tag: "ReceivedServerMessage" },
+): Step => {
   const server = message.message;
+  if (
+    (server._tag === "Snapshot" || server._tag === "DocumentChanged") &&
+    server.backend
+  ) {
+    let next = {
+      ...model,
+      backend: server.backend,
+      canonical: server.items,
+      error: model.saveRejected ? model.error : "",
+    };
+    if (server._tag === "Snapshot")
+      next = {
+        ...next,
+        threads: Object.fromEntries(server.threads.map((t) => [t.id, t])),
+      };
+    if (model.inFlight) {
+      if (server._tag === "Snapshot" && model.saveRejected)
+        return { model: next };
+      if (server._tag === "Snapshot")
+        return {
+          model: next,
+          outbox: [{ _tag: "SaveDocument", ...model.inFlight }],
+        };
+      if (server.requestId !== model.inFlight.requestId) return { model: next };
+      const pending = diff(
+        asNodes(model.inFlight.items),
+        realItems(model.outline.items),
+      );
+      const items = toItems(
+        replay(asNodes(server.items), pending),
+        realItems(model.outline.items),
+      );
+      next = {
+        ...next,
+        inFlight: null,
+        saveRejected: false,
+        synced: true,
+        savedRevision: pending.length
+          ? model.inFlight.editorRevision
+          : model.outline.revision,
+      };
+      return {
+        model: {
+          ...next,
+          outline: renewDeletedIds(
+            { ...next.outline, items: project(items, next.threads) },
+            server.backend.tombstones,
+            () => crypto.randomUUID(),
+          ),
+        },
+      };
+    }
+    if (model.synced && model.outline.revision !== model.savedRevision) {
+      const inFlight = {
+        requestId: crypto.randomUUID(),
+        items: realItems(model.outline.items),
+        baseItems: model.canonical,
+        baseRevision: model.backend!.revision,
+        editorRevision: model.outline.revision,
+      };
+      return {
+        model: { ...next, inFlight },
+        outbox: [{ _tag: "SaveDocument", ...inFlight }],
+      };
+    }
+    const loaded = outline(
+      next,
+      Outliner.Message.Load({ items: project(server.items, next.threads) }),
+    );
+    return {
+      ...loaded,
+      model: {
+        ...loaded.model,
+        synced: true,
+        savedRevision: loaded.model.outline.revision,
+      },
+    };
+  }
   switch (server._tag) {
+    case "Error":
+      return {
+        model: {
+          ...model,
+          error: server.message,
+          saveRejected:
+            model.saveRejected ||
+            (!!model.inFlight && server.requestId === model.inFlight.requestId),
+          announcement: server.message,
+        },
+      };
     case "Snapshot": {
-      const threads = Object.fromEntries(server.threads.map((thread) => [thread.id, thread]));
+      const threads = Object.fromEntries(
+        server.threads.map((thread) => [thread.id, thread]),
+      );
       const withThreads = { ...model, threads };
       if (!model.synced) {
         const loaded = outline(
@@ -385,23 +566,43 @@ const fromServer = (model: Model, message: Message & { _tag: "ReceivedServerMess
         );
         return {
           ...loaded,
-          model: { ...loaded.model, synced: true, savedRevision: loaded.model.outline.revision },
+          model: {
+            ...loaded.model,
+            synced: true,
+            savedRevision: loaded.model.outline.revision,
+          },
         };
       }
       // Reconnected. Unsent local edits win; otherwise take the room's outline.
-      if (model.outline.revision !== model.savedRevision) return { model: withThreads };
-      if (sameItems(realItems(model.outline.items), server.items)) return { model: withThreads };
-      const replaced = replaceReal(withThreads, server.items, "Caught up with the outline.");
+      if (model.outline.revision !== model.savedRevision)
+        return { model: withThreads };
+      if (sameItems(realItems(model.outline.items), server.items))
+        return { model: withThreads };
+      const replaced = replaceReal(
+        withThreads,
+        server.items,
+        "Caught up with the outline.",
+      );
       return {
         ...replaced,
-        model: { ...replaced.model, savedRevision: replaced.model.outline.revision },
+        model: {
+          ...replaced.model,
+          savedRevision: replaced.model.outline.revision,
+        },
       };
     }
     case "DocumentChanged": {
-      const replaced = replaceReal(model, server.items, "Updated from another window.");
+      const replaced = replaceReal(
+        model,
+        server.items,
+        "Updated from another window.",
+      );
       return {
         ...replaced,
-        model: { ...replaced.model, savedRevision: replaced.model.outline.revision },
+        model: {
+          ...replaced.model,
+          savedRevision: replaced.model.outline.revision,
+        },
       };
     }
     case "ThreadChanged": {
@@ -415,6 +616,7 @@ const fromServer = (model: Model, message: Message & { _tag: "ReceivedServerMess
         model: {
           ...model,
           threads: { ...model.threads, [server.thread.id]: server.thread },
+          error: model.inFlight ? model.error : "",
           announcement: announcement || model.announcement,
         },
       };
@@ -428,7 +630,9 @@ const reduce = (model: Model, message: Message): Step =>
   Message.match<Step>(message, {
     GotOutlinerMessage: ({ message }) => outlinerMessage(model, message),
 
-    OpenedSocket: () => ({ model: { ...model, connection: "Online", retries: 0 } }),
+    OpenedSocket: () => ({
+      model: { ...model, connection: "Online", retries: 0 },
+    }),
     FailedSocket: () => ({
       model: { ...model, connection: "Offline", retries: model.retries + 1 },
       commands: [Reconnect({ attempt: model.retries })],
@@ -446,20 +650,34 @@ const reduce = (model: Model, message: Message): Step =>
     TickedCountdowns: ({ elapsed }) => tick(model, elapsed),
     ClickedSendNow: ({ nodeId }) => {
       const node = find(realItems(model.outline.items), nodeId);
-      const agent = node === undefined ? undefined : mentionedAgent(node.text);
+      const agent =
+        node === undefined
+          ? undefined
+          : mentionedAgent(node.text, model.backend?.available);
       return agent === undefined ? { model } : dispatch(model, nodeId, agent);
     },
     ClickedHoldCountdown: ({ nodeId }) => {
       const { [nodeId]: _countdown, ...countdowns } = model.countdowns;
       const { [nodeId]: _edited, ...edited } = model.edited;
-      return { model: { ...model, countdowns, edited, announcement: "Kept as a note." } };
+      return {
+        model: {
+          ...model,
+          countdowns,
+          edited,
+          announcement: "Kept as a note.",
+        },
+      };
     },
 
-    SelectedThread: ({ threadId }) => ({ model: { ...model, selectedThreadId: threadId } }),
+    SelectedThread: ({ threadId }) => ({
+      model: { ...model, selectedThreadId: threadId },
+    }),
     ClosedThread: () => ({ model: { ...model, selectedThreadId: null } }),
-    RevealedNode: ({ nodeId }) => outline(model, Outliner.Message.Reveal({ id: nodeId })),
+    RevealedNode: ({ nodeId }) =>
+      outline(model, Outliner.Message.Reveal({ id: nodeId })),
     AnsweredQuestion: ({ threadId, text }) => answer(model, threadId, text),
-    ResolvedOps: ({ threadId, opIds, state }) => resolveOps(model, threadId, opIds, state),
+    ResolvedOps: ({ threadId, opIds, state }) =>
+      resolveOps(model, threadId, opIds, state),
     ChangedDraft: ({ threadId, value }) => ({
       model: { ...model, drafts: { ...model.drafts, [threadId]: value } },
     }),
@@ -474,6 +692,69 @@ const reduce = (model: Model, message: Message): Step =>
       outbox: [{ _tag: "Cancel", threadId }],
     }),
     JumpedToAttention: ({ kind }) => jump(model, kind),
+    RetriedEdit: () => {
+      if (!model.inFlight || !model.saveRejected) return { model };
+      const operations = diff(
+        asNodes(model.inFlight.baseItems),
+        realItems(model.outline.items),
+      );
+      const latest = asNodes(model.canonical);
+      const known = new Set([
+        ...latest.map((n) => n.id),
+        ...operations.filter((o) => o.type === "insert").map((o) => o.node.id),
+      ]);
+      if (
+        operations.some(
+          (o) =>
+            ((o.type === "update" || o.type === "move") && !known.has(o.id)) ||
+            ((o.type === "insert" || o.type === "move") &&
+              ((o.parent !== null && !known.has(o.parent)) ||
+                (o.after != null && !known.has(o.after)))),
+        )
+      )
+        return {
+          model: {
+            ...model,
+            error:
+              "A bullet or anchor was deleted. Copy your draft before using the latest outline.",
+          },
+        };
+      const rebased = replay(
+        latest,
+        operations.filter((o) => o.type !== "delete" || known.has(o.id)),
+      );
+      const items = toItems(rebased, realItems(model.outline.items));
+      if (asNodes(items).length !== rebased.length)
+        return {
+          model: {
+            ...model,
+            error:
+              "The latest outline conflicts with this move. Copy your draft before using the latest outline.",
+          },
+        };
+      const replaced = replaceReal(
+        { ...model, inFlight: null, error: "", saveRejected: false },
+        items,
+        "Retrying your edit against the latest revision.",
+      );
+      return { ...replaced, model: { ...replaced.model, savedRevision: -1 } };
+    },
+    DiscardedEdit: () => {
+      const loaded = outline(
+        { ...model, inFlight: null, error: "", saveRejected: false },
+        Outliner.Message.Load({
+          items: project(model.canonical, model.threads),
+        }),
+      );
+      return {
+        ...loaded,
+        model: {
+          ...loaded.model,
+          savedRevision: loaded.model.outline.revision,
+        },
+      };
+    },
+    ClickedPush: () => ({ model, outbox: [{ _tag: "Push" }] }),
     ClickedResetDemo: () => ({
       model: {
         ...model,
@@ -499,12 +780,42 @@ export const update = (model: Model, message: Message): Return => {
   let next = reproject(step.model);
   if (next.threads !== model.threads) next = refreshCountdowns(next);
   const outbox = [...(step.outbox ?? [])];
-  if (next.synced && next.connection === "Online" && next.outline.revision !== next.savedRevision) {
-    outbox.unshift({ _tag: "SaveDocument", items: realItems(next.outline.items) });
+  if (
+    next.backend &&
+    next.synced &&
+    next.connection === "Online" &&
+    !next.inFlight &&
+    !next.error &&
+    next.outline.revision !== next.savedRevision
+  ) {
+    const items = realItems(next.outline.items);
+    const inFlight = {
+      requestId: crypto.randomUUID(),
+      items,
+      baseItems: next.canonical,
+      baseRevision: next.backend.revision,
+      editorRevision: next.outline.revision,
+    };
+    outbox.unshift({ _tag: "SaveDocument", ...inFlight });
+    next = { ...next, inFlight };
+  }
+  if (
+    !next.backend &&
+    next.synced &&
+    next.connection === "Online" &&
+    next.outline.revision !== next.savedRevision
+  ) {
+    outbox.unshift({
+      _tag: "SaveDocument",
+      items: realItems(next.outline.items),
+    });
     next = { ...next, savedRevision: next.outline.revision };
   }
   return {
     model: next,
-    commands: [...(step.commands ?? []), ...(outbox.length > 0 ? [Send({ messages: outbox })] : [])],
+    commands: [
+      ...(step.commands ?? []),
+      ...(outbox.length > 0 ? [Send({ messages: outbox })] : []),
+    ],
   };
 };

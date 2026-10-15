@@ -6,9 +6,13 @@ a task. The agent works in its own sandbox with that branch of the outline as
 context, asks when it needs you, and reports back as suggestions you accept or
 reject.
 
-This is an experience prototype. The agents are deterministic simulations played
-by a Durable Object. There are no real harnesses, sandboxes, or pull requests
-yet. The protocol, persistence, and UI are real.
+This directory now contains two modes. **Local mode** is served by `threadvm open`
+and connects Foldworks editing to the Git outline store, CLI proposals, worktrees,
+tmux, the existing terminal gateway and the ACP runner. Its source is `src/local`;
+launching an agent always requires an explicit Run action. See the root README.
+
+**Cloudflare demo mode**, described below, is an experience prototype. Its agents are deterministic simulations played
+by a Durable Object. The demo does not connect to the local harness.
 
 ## Using it
 
@@ -83,10 +87,10 @@ against.
 git submodule update --init vendor/foldworks
 pnpm install
 pnpm --filter './vendor/foldworks/packages/*' build
-pnpm --filter @threadvm/outline dev
+pnpm --filter @threadvm/outline dev:demo
 ```
 
-`dev` runs two processes:
+`dev:demo` runs two processes:
 
 - `dev:worker` runs `alchemy dev` with local state, so the Worker and Durable
   Objects run in workerd on `http://localhost:1337` without a Cloudflare
@@ -121,3 +125,10 @@ the stack. To add a custom domain, set `domain` on the Worker in
   Two people typing in the same bullet at once will overwrite each other.
 - Suggestions anchor to bullet ids. If the anchor is deleted, its suggestions
   disappear from the outline but stay in the thread.
+
+
+For local harness development, run `pnpm dev` at the repository root. This runs
+only the local API and Foldkit Vite app, without Cloudflare credentials. Set
+`THREADVM_PROJECT_DIR` to an initialized project. The first `pnpm build` supplies
+the reusable inventory/terminal bundle. Vite proxies local API, terminal and
+inventory routes to the server; the Cloudflare simulator remains opt-in.

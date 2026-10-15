@@ -5,8 +5,8 @@
   "type": "module",
   "packageManager": "pnpm@10.20.0",
   "scripts": {
-    "dev": "turbo dev",
-    "dev:stable": "turbo dev:stable",
+    "dev": "turbo dev --filter=@threadvm/server --filter=@threadvm/outline",
+    "dev:stable": "turbo dev:stable --filter=@threadvm/server --filter=@threadvm/outline",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "lint": "turbo lint",
@@ -15,12 +15,17 @@
     "probe:dev": "node scripts/dev_probe.mjs",
     "probe:web-style": "pnpm exec tsx scripts/web_style_probe.ts",
     "probe:terminal-ui": "pnpm exec tsx --tsconfig apps/web/tsconfig.json scripts/terminal_ui_probe.ts",
-    "start": "pnpm --filter @threadvm/server start"
+    "start": "pnpm --filter @threadvm/server start",
+    "probe:outline": "pnpm build && pnpm exec tsx scripts/outline_probe.ts",
+    "probe:outline-ui": "pnpm build && node scripts/outline_ui_probe.mjs",
+    "probe:acp": "pnpm build && pnpm exec tsx packages/agent/test/runtime_probe.ts && node scripts/acp_probe.mjs",
+    "probe:local-ui": "pnpm build && node scripts/local_harness_ui_probe.mjs"
   },
   "devDependencies": {
     "tsx": "^4.23.0",
     "turbo": "^2.10.4",
     "typescript": "^7.0.2",
+    "effect": "^4.0.0-beta.94",
     "tsup": "^8.5.1"
   }
 }

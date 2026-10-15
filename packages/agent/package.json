@@ -1,0 +1,21 @@
+{
+  "name": "@threadvm/agent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsup src/main.ts src/sandbox-main.ts --format esm --out-dir dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "effect": "4.0.4",
+    "@effect/platform-node": "4.0.4",
+    "@threadvm/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "tsup": "^8.5.1"
+  }
+}

@@ -34,8 +34,13 @@ export const Message = defineMessageUnion({
   ChangedDraft: { threadId: S.String, value: S.String },
   SubmittedDraft: { threadId: S.String },
   StoppedThread: { threadId: S.String },
-  JumpedToAttention: { kind: S.Literals(["Any", "NeedsInput", "Review", "Working"]) },
+  JumpedToAttention: {
+    kind: S.Literals(["Any", "NeedsInput", "Review", "Working"]),
+  },
   ClickedResetDemo: {},
+  ClickedPush: {},
+  RetriedEdit: {},
+  DiscardedEdit: {},
   CompletedFocus: {},
 });
 export type Message = typeof Message.Type;

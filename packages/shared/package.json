@@ -58,6 +58,56 @@
       "development": "./src/services/WorkspaceService.ts",
       "types": "./dist/services/WorkspaceService.d.ts",
       "import": "./dist/services/WorkspaceService.js"
+    },
+    "./services/ThoughtsRepo": {
+      "development": "./src/services/ThoughtsRepo.ts",
+      "types": "./dist/services/ThoughtsRepo.d.ts",
+      "import": "./dist/services/ThoughtsRepo.js"
+    },
+    "./services/OutlineStore": {
+      "development": "./src/services/OutlineStore.ts",
+      "types": "./dist/services/OutlineStore.d.ts",
+      "import": "./dist/services/OutlineStore.js"
+    },
+    "./services/RunEventLog": {
+      "development": "./src/services/RunEventLog.ts",
+      "types": "./dist/services/RunEventLog.d.ts",
+      "import": "./dist/services/RunEventLog.js"
+    },
+    "./services/LocalRunSubstrate": {
+      "development": "./src/services/LocalRunSubstrate.ts",
+      "types": "./dist/services/LocalRunSubstrate.d.ts",
+      "import": "./dist/services/LocalRunSubstrate.js"
+    },
+    "./services/OutlineServices": {
+      "development": "./src/services/OutlineServices.ts",
+      "types": "./dist/services/OutlineServices.d.ts",
+      "import": "./dist/services/OutlineServices.js"
+    },
+    "./services/SshTransport": {
+      "development": "./src/services/SshTransport.ts",
+      "types": "./dist/services/SshTransport.d.ts",
+      "import": "./dist/services/SshTransport.js"
+    },
+    "./services/SshBridge": {
+      "development": "./src/services/SshBridge.ts",
+      "types": "./dist/services/SshBridge.d.ts",
+      "import": "./dist/services/SshBridge.js"
+    },
+    "./services/AgentConfiguration": {
+      "development": "./src/services/AgentConfiguration.ts",
+      "types": "./dist/services/AgentConfiguration.d.ts",
+      "import": "./dist/services/AgentConfiguration.js"
+    },
+    "./services/AgentRuns": {
+      "development": "./src/services/AgentRuns.ts",
+      "types": "./dist/services/AgentRuns.d.ts",
+      "import": "./dist/services/AgentRuns.js"
+    },
+    "./services/OutlineMcp": {
+      "development": "./src/services/OutlineMcp.ts",
+      "types": "./dist/services/OutlineMcp.d.ts",
+      "import": "./dist/services/OutlineMcp.js"
     }
   },
   "scripts": {

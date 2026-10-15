@@ -17,41 +17,79 @@ const GHOST = "~";
 
 export const isGhost = (id: string): boolean => id.startsWith(GHOST);
 
-const insertedId = (opId: string, itemId: string) => `${GHOST}${opId}${GHOST}${itemId}`;
+const insertedId = (opId: string, itemId: string) =>
+  `${GHOST}${opId}${GHOST}${itemId}`;
 const questionId = (threadId: string) => `${GHOST}ask${GHOST}${threadId}`;
 
 /** What a ghost row stands for. */
 export type Ghost =
-  | Readonly<{ _tag: "Inserted"; thread: Thread; op: Extract<Op, { _tag: "Insert" }>; root: boolean }>
+  | Readonly<{
+      _tag: "Inserted";
+      thread: Thread;
+      op: Extract<Op, { _tag: "Insert" }>;
+      root: boolean;
+    }>
   | Readonly<{ _tag: "Question"; thread: Thread }>;
 
-export const realItems = (items: Items): Items => filterItems(items, (node) => !isGhost(node.id));
+export const realItems = (items: Items): Items =>
+  filterItems(items, (node) => !isGhost(node.id));
 
 const ghostly = (opId: string, items: Items): Items =>
-  items.map((node) => ({ ...node, id: insertedId(opId, node.id), children: ghostly(opId, node.children) }));
+  items.map((node) => ({
+    ...node,
+    id: insertedId(opId, node.id),
+    children: ghostly(opId, node.children),
+  }));
 
 /** Inserts without unfolding the parent: a folded branch shows its suggestions as a count. */
-const placeUnder = (items: Items, parentId: string, afterId: string | null, inserted: Items) =>
-  updateItem(items, parentId, (parent) => {
-    const index = afterId === null ? -1 : parent.children.findIndex((c) => c.id === afterId);
-    const at = index < 0 ? parent.children.length : index + 1;
-    return {
-      ...parent,
-      children: [...parent.children.slice(0, at), ...inserted, ...parent.children.slice(at)],
-    };
-  });
+const placeUnder = (
+  items: Items,
+  parentId: string | null,
+  afterId: string | null,
+  inserted: Items,
+) =>
+  parentId === null
+    ? [...items, ...inserted]
+    : updateItem(items, parentId, (parent) => {
+        const index =
+          afterId === null
+            ? -1
+            : parent.children.findIndex((c) => c.id === afterId);
+        const at = index < 0 ? parent.children.length : index + 1;
+        return {
+          ...parent,
+          children: [
+            ...parent.children.slice(0, at),
+            ...inserted,
+            ...parent.children.slice(at),
+          ],
+        };
+      });
 
-export const byCreation = (threads: Readonly<Record<string, Thread>>): ReadonlyArray<Thread> =>
-  Object.values(threads).sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+export const byCreation = (
+  threads: Readonly<Record<string, Thread>>,
+): ReadonlyArray<Thread> =>
+  Object.values(threads).sort(
+    (a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id),
+  );
 
 /** Whether a thread's pending suggestions should be on screen. */
 const showsSuggestions = (thread: Thread) =>
   thread.status !== "Cancelled" && thread.status !== "Failed";
 
-export const project = (real: Items, threads: Readonly<Record<string, Thread>>): Items => {
+export const project = (
+  real: Items,
+  threads: Readonly<Record<string, Thread>>,
+): Items => {
   let items = real;
   for (const thread of byCreation(threads)) {
-    if (find(real, thread.nodeId) === undefined) continue;
+    if (
+      find(real, thread.nodeId) === undefined &&
+      !pendingOps(thread).some(
+        (op) => op._tag === "Insert" && op.parentId === null,
+      )
+    )
+      continue;
     if (thread.status === "NeedsInput" && thread.question !== null) {
       const prompt = thread.question.prompt;
       items = updateItem(items, thread.nodeId, (node) => ({
@@ -61,15 +99,25 @@ export const project = (real: Items, threads: Readonly<Record<string, Thread>>):
     }
     if (!showsSuggestions(thread)) continue;
     for (const op of pendingOps(thread)) {
-      if (op._tag === "Insert" && find(real, op.parentId) !== undefined)
-        items = placeUnder(items, op.parentId, op.afterId, ghostly(op.id, op.items));
+      if (
+        op._tag === "Insert" &&
+        (op.parentId === null || find(real, op.parentId) !== undefined)
+      )
+        items = placeUnder(
+          items,
+          op.parentId,
+          op.afterId,
+          ghostly(op.id, op.items),
+        );
     }
   }
   return items;
 };
 
 /** Resolves every ghost row id to the thread and suggestion behind it. */
-export const ghostsOf = (threads: Readonly<Record<string, Thread>>): ReadonlyMap<string, Ghost> => {
+export const ghostsOf = (
+  threads: Readonly<Record<string, Thread>>,
+): ReadonlyMap<string, Ghost> => {
   const ghosts = new Map<string, Ghost>();
   for (const thread of Object.values(threads)) {
     ghosts.set(questionId(thread.id), { _tag: "Question", thread });
@@ -77,7 +125,12 @@ export const ghostsOf = (threads: Readonly<Record<string, Thread>>): ReadonlyMap
       if (op._tag !== "Insert") continue;
       const visit = (items: Items, root: boolean) => {
         for (const node of items) {
-          ghosts.set(insertedId(op.id, node.id), { _tag: "Inserted", thread, op, root });
+          ghosts.set(insertedId(op.id, node.id), {
+            _tag: "Inserted",
+            thread,
+            op,
+            root,
+          });
           visit(node.children, false);
         }
       };
@@ -111,16 +164,26 @@ const sameItem = (a: Item, b: Item): boolean =>
     sameItems(a.children, b.children));
 
 export const sameItems = (a: Items, b: Items): boolean =>
-  a === b || (a.length === b.length && a.every((node, index) => sameItem(node, b[index]!)));
+  a === b ||
+  (a.length === b.length &&
+    a.every((node, index) => sameItem(node, b[index]!)));
 
 /** The latest thread anchored to each bullet. */
 export const latestByNode = (
   threads: Readonly<Record<string, Thread>>,
 ): ReadonlyMap<string, Thread> => {
   const latest = new Map<string, Thread>();
-  for (const thread of byCreation(threads)) latest.set(thread.nodeId, thread);
+  for (const thread of byCreation(threads)) {
+    if(latest.get(thread.nodeId)?.execution && !thread.execution) continue;
+    latest.set(thread.nodeId, thread);
+  }
   return latest;
 };
 
-export const activeOn = (threads: Readonly<Record<string, Thread>>, nodeId: string): boolean =>
-  Object.values(threads).some((thread) => thread.nodeId === nodeId && isActive(thread.status));
+export const activeOn = (
+  threads: Readonly<Record<string, Thread>>,
+  nodeId: string,
+): boolean =>
+  Object.values(threads).some(
+    (thread) => thread.nodeId === nodeId && isActive(thread.status),
+  );

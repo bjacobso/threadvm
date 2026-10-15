@@ -21,6 +21,7 @@ import { terminalFontStack, xtermTheme } from "./xtermTheme";
 
 interface TerminalPaneProps {
   readonly selected: ThreadVmModel | undefined;
+  readonly autoAttach?: boolean;
 }
 
 const isEditableTarget = (target: EventTarget | null) => {
@@ -34,7 +35,10 @@ const isEditableTarget = (target: EventTarget | null) => {
   );
 };
 
-export function TerminalPane({ selected }: TerminalPaneProps) {
+export function TerminalPane({
+  selected,
+  autoAttach = false
+}: TerminalPaneProps) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
@@ -241,12 +245,12 @@ export function TerminalPane({ selected }: TerminalPaneProps) {
     }
 
     const activeVmId = window.localStorage.getItem(activeTerminalVmKey);
-    if (activeVmId !== selected.id) {
+    if (!autoAttach && activeVmId !== selected.id) {
       return;
     }
 
     void attachTerminal(false);
-  }, [attachTerminal, selected, session.status]);
+  }, [attachTerminal, autoAttach, selected, session.status]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

@@ -2,7 +2,39 @@
 
 ## Product
 
-ThreadVM is a local web control plane for exe.dev-backed development workspaces.
+ThreadVM is a local outline meta-harness backed by a project directory, with an
+existing exe.dev workspace control plane. The default UI is the outliner; VM
+inventory remains reachable in a tab.
+
+The outline uses stable node IDs, numeric revisions and insert/update/move/delete
+operation batches. Humans apply batches immediately; agents submit proposals.
+Whole or per-node acceptance applies a batch and commits it to the independent
+`.threadvm/` thoughts repository. Proposals persist across partial decisions.
+Snapshot and operations are canonical; Markdown is a read-only projection.
+Writers share a filesystem lock, and reads use the committed snapshot so an
+interrupted pre-commit write cannot become accepted intent.
+
+`THREADVM_PROJECT_DIR` selects the directory (default current directory). Local
+runs use code Git worktrees and branches plus persistent local tmux sessions.
+The existing terminal WebSocket accepts `run-<runId>` to attach through
+TerminalBridge. Agent environments carry run-scoped capabilities for proposals
+and observations. Runtime events, capabilities, transcripts and worktrees are
+excluded from thought Git; run summaries include code SHA links.
+
+Additional typed API routes:
+
+```text
+GET  /api/outline
+POST /api/outline/batches
+POST /api/outline/proposals
+POST /api/outline/review
+POST /api/outline/runs
+POST /api/outline/observations
+POST /api/outline/control
+```
+
+See [PLAN_4.md](./PLAN_4.md) and the README local workflow for schemas, CLI
+contracts, conflict semantics, persistence layout and verification commands.
 
 Current implementation supports:
 
@@ -17,7 +49,9 @@ Current implementation supports:
 ## Workspace Layout
 
 ```text
-apps/web        Vite React UI
+apps/web        Vite React VM inventory and reusable terminal
+apps/outline    Foldkit/Foldworks/StyleX primary local UI + Cloudflare demo
+packages/agent  Isolated Effect 4.0.4 ACP runner (T3 effect-acp source)
 apps/server     Effect Platform HTTP server
 apps/cli        CLI launcher entrypoint
 packages/shared domain schemas, typed API, services
@@ -36,8 +70,9 @@ Package manager and build system:
 
 Frontend:
 
+- Foldkit, Foldworks and StyleX for the local outline
 - Vite 8
-- React 19
+- React 19 for VM inventory and the reused terminal
 - Tailwind CSS 4
 - shadcn/Radix component source
 - lucide-react icons
@@ -83,7 +118,7 @@ Mocks and overrides:
 - `THREADVM_EXEDEV_MOCK=1` returns a synthetic exe.dev VM.
 - `THREADVM_EXEDEV_MOCK_ID`, `THREADVM_EXEDEV_MOCK_NAME`, `THREADVM_EXEDEV_MOCK_HOST` customize the mock VM.
 - `THREADVM_SSH_MOCK=1` returns synthetic SSH command output.
-- `THREADVM_TERMINAL_COMMAND` overrides the terminal command launched by `TerminalBridge`.
+- `THREADVM_TERMINAL_COMMAND` is retained only for legacy terminal diagnostics; local runs use explicit substrate commands.
 - `THREADVM_TERMINAL_LOCAL_TMUX=1` enables local tmux session detection for terminal probes and local adapters.
 
 ## Domain Model
@@ -353,7 +388,7 @@ Probe scripts:
 ## Known Current Constraints
 
 - Terminal renderer is directly xterm.js; Ghostty Web is not implemented yet.
-- Terminal transport is SSE plus POST, not WebSocket or Effect RPC.
+- Terminal transport is an ordered, schema-validated WebSocket; inventory streams use SSE.
 - `TerminalBridge` is in `packages/shared` even though it is server-only and depends on `node-pty`.
 - Python PTY fallback still exists.
 - exe.dev integration is command-output parsing, not an SDK.

@@ -1,9 +1,17 @@
-import { ArrowLeft, Check, ExternalLink, LocateFixed, SendHorizontal, Square, X } from "@lucide/icons";
+import {
+  ArrowLeft,
+  Check,
+  ExternalLink,
+  LocateFixed,
+  SendHorizontal,
+  Square,
+  X,
+} from "@lucide/icons";
 import { Button, Icon, TreeDiff, type TreeDiffNode } from "@foldworks/ui";
 import type { Html } from "foldkit/html";
 import { Option } from "effect";
 
-import { AGENTS } from "../../shared/agents.ts";
+import { agentInfo } from "../../shared/agents.ts";
 import {
   isActive,
   pendingOps,
@@ -16,7 +24,15 @@ import { attentionQueue, type Kind } from "../attention.ts";
 import { Message } from "../message.ts";
 import type { Model } from "../model.ts";
 import { byCreation, realItems } from "../projection.ts";
-import { avatar, clock, doneIcon, statusLabel, statusTone, stepIcon, type H } from "./parts.ts";
+import {
+  avatar,
+  clock,
+  doneIcon,
+  statusLabel,
+  statusTone,
+  stepIcon,
+  type H,
+} from "./parts.ts";
 
 const breadcrumb = (items: Items, nodeId: string): string =>
   (pathTo(items, nodeId) ?? [])
@@ -24,14 +40,25 @@ const breadcrumb = (items: Items, nodeId: string): string =>
     .filter((text) => text !== "")
     .join(" › ");
 
-const titleOf = (items: Items, thread: Thread): string => find(items, thread.nodeId)?.text ?? thread.prompt;
+const titleOf = (items: Items, thread: Thread): string =>
+  find(items, thread.nodeId)?.text ?? thread.prompt;
 
 // ---------------------------------------------------------------------------
 // Inbox
 
-const SECTIONS: ReadonlyArray<Readonly<{ kind: Kind; title: string; empty: string }>> = [
-  { kind: "NeedsInput", title: "Waiting on you", empty: "No questions right now." },
-  { kind: "Review", title: "Suggestions to review", empty: "Nothing to review." },
+const SECTIONS: ReadonlyArray<
+  Readonly<{ kind: Kind; title: string; empty: string }>
+> = [
+  {
+    kind: "NeedsInput",
+    title: "Waiting on you",
+    empty: "No questions right now.",
+  },
+  {
+    kind: "Review",
+    title: "Suggestions to review",
+    empty: "Nothing to review.",
+  },
   { kind: "Working", title: "Working", empty: "No agents are running." },
 ];
 
@@ -50,11 +77,18 @@ const inboxCard = (items: Items, thread: Thread, kind: Kind, h: H): Html =>
           h.span(
             [h.Class("inbox-card__text")],
             [
-              h.span([h.Class("inbox-card__path")], [breadcrumb(items, thread.nodeId) || "Top level"]),
+              h.span(
+                [h.Class("inbox-card__path")],
+                [breadcrumb(items, thread.nodeId) || "Top level"],
+              ),
               h.span([h.Class("inbox-card__title")], [titleOf(items, thread)]),
               h.span(
                 [h.Class("inbox-card__detail")],
-                [kind === "NeedsInput" ? (thread.question?.prompt ?? "") : statusLabel(thread)],
+                [
+                  kind === "NeedsInput"
+                    ? (thread.question?.prompt ?? "")
+                    : statusLabel(thread),
+                ],
               ),
             ],
           ),
@@ -68,8 +102,14 @@ const inboxCard = (items: Items, thread: Thread, kind: Kind, h: H): Html =>
                 h.button(
                   [
                     h.Class("option-chip"),
+                    h.Disabled(thread.question?.response === "expired"),
                     h.Type("button"),
-                    h.OnClick(Message.AnsweredQuestion({ threadId: thread.id, text: option })),
+                    h.OnClick(
+                      Message.AnsweredQuestion({
+                        threadId: thread.id,
+                        text: option,
+                      }),
+                    ),
                   ],
                   [option],
                 ),
@@ -98,8 +138,11 @@ const inboxCard = (items: Items, thread: Thread, kind: Kind, h: H): Html =>
                   h.button(
                     [
                       h.Class("option-chip"),
+                      h.Disabled(thread.question?.response === "expired"),
                       h.Type("button"),
-                      h.OnClick(Message.SelectedThread({ threadId: thread.id })),
+                      h.OnClick(
+                        Message.SelectedThread({ threadId: thread.id }),
+                      ),
                     ],
                     ["Review…"],
                   ),
@@ -114,7 +157,10 @@ const inbox = (model: Model, h: H): Html => {
   const items = realItems(model.outline.items);
   const queue = attentionQueue(items, model.threads);
   const finished = byCreation(model.threads)
-    .filter((thread) => thread.status === "Done" && find(items, thread.nodeId) !== undefined)
+    .filter(
+      (thread) =>
+        thread.status === "Done" && find(items, thread.nodeId) !== undefined,
+    )
     .slice(-4)
     .reverse();
   return h.div(
@@ -139,7 +185,16 @@ const inbox = (model: Model, h: H): Html => {
         return h.section(
           [h.Class("inbox-section"), h.DataAttribute("kind", kind)],
           [
-            h.h3([], [title, h.span([h.Class("inbox-section__count")], [String(entries.length)])]),
+            h.h3(
+              [],
+              [
+                title,
+                h.span(
+                  [h.Class("inbox-section__count")],
+                  [String(entries.length)],
+                ),
+              ],
+            ),
             ...(entries.length === 0
               ? [h.p([h.Class("inbox-section__empty")], [empty])]
               : entries.map(({ thread }) => inboxCard(items, thread, kind, h))),
@@ -158,9 +213,14 @@ const inbox = (model: Model, h: H): Html => {
                     [
                       h.Class("inbox-finished"),
                       h.Type("button"),
-                      h.OnClick(Message.SelectedThread({ threadId: thread.id })),
+                      h.OnClick(
+                        Message.SelectedThread({ threadId: thread.id }),
+                      ),
                     ],
-                    [avatar(thread.agent, h), h.span([], [thread.report || titleOf(items, thread)])],
+                    [
+                      avatar(thread.agent, h),
+                      h.span([], [thread.report || titleOf(items, thread)]),
+                    ],
                   ),
                 ),
               ],
@@ -183,13 +243,18 @@ const toDiffNodes = (items: Items): ReadonlyArray<TreeDiffNode> =>
 const opLabel = (items: Items, thread: Thread, op: Op): string => {
   switch (op._tag) {
     case "Insert": {
-      const what = op.items.length === 1 ? `“${op.items[0]!.text}”` : `${op.items.length} bullets`;
+      const what =
+        op.items.length === 1
+          ? `“${op.items[0]!.text}”`
+          : `${op.items.length} bullets`;
       return op.parentId === thread.nodeId
         ? `Add ${what}`
-        : `Add ${what} under “${find(items, op.parentId)?.text ?? "a bullet"}”`;
+        : `Add ${what} under “${(op.parentId === null ? "Top level" : find(items, op.parentId)?.text) ?? "a bullet"}”`;
     }
     case "Edit":
       return `Reword to “${op.after}”`;
+    case "Structural":
+      return op.label;
     case "Complete":
       return op.nodeId === thread.nodeId
         ? "Mark this task done"
@@ -210,14 +275,17 @@ const reviewCard = (items: Items, thread: Thread, h: H): Html | null => {
     [
       h.header(
         [h.Class("card__header")],
-        [h.h3([], ["Suggested changes"]), h.span([h.Class("card__meta")], [thread.proposal.summary])],
+        [
+          h.h3([], ["Suggested changes"]),
+          h.span([h.Class("card__meta")], [thread.proposal.summary]),
+        ],
       ),
       h.div(
         [h.Class("card__diff")],
         [
           TreeDiff.view(
             {
-              label: `${AGENTS[thread.agent].name}'s suggested changes`,
+              label: `${agentInfo(thread.agent).name}'s suggested changes`,
               before: toDiffNodes(before),
               after: toDiffNodes(afterNode === undefined ? [] : [afterNode]),
               context: 1,
@@ -239,7 +307,11 @@ const reviewCard = (items: Items, thread: Thread, h: H): Html | null => {
                   ariaLabel: "Accept",
                   variant: "ghost",
                   size: "xs",
-                  onClick: Message.ResolvedOps({ threadId: thread.id, opIds: [op.id], state: "Accepted" }),
+                  onClick: Message.ResolvedOps({
+                    threadId: thread.id,
+                    opIds: [op.id],
+                    state: "Accepted",
+                  }),
                 },
                 h,
               ),
@@ -249,7 +321,11 @@ const reviewCard = (items: Items, thread: Thread, h: H): Html | null => {
                   ariaLabel: "Reject",
                   variant: "ghost",
                   size: "xs",
-                  onClick: Message.ResolvedOps({ threadId: thread.id, opIds: [op.id], state: "Rejected" }),
+                  onClick: Message.ResolvedOps({
+                    threadId: thread.id,
+                    opIds: [op.id],
+                    state: "Rejected",
+                  }),
                 },
                 h,
               ),
@@ -262,11 +338,18 @@ const reviewCard = (items: Items, thread: Thread, h: H): Html | null => {
         [
           Button.view(
             {
-              label: pending.length === 1 ? "Accept" : `Accept all ${pending.length}`,
+              label:
+                pending.length === 1
+                  ? "Accept"
+                  : `Accept all ${pending.length}`,
               icon: Check,
               variant: "primary",
               size: "sm",
-              onClick: Message.ResolvedOps({ threadId: thread.id, opIds: ids, state: "Accepted" }),
+              onClick: Message.ResolvedOps({
+                threadId: thread.id,
+                opIds: ids,
+                state: "Accepted",
+              }),
             },
             h,
           ),
@@ -275,7 +358,11 @@ const reviewCard = (items: Items, thread: Thread, h: H): Html | null => {
               label: "Reject",
               variant: "ghost",
               size: "sm",
-              onClick: Message.ResolvedOps({ threadId: thread.id, opIds: ids, state: "Rejected" }),
+              onClick: Message.ResolvedOps({
+                threadId: thread.id,
+                opIds: ids,
+                state: "Rejected",
+              }),
             },
             h,
           ),
@@ -291,16 +378,37 @@ const questionCard = (thread: Thread, h: H): Html | null =>
     : h.section(
         [h.Class("card card--question")],
         [
-          h.header([h.Class("card__header")], [h.h3([], [`${AGENTS[thread.agent].name} is asking`])]),
+          h.header(
+            [h.Class("card__header")],
+            [h.h3([], [`${agentInfo(thread.agent).name} is asking`])],
+          ),
           h.p([h.Class("card__question")], [thread.question.prompt]),
+          ...(thread.question.response && thread.question.response !== "live"
+            ? [
+                h.p(
+                  [h.Class("card__hint")],
+                  [
+                    thread.question.response === "message"
+                      ? "The agent disconnected. Your answer resumes its conversation as a message; new tool calls require new permission."
+                      : "This request expired when the agent disconnected. Start a new run to continue.",
+                  ],
+                ),
+              ]
+            : []),
           h.div(
             [h.Class("card__options")],
             thread.question.options.map((option) =>
               h.button(
                 [
                   h.Class("option-chip option-chip--large"),
+                  h.Disabled(thread.question?.response === "expired"),
                   h.Type("button"),
-                  h.OnClick(Message.AnsweredQuestion({ threadId: thread.id, text: option })),
+                  h.OnClick(
+                    Message.AnsweredQuestion({
+                      threadId: thread.id,
+                      text: option,
+                    }),
+                  ),
                 ],
                 [option],
               ),
@@ -325,8 +433,16 @@ const reportCard = (thread: Thread, h: H): Html | null =>
                   [h.Class("card__links")],
                   thread.links.map((link) =>
                     h.a(
-                      [h.Href(link.href), h.Target("_blank"), h.Rel("noreferrer"), h.Class("link-chip")],
-                      [link.label, Icon.view({ icon: ExternalLink, size: 12 }, h)],
+                      [
+                        h.Href(link.href),
+                        h.Target("_blank"),
+                        h.Rel("noreferrer"),
+                        h.Class("link-chip"),
+                      ],
+                      [
+                        link.label,
+                        Icon.view({ icon: ExternalLink, size: 12 }, h),
+                      ],
                     ),
                   ),
                 ),
@@ -336,7 +452,7 @@ const reportCard = (thread: Thread, h: H): Html | null =>
 
 /** The part of the outline the agent was given: the path to its bullet and the branch below. */
 const contextView = (items: Items, thread: Thread, h: H): Html => {
-  const { path, node } = contextOf(items, thread.nodeId);
+  const { path, node } = contextOf(thread.contextItems ?? items, thread.nodeId);
   const nested = path.reduceRight<Items>(
     (children, ancestor) => [{ ...ancestor, children }],
     node === undefined ? [] : [node],
@@ -344,7 +460,12 @@ const contextView = (items: Items, thread: Thread, h: H): Html => {
   return h.details(
     [h.Class("context")],
     [
-      h.summary([], [`What ${AGENTS[thread.agent].name} can see · ${thread.contextSize} bullets`]),
+      h.summary(
+        [],
+        [
+          `What ${agentInfo(thread.agent).name} can see · ${thread.contextSize} bullets`,
+        ],
+      ),
       h.pre([], [toText(nested)]),
     ],
   );
@@ -374,7 +495,9 @@ const activityList = (thread: Thread, h: H): Html =>
             : h.li(
                 [h.Class("said"), h.DataAttribute("who", entry.who)],
                 [
-                  entry.who === "Agent" ? avatar(thread.agent, h) : h.span([h.Class("you")], ["You"]),
+                  entry.who === "Agent"
+                    ? avatar(thread.agent, h)
+                    : h.span([h.Class("you")], ["You"]),
                   h.p([], [entry.text]),
                 ],
               ),
@@ -383,7 +506,7 @@ const activityList = (thread: Thread, h: H): Html =>
 
 const composer = (model: Model, thread: Thread, h: H): Html => {
   const value = model.drafts[thread.id] ?? "";
-  const name = AGENTS[thread.agent].name;
+  const name = agentInfo(thread.agent).name;
   const placeholder =
     thread.status === "NeedsInput"
       ? `Answer ${name}…`
@@ -391,17 +514,23 @@ const composer = (model: Model, thread: Thread, h: H): Html => {
         ? `Steer ${name} while it works…`
         : `Ask ${name} for a follow-up…`;
   return h.form(
-    [h.Class("composer"), h.OnSubmit(Message.SubmittedDraft({ threadId: thread.id }))],
+    [
+      h.Class("composer"),
+      h.OnSubmit(Message.SubmittedDraft({ threadId: thread.id })),
+    ],
     [
       h.textarea(
         [
           h.Id(`composer-${thread.id}`),
           h.Class("composer__input"),
+          h.Disabled(thread.question?.response === "expired"),
           h.Rows(2),
           h.Value(value),
           h.Placeholder(placeholder),
           h.AriaLabel(placeholder),
-          h.OnInput((next) => Message.ChangedDraft({ threadId: thread.id, value: next })),
+          h.OnInput((next) =>
+            Message.ChangedDraft({ threadId: thread.id, value: next }),
+          ),
           h.OnKeyDownPreventDefault((key, modifiers) =>
             key === "Enter" && !modifiers.shiftKey
               ? Option.some(Message.SubmittedDraft({ threadId: thread.id }))
@@ -416,7 +545,8 @@ const composer = (model: Model, thread: Thread, h: H): Html => {
           ariaLabel: "Send",
           variant: "primary",
           size: "icon",
-          isDisabled: value.trim() === "",
+          isDisabled:
+            value.trim() === "" || thread.question?.response === "expired",
           attributes: [h.Type("submit")],
         },
         h,
@@ -427,8 +557,10 @@ const composer = (model: Model, thread: Thread, h: H): Html => {
 
 const threadView = (model: Model, thread: Thread, h: H): Html => {
   const items = realItems(model.outline.items);
-  const agent = AGENTS[thread.agent];
-  const runs = byCreation(model.threads).filter((other) => other.nodeId === thread.nodeId);
+  const agent = agentInfo(thread.agent);
+  const runs = byCreation(model.threads).filter(
+    (other) => other.nodeId === thread.nodeId,
+  );
   return h.div(
     [h.Class("panel__body"), h.DataAttribute("thread", thread.id)],
     [
@@ -436,7 +568,13 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
         [h.Class("panel__nav")],
         [
           Button.view(
-            { label: "Inbox", icon: ArrowLeft, variant: "ghost", size: "xs", onClick: Message.ClosedThread() },
+            {
+              label: "Inbox",
+              icon: ArrowLeft,
+              variant: "ghost",
+              size: "xs",
+              onClick: Message.ClosedThread(),
+            },
             h,
           ),
           h.span([h.Class("panel__spacer")], []),
@@ -451,7 +589,10 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
             },
             h,
           ),
-          ...(isActive(thread.status)
+          ...(isActive(thread.status) ||
+          (thread.execution?.persistent &&
+            thread.status !== "Cancelled" &&
+            thread.status !== "Failed")
             ? [
                 Button.view(
                   {
@@ -482,7 +623,10 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
                 ],
               ),
               h.span(
-                [h.Class("status-pill"), h.DataAttribute("status", statusTone(thread))],
+                [
+                  h.Class("status-pill"),
+                  h.DataAttribute("status", statusTone(thread)),
+                ],
                 [statusLabel(thread)],
               ),
             ],
@@ -492,7 +636,10 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
       h.div(
         [h.Class("thread-task")],
         [
-          h.span([h.Class("thread-task__path")], [breadcrumb(items, thread.nodeId) || "Top level"]),
+          h.span(
+            [h.Class("thread-task__path")],
+            [breadcrumb(items, thread.nodeId) || "Top level"],
+          ),
           h.p([h.Class("thread-task__title")], [thread.prompt]),
         ],
       ),
@@ -514,13 +661,37 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
             ),
           ]),
       contextView(items, thread, h),
-      ...[questionCard(thread, h), reviewCard(items, thread, h), reportCard(thread, h)].filter(
-        (card): card is Html => card !== null,
-      ),
+      ...[
+        questionCard(thread, h),
+        reviewCard(items, thread, h),
+        reportCard(thread, h),
+      ].filter((card): card is Html => card !== null),
       h.section(
         [h.Class("thread-activity")],
-        [h.h3([h.Class("section-title")], ["Activity"]), activityList(thread, h)],
+        [
+          h.h3([h.Class("section-title")], ["Activity"]),
+          activityList(thread, h),
+        ],
       ),
+      ...(thread.execution
+        ? [
+            h.details(
+              [h.Class("terminal-section")],
+              [
+                h.summary([], ["Terminal"]),
+                h.iframe(
+                  [
+                    h.Src(`/terminal/${thread.execution.runId}`),
+                    h.Title(`${agent.name} terminal`),
+                    h.Class("thread-terminal"),
+                    h.Attribute("loading", "lazy"),
+                  ],
+                  [],
+                ),
+              ],
+            ),
+          ]
+        : []),
       ...(runs.length > 1
         ? [
             h.section(
@@ -536,7 +707,9 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
                       h.OnClick(Message.SelectedThread({ threadId: run.id })),
                     ],
                     [
-                      run.status === "Done" ? doneIcon(h) : avatar(run.agent, h),
+                      run.status === "Done"
+                        ? doneIcon(h)
+                        : avatar(run.agent, h),
                       h.span([], [run.prompt]),
                     ],
                   ),
@@ -545,15 +718,23 @@ const threadView = (model: Model, thread: Thread, h: H): Html => {
             ),
           ]
         : []),
-      composer(model, thread, h),
+      ...(thread.execution?.transport === "terminal"
+        ? []
+        : [composer(model, thread, h)]),
     ],
   );
 };
 
 export const panel = (model: Model, h: H): Html => {
-  const thread = model.selectedThreadId === null ? undefined : model.threads[model.selectedThreadId];
+  const thread =
+    model.selectedThreadId === null
+      ? undefined
+      : model.threads[model.selectedThreadId];
   return h.aside(
-    [h.Class("panel"), h.AriaLabel(thread === undefined ? "Inbox" : "Agent thread")],
+    [
+      h.Class("panel"),
+      h.AriaLabel(thread === undefined ? "Inbox" : "Agent thread"),
+    ],
     [thread === undefined ? inbox(model, h) : threadView(model, thread, h)],
   );
 };

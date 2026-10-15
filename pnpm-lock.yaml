@@ -44,6 +44,7 @@ catalogs:
       version: 4.1.11
 
 overrides:
+  '@effect/platform-node@4.0.4>@effect/platform-node-shared': 4.0.4
   '@effect/sql-d1': 4.0.0-rc.112
   '@effect/sql-sqlite-do': 4.0.0-rc.112
   '@effect/vitest': 4.0.0-rc.112
@@ -58,6 +59,9 @@ importers:
 
   .:
     devDependencies:
+      effect:
+        specifier: ^4.0.0-beta.94
+        version: 4.0.0-beta.94
       tsup:
         specifier: ^8.5.1
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.30)(tsx@4.23.0)(typescript@7.0.2)(yaml@2.9.0)
@@ -73,9 +77,18 @@ importers:
 
   apps/cli:
     dependencies:
+      '@threadvm/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@threadvm/server':
         specifier: workspace:*
         version: link:../server
+      '@threadvm/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
+      effect:
+        specifier: ^4.0.0-beta.94
+        version: 4.0.0-beta.94
     devDependencies:
       '@types/node':
         specifier: ^24.10.1
@@ -110,6 +123,12 @@ importers:
       '@stylexjs/stylex':
         specifier: 'catalog:'
         version: 0.19.0
+      '@threadvm/outline-protocol':
+        specifier: workspace:*
+        version: link:../../packages/outline-protocol
+      '@threadvm/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       effect:
         specifier: 'catalog:'
         version: 4.0.0-rc.112
@@ -150,6 +169,9 @@ importers:
       '@effect/platform-node':
         specifier: ^4.0.0-beta.94
         version: 4.0.0-beta.94(effect@4.0.0-beta.94)(ioredis@5.11.1)
+      '@threadvm/outline-protocol':
+        specifier: workspace:*
+        version: link:../../packages/outline-protocol
       '@threadvm/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -236,6 +258,44 @@ importers:
       vite:
         specifier: ^8.1.4
         version: 8.1.4(@types/node@24.13.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.0)(yaml@2.9.0)
+
+  packages/agent:
+    dependencies:
+      '@effect/platform-node':
+        specifier: 4.0.4
+        version: 4.0.4(effect@4.0.4)(redis@6.3.0)
+      '@threadvm/shared':
+        specifier: workspace:*
+        version: link:../shared
+      effect:
+        specifier: 4.0.4
+        version: 4.0.4
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.30)(tsx@4.23.0)(typescript@7.0.2)(yaml@2.9.0)
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+
+  packages/outline-protocol:
+    dependencies:
+      '@threadvm/shared':
+        specifier: workspace:*
+        version: link:../shared
+      effect:
+        specifier: 'catalog:'
+        version: 4.0.0-rc.112
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.3
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   packages/shared:
     dependencies:
@@ -790,6 +850,12 @@ packages:
     peerDependencies:
       effect: ^4.0.0-rc.112
 
+  '@effect/platform-node-shared@4.0.4':
+    resolution: {integrity: sha512-gh2KRmqGWrJ0FVL8GqnI1GpB+fCfCUI7sGiUZkxxBHyHj1t94rm6VDJffCfuVZWe6GpvYXtizifVczUrgOce8A==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      effect: ^4.0.4
+
   '@effect/platform-node@4.0.0-beta.94':
     resolution: {integrity: sha512-3WhV5ZN2pTPcOtEQlM66Ve0/B4EzF88sYBml97NnRV7BA5Kx0FYLSslc/4aWoaXj6XwuWOxmoXeGGeFzw4gbMQ==}
     engines: {node: '>=18.0.0'}
@@ -802,6 +868,13 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       effect: ^4.0.0-rc.112
+      redis: '>=5.0.0 <7.0.0'
+
+  '@effect/platform-node@4.0.4':
+    resolution: {integrity: sha512-SdoyQMrO5zmqBebb2fxDk0sHYyJjBiw4QmLdV2ZcWf3ATpQPge3B5sTLijZg49PadekOwNeO83o5TfdtiiFEig==}
+    engines: {node: '>=18.0.0'}
+    peerDependencies:
+      effect: ^4.0.4
       redis: '>=5.0.0 <7.0.0'
 
   '@effect/sql-d1@4.0.0-rc.112':
@@ -3586,6 +3659,9 @@ packages:
   effect@4.0.0-rc.112:
     resolution: {integrity: sha512-wXxwuh1Ywnv4cPRM3Wfa0vDwuOHnZ1TsTgHJkG9XgzND6inhBH9n1vBxhg3iIXOia/OrpmvVmd3lrD4vq6bF3A==}
 
+  effect@4.0.4:
+    resolution: {integrity: sha512-Sr50OeVSC3M5UkoUYUhFf3EULryhGaZZUf6OzDHTvaznOw7HRlxOKdF3/4nvQXHL22StOyMG3Cvo8Bt7xUp+Ng==}
+
   electron-to-chromium@1.5.389:
     resolution: {integrity: sha512-cEto7aeOqBfU1D+c5py5pE+ooscKE75JifxLBdFUZsqAxRS6y7kebtxAZvICszSl05gPjYHDTjY+lXpyGvpJbg==}
 
@@ -5961,6 +6037,15 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
+  '@effect/platform-node-shared@4.0.4(effect@4.0.4)':
+    dependencies:
+      '@types/ws': 8.18.2
+      effect: 4.0.4
+      ws: 8.22.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   '@effect/platform-node@4.0.0-beta.94(effect@4.0.0-beta.94)(ioredis@5.11.1)':
     dependencies:
       '@effect/platform-node-shared': 4.0.0-beta.94(effect@4.0.0-beta.94)
@@ -5977,6 +6062,16 @@ snapshots:
       '@effect/platform-node-shared': 4.0.0-rc.112(effect@4.0.0-rc.112)
       effect: 4.0.0-rc.112
       mime: 4.1.0
+      redis: 6.3.0
+      undici: 8.11.2
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
+  '@effect/platform-node@4.0.4(effect@4.0.4)(redis@6.3.0)':
+    dependencies:
+      '@effect/platform-node-shared': 4.0.4(effect@4.0.4)
+      effect: 4.0.4
       redis: 6.3.0
       undici: 8.11.2
     transitivePeerDependencies:
@@ -8332,6 +8427,8 @@ snapshots:
     dependencies:
       fast-check: 4.9.0
       msgpackr: 2.1.0
+
+  effect@4.0.4: {}
 
   electron-to-chromium@1.5.389: {}
 

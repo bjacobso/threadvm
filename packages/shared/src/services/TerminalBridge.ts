@@ -7,7 +7,8 @@ import {
   Scope,
   Stream
 } from "effect";
-import * as pty from "node-pty";
+import type * as pty from "node-pty";
+import { createRequire } from "node:module";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -15,6 +16,7 @@ import type { Writable } from "node:stream";
 import type { ThreadVm } from "../domain/schema.js";
 import {
   RemoteTerminalSession,
+  type PreparedRemoteTerminalSession,
   type TerminalCommand
 } from "./RemoteTerminalSession.js";
 
@@ -61,6 +63,7 @@ export class TerminalBridge extends Context.Service<
         readonly cols: number;
         readonly rows: number;
         readonly restart?: boolean;
+        readonly prepared?: PreparedRemoteTerminalSession;
       }
     ) => Effect.Effect<
       TerminalAttachment,
@@ -91,7 +94,11 @@ const wrapChildProcess = (
   control?: Writable
 ): TerminalProcess => ({
   write: (data) => {
-    child.stdin.write(data);
+    if (control) {
+      control.write(`${JSON.stringify({ type: "input", data })}\n`);
+    } else {
+      child.stdin.write(data);
+    }
   },
   resize: (cols, rows) => {
     control?.write(`${JSON.stringify({ type: "resize", cols, rows })}\n`);
@@ -154,7 +161,7 @@ const spawnTerminalProcess = (
   };
   try {
     return wrapPty(
-      pty.spawn(command.file, [...command.args], {
+      (createRequire(import.meta.url)("node-pty") as typeof pty).spawn(command.file, [...command.args], {
         name: "xterm-256color",
         cols,
         rows,
@@ -204,8 +211,8 @@ export const TerminalBridgeLive = Layer.effect(
             restart: options.restart === true
           })
         );
-        const prepared = yield* remoteSessions
-          .prepare(vm, { restart: options.restart })
+        const prepared = yield* (options.prepared ? Effect.succeed(options.prepared) : remoteSessions
+          .prepare(vm, { restart: options.restart }))
           .pipe(
             Effect.mapError(
               (cause) =>

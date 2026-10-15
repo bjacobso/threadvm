@@ -35,23 +35,27 @@ const rawColorPattern =
 
 const checkFile = async (file: string): Promise<Array<Violation>> => {
   const source = await readFile(file, "utf8");
-  return source
-    .split("\n")
-    .flatMap((text, index) =>
-      rawColorPattern.test(text)
-        ? [
-            {
-              file,
-              line: index + 1,
-              text: text.trim(),
-              reason: "use semantic shadcn/Tailwind tokens instead of raw colors"
-            }
-          ]
-        : []
-    );
+  return source.split("\n").flatMap((text, index) =>
+    rawColorPattern.test(text)
+      ? [
+          {
+            file,
+            line: index + 1,
+            text: text.trim(),
+            reason: "use semantic shadcn/Tailwind tokens instead of raw colors"
+          }
+        ]
+      : []
+  );
 };
 
-const files = await sourceFiles(webSourceRoot);
+const files = (
+  await Promise.all(
+    [webSourceRoot, path.join(repoRoot, "apps/outline/src/client")].map(
+      sourceFiles
+    )
+  )
+).flat();
 const violations = (await Promise.all(files.map(checkFile))).flat();
 
 if (violations.length > 0) {

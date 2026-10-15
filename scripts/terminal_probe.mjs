@@ -427,7 +427,23 @@ const main = async () => {
     first.send({ type: "resize", cols: 99, rows: 29 });
     first.send({ type: "resize", cols: 120, rows: 40 });
     first.send({ type: "resize", cols: 101, rows: 31 });
-    await new Promise((resolve) => setTimeout(resolve, 250));
+    // tmux updates its layout before the deferred kernel PTY resize. Wait for
+    // the actual pane tty instead of relying on a fixed delay or layout metadata.
+    await waitFor(() => {
+      const tty = spawnSync(
+        "tmux",
+        ["display-message", "-p", "-t", remoteSessionName, "#{pane_tty}"],
+        { encoding: "utf8" }
+      ).stdout.trim();
+      return (
+        tty &&
+        spawnSync(
+          "stty",
+          [process.platform === "darwin" ? "-f" : "-F", tty, "size"],
+          { encoding: "utf8" }
+        ).stdout.trim() === "30 101"
+      );
+    }, "tmux pane PTY resize");
     first.send({ type: "input", data: "__size__\n" });
     try {
       await first.waitUntil(
@@ -589,21 +605,16 @@ const main = async () => {
     }
     await restarted.close();
 
-    await waitFor(
-      () => {
-        const processTable = spawnSync("ps", ["-axo", "command="], {
-          encoding: "utf8"
-        }).stdout;
-        return !processTable
-          .split("\n")
-          .some(
-            (command) =>
-              command.includes(remoteSessionName) &&
-              !command.startsWith("tmux: server")
-          );
-      },
-      "local terminal attachment cleanup"
-    );
+    const tmuxServerPid = spawnSync("tmux", ["display-message", "-p", "-t", remoteSessionName, "#{pid}"], { encoding: "utf8" }).stdout.trim();
+    await waitFor(() => {
+      const processTable = spawnSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" }).stdout;
+      return !processTable.split("\n").some((line) => {
+        const match = line.match(/^\s*(\d+)\s+(.*)$/);
+        // Linux tmux builds may retain their launch argv instead of setting
+        // the process title to "tmux: server". The server is deliberately durable.
+        return match && match[1] !== tmuxServerPid && match[2].includes(remoteSessionName);
+      });
+    }, "local terminal attachment cleanup");
 
     const lifecycleEvents = [
       "Terminal WebSocket opened",

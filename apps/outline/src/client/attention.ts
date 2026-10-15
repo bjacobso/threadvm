@@ -1,7 +1,12 @@
 // What needs a person, and where. Counts roll up through every ancestor, so a
 // question five levels down still shows on the folded branch you can see.
-import { AGENTS } from "../shared/agents.ts";
-import { isActive, pendingOps, type Items, type Thread } from "../shared/protocol.ts";
+import { agentInfo } from "../shared/agents.ts";
+import {
+  isActive,
+  pendingOps,
+  type Items,
+  type Thread,
+} from "../shared/protocol.ts";
 import { find, walk } from "../shared/tree.ts";
 import { byCreation } from "./projection.ts";
 
@@ -13,7 +18,11 @@ const EMPTY: Tally = { NeedsInput: 0, Review: 0, Working: 0 };
 
 export const kindOf = (thread: Thread): Kind | undefined => {
   if (thread.status === "NeedsInput") return "NeedsInput";
-  if (thread.status !== "Cancelled" && thread.status !== "Failed" && pendingOps(thread).length > 0)
+  if (
+    thread.status !== "Cancelled" &&
+    thread.status !== "Failed" &&
+    pendingOps(thread).length > 0
+  )
     return "Review";
   if (isActive(thread.status)) return "Working";
   return undefined;
@@ -29,12 +38,19 @@ export const attentionQueue = (
   return byCreation(threads)
     .flatMap((thread) => {
       const kind = kindOf(thread);
-      return kind !== undefined && order.has(thread.nodeId) ? [{ thread, kind }] : [];
+      return kind !== undefined &&
+        (order.has(thread.nodeId) ||
+          pendingOps(thread).some(
+            (op) => op._tag === "Insert" && op.parentId === null,
+          ))
+        ? [{ thread, kind }]
+        : [];
     })
     .sort(
       (a, b) =>
         rank[a.kind] - rank[b.kind] ||
-        order.get(a.thread.nodeId)! - order.get(b.thread.nodeId)!,
+        (order.get(a.thread.nodeId) ?? Number.MAX_SAFE_INTEGER) -
+          (order.get(b.thread.nodeId) ?? Number.MAX_SAFE_INTEGER),
     );
 };
 
@@ -54,7 +70,8 @@ export const rollups = (
   const visit = (nodes: Items): Tally =>
     nodes.reduce<Tally>((sum, node) => {
       const below = visit(node.children);
-      if (below.NeedsInput + below.Review + below.Working > 0) result.set(node.id, below);
+      if (below.NeedsInput + below.Review + below.Working > 0)
+        result.set(node.id, below);
       const mine = own.get(node.id) ?? EMPTY;
       return {
         NeedsInput: sum.NeedsInput + below.NeedsInput + mine.NeedsInput,
@@ -75,16 +92,22 @@ export const totals = (
     EMPTY,
   );
 
-export const agentName = (thread: Thread): string => AGENTS[thread.agent].name;
+export const agentName = (thread: Thread): string =>
+  agentInfo(thread.agent).name;
 
 /** Announced when a thread starts wanting something. */
-export const announcementFor = (before: Thread | undefined, after: Thread, items: Items): string => {
+export const announcementFor = (
+  before: Thread | undefined,
+  after: Thread,
+  items: Items,
+): string => {
   const title = find(items, after.nodeId)?.text ?? after.prompt;
   const name = agentName(after);
   if (after.status === "NeedsInput" && before?.status !== "NeedsInput")
     return `${name} needs your input on “${title}”.`;
   if (after.status === "Review" && before?.status !== "Review")
     return `${name} suggested ${pendingOps(after).length} change${pendingOps(after).length === 1 ? "" : "s"} to “${title}”.`;
-  if (after.status === "Done" && before?.status !== "Done") return `${name} finished “${title}”.`;
+  if (after.status === "Done" && before?.status !== "Done")
+    return `${name} finished “${title}”.`;
   return "";
 };

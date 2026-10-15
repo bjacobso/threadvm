@@ -19,7 +19,11 @@ const CONNECTION_LABELS: Readonly<Record<Model["connection"], string>> = {
 const header = (model: Model, h: H) => {
   const real = realItems(model.outline.items);
   const tally = totals(real, model.threads);
-  const counter = (kind: "NeedsInput" | "Review" | "Working", count: number, label: string) =>
+  const counter = (
+    kind: "NeedsInput" | "Review" | "Working",
+    count: number,
+    label: string,
+  ) =>
     h.button(
       [
         h.Class("attention"),
@@ -27,10 +31,18 @@ const header = (model: Model, h: H) => {
         h.DataAttribute("kind", kind),
         h.DataAttribute("empty", String(count === 0)),
         h.Disabled(count === 0),
-        h.Title(count === 0 ? label : `Jump to the next (${kind === "NeedsInput" ? "⌘J" : "click"})`),
+        h.Title(
+          count === 0
+            ? label
+            : `Jump to the next (${kind === "NeedsInput" ? "⌘J" : "click"})`,
+        ),
         h.OnClick(Message.JumpedToAttention({ kind })),
       ],
-      [h.span([h.Class("attention__dot"), h.AriaHidden(true)], []), h.strong([], [String(count)]), ` ${label}`],
+      [
+        h.span([h.Class("attention__dot"), h.AriaHidden(true)], []),
+        h.strong([], [String(count)]),
+        ` ${label}`,
+      ],
     );
   return h.header(
     [h.Class("app-header")],
@@ -56,19 +68,49 @@ const header = (model: Model, h: H) => {
         [
           h.span(
             [h.Class("connection"), h.DataAttribute("state", model.connection)],
-            [h.span([h.Class("connection__dot"), h.AriaHidden(true)], []), CONNECTION_LABELS[model.connection]],
+            [
+              h.span([h.Class("connection__dot"), h.AriaHidden(true)], []),
+              CONNECTION_LABELS[model.connection],
+            ],
           ),
-          Button.view(
-            {
-              icon: RotateCcw,
-              ariaLabel: "Reset the demo outline",
-              variant: "ghost",
-              size: "icon",
-              attributes: [h.Title("Reset the demo outline")],
-              onClick: Message.ClickedResetDemo(),
-            },
-            h,
-          ),
+          model.backend
+            ? h.details(
+                [h.Class("project-menu")],
+                [
+                  h.summary([h.Title("Project and Git")], ["···"]),
+                  h.div(
+                    [],
+                    [
+                      h.span(
+                        [],
+                        [
+                          `Revision ${model.backend.revision} · ${model.backend.branch}`,
+                        ],
+                      ),
+                      h.span(
+                        [],
+                        [model.backend.remote ?? "No remote configured"],
+                      ),
+                      h.a([h.Href("/inventory")], ["VM inventory"]),
+                      h.button(
+                        [h.Type("button"), h.OnClick(Message.ClickedPush())],
+                        ["Push thoughts"],
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Button.view(
+                {
+                  icon: RotateCcw,
+                  ariaLabel: "Reset the demo outline",
+                  variant: "ghost",
+                  size: "icon",
+                  attributes: [h.Title("Reset the demo outline")],
+                  onClick: Message.ClickedResetDemo(),
+                },
+                h,
+              ),
         ],
       ),
     ],
@@ -81,8 +123,43 @@ export const view = (model: Model, h: HtmlBuilder<Message>): Document => ({
     [h.Class("app")],
     [
       header(model, h),
+      ...(model.error
+        ? [
+            h.div(
+              [h.Class("room-error"), h.Role("alert")],
+              [
+                model.error,
+                ...(model.saveRejected
+                  ? [
+                      Button.view(
+                        {
+                          label: "Retry my edit",
+                          variant: "ghost",
+                          size: "xs",
+                          onClick: Message.RetriedEdit(),
+                        },
+                        h,
+                      ),
+                      Button.view(
+                        {
+                          label: "Use latest",
+                          variant: "ghost",
+                          size: "xs",
+                          onClick: Message.DiscardedEdit(),
+                        },
+                        h,
+                      ),
+                    ]
+                  : []),
+              ],
+            ),
+          ]
+        : []),
       h.main([h.Class("app-main")], [outlinePane(model, h), panel(model, h)]),
-      h.div([h.Class("sr-only"), h.Role("status"), h.AriaLive("polite")], [model.announcement]),
+      h.div(
+        [h.Class("sr-only"), h.Role("status"), h.AriaLive("polite")],
+        [model.announcement],
+      ),
     ],
   ),
 });

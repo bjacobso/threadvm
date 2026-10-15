@@ -2,7 +2,7 @@
 // computed from the thread and the outline; the Durable Object plays one beat
 // at a time and records `cursor`, so a run resumes where it stopped after the
 // object restarts. Nothing here touches a real sandbox or provider.
-import { AGENTS, taskOf } from "../shared/agents.ts";
+import { agentInfo, taskOf } from "../shared/agents.ts";
 import type {
   Activity,
   Items,
@@ -205,7 +205,8 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
       ];
     }
 
-    case "claude": {
+    case "claude":
+    default: {
       const decided = answer
         ? [item(itemId("decision"), `Decision: ${answer} #decision`)]
         : [];
@@ -357,6 +358,7 @@ export const scriptFor = (thread: Thread, context: ScriptContext): ReadonlyArray
       ];
     }
 
+    case "shell":
     case "codex": {
       const findings = FINDINGS[area];
       const fix = canDelegate
@@ -443,7 +445,7 @@ export const startBeat = (thread: Thread, beat: Beat, now: number): Thread => {
             id: activityId(thread),
             at: now,
             kind: "sandbox",
-            label: `Sandbox for ${AGENTS[thread.agent].harness}`,
+            label: `Sandbox for ${agentInfo(thread.agent).harness}`,
             detail: beat.detail,
             state: "Running",
           },
@@ -611,7 +613,7 @@ export const newThread = (
   contextSize: init.contextSize,
   parentThreadId: init.parentThreadId,
   status: "Queued",
-  headline: `Queued for ${AGENTS[init.agent].harness}`,
+  headline: `Queued for ${agentInfo(init.agent).harness}`,
   createdAt: init.now,
   updatedAt: init.now,
   sandbox: null,

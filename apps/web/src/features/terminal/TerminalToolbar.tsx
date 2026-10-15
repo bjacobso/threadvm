@@ -180,7 +180,7 @@ export function TerminalToolbar({
                 variant="ghost"
                 size="icon-sm"
                 className="h-7 rounded-none text-workbench-muted hover:bg-workbench-hover hover:text-workbench-foreground"
-                disabled={!selected || session.status === "connecting"}
+                disabled={!selected || selected.id.startsWith("run-") || session.status === "connecting"}
                 onClick={() => onAttach(true)}
                 aria-label="Restart terminal session"
               >
