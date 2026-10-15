@@ -107,6 +107,14 @@ The Chrome probe writes `.context/plan4-inline-proposal.png` and
 
 The existing remote workspace flow remains available from the VM inventory tab.
 
+## Outline prototype
+
+[`apps/outline`](apps/outline) is a separate experience prototype: an outliner
+where bullets that mention `@claude`, `@cursor`, `@codex`, or `@conductor`
+become agent threads that ask questions and propose changes as suggestions. It
+is built with Foldkit, Foldworks, and Effect, and deploys to Cloudflare with
+Alchemy. See its README.
+
 ## What It Does
 
 ThreadVM runs a local web UI that reflects your exe.dev environments.
