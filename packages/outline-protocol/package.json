@@ -23,11 +23,11 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit"
+    "lint": "oxlint --deny-warnings ."
   },
   "dependencies": {
-    "effect": "catalog:",
-    "@threadvm/shared": "workspace:*"
+    "@threadvm/shared": "workspace:*",
+    "effect": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",

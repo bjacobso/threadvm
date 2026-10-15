@@ -113,7 +113,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json"
+    "lint": "oxlint --deny-warnings ."
   },
   "dependencies": {
     "effect": "^4.0.0-beta.94",

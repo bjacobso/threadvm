@@ -3,13 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.20.0",
   "scripts": {
     "dev": "turbo dev --filter=@threadvm/server --filter=@threadvm/outline",
     "dev:stable": "turbo dev:stable --filter=@threadvm/server --filter=@threadvm/outline",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
-    "lint": "turbo lint",
+    "test": "turbo test --filter=@threadvm/* && pnpm probe:boundaries && pnpm probe:web-style && pnpm probe:terminal-ui",
+    "lint": "oxlint --deny-warnings .",
+    "lint:fix": "oxlint --fix .",
+    "fmt": "oxfmt --disable-nested-config --write .",
+    "fmt:check": "oxfmt --disable-nested-config --check .",
     "probe:terminal": "pnpm build && pnpm probe:boundaries && pnpm probe:web-style && node scripts/terminal_probe.mjs && pnpm probe:terminal-ui",
     "probe:boundaries": "pnpm exec tsx scripts/workspace_boundary_probe.ts",
     "probe:dev": "node scripts/dev_probe.mjs",
@@ -28,10 +31,13 @@
     "plan:site": "pnpm --filter @threadvm/site run plan --stage prod"
   },
   "devDependencies": {
+    "effect": "^4.0.0-beta.94",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.23.0",
     "turbo": "^2.10.4",
-    "typescript": "^7.0.2",
-    "effect": "^4.0.0-beta.94",
-    "tsup": "^8.5.1"
-  }
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "pnpm@10.20.0"
 }

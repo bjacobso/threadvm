@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
@@ -34,12 +34,12 @@ const until = async (predicate, description) => {
     await sleep(100);
   }
   throw new Error(
-    `Timed out: ${description}${last ? ` (${last.message})` : ""}`
+    `Timed out: ${description}${last ? ` (${last.message})` : ""}`,
   );
 };
 const invoke = async (...args) =>
   JSON.parse(
-    (await exec(process.execPath, [cli, ...args, "--dir", project])).stdout
+    (await exec(process.execPath, [cli, ...args, "--dir", project])).stdout,
   );
 const view = async () => {
   const response = await fetch(`${url}/api/outline`);
@@ -62,12 +62,13 @@ const startServer = (launch = "open") => {
       env: {
         ...process.env,
         THREADVM_PROJECT_DIR: project,
-        THREADVM_UI: "legacy", THREADVM_PORT: String(apiPort),
+        THREADVM_UI: "legacy",
+        THREADVM_PORT: String(apiPort),
         THREADVM_EXEDEV_MOCK: "1",
-        THREADVM_SSH_MOCK: "1"
+        THREADVM_SSH_MOCK: "1",
       },
-      stdio: ["ignore", "pipe", "pipe"]
-    }
+      stdio: ["ignore", "pipe", "pipe"],
+    },
   );
   child.stdout.on("data", (chunk) => {
     serverLog += chunk;
@@ -96,7 +97,7 @@ try {
   server = startServer();
   await until(
     async () => (await fetch(`${url}/api/outline`)).ok,
-    "server ready"
+    "server ready",
   );
   chrome = spawn(
     "google-chrome",
@@ -107,16 +108,16 @@ try {
       "--disable-dev-shm-usage",
       `--remote-debugging-port=${chromePort}`,
       `--user-data-dir=${join(temp, "chrome")}`,
-      "about:blank"
+      "about:blank",
     ],
-    { stdio: "ignore" }
+    { stdio: "ignore" },
   );
   await until(
     async () => (await fetch(`http://127.0.0.1:${chromePort}/json/version`)).ok,
-    "Chrome ready"
+    "Chrome ready",
   );
   const target = await fetch(`http://127.0.0.1:${chromePort}/json/new?${url}`, {
-    method: "PUT"
+    method: "PUT",
   }).then((r) => r.json());
   const socket = new WebSocket(target.webSocketDebuggerUrl);
   await new Promise((done, reject) => {
@@ -155,7 +156,7 @@ try {
     const response = await cdp("Runtime.evaluate", {
       expression,
       returnByValue: true,
-      awaitPromise: true
+      awaitPromise: true,
     });
     if (response.exceptionDetails)
       throw new Error(response.exceptionDetails.text);
@@ -164,31 +165,31 @@ try {
   inspectPage = evaluate;
   const pointerClick = async (expression) => {
     const point = await evaluate(
-      `(() => { const el = ${expression}; if (!el) throw new Error('Missing element'); el.scrollIntoView({ block: 'center' }); const rect = el.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }; })()`
+      `(() => { const el = ${expression}; if (!el) throw new Error('Missing element'); el.scrollIntoView({ block: 'center' }); const rect = el.getBoundingClientRect(); return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 }; })()`,
     );
     await cdp("Input.dispatchMouseEvent", { type: "mouseMoved", ...point });
     await cdp("Input.dispatchMouseEvent", {
       type: "mousePressed",
       button: "left",
       clickCount: 1,
-      ...point
+      ...point,
     });
     await cdp("Input.dispatchMouseEvent", {
       type: "mouseReleased",
       button: "left",
       clickCount: 1,
-      ...point
+      ...point,
     });
   };
   const click = (selector) =>
     pointerClick(`document.querySelector(${JSON.stringify(selector)})`);
   const clickText = (text) =>
     pointerClick(
-      `[...document.querySelectorAll('button')].find(el => el.textContent.trim() === ${JSON.stringify(text)})`
+      `[...document.querySelectorAll('button')].find(el => el.textContent.trim() === ${JSON.stringify(text)})`,
     );
   const input = async (nodeId, text) => {
     await evaluate(
-      `document.querySelector(${JSON.stringify(`[aria-label="Edit ${nodeId}"]`)}).focus()`
+      `document.querySelector(${JSON.stringify(`[aria-label="Edit ${nodeId}"]`)}).focus()`,
     );
     await cdp("Input.insertText", { text });
   };
@@ -199,25 +200,25 @@ try {
       key: name,
       code: name,
       windowsVirtualKeyCode: codes[name],
-      modifiers
+      modifiers,
     });
     await cdp("Input.dispatchKeyEvent", {
       type: "keyUp",
       key: name,
       code: name,
       windowsVirtualKeyCode: codes[name],
-      modifiers
+      modifiers,
     });
   };
   const screenshot = async (name) => {
     await evaluate("document.fonts.ready");
     const capture = await cdp("Page.captureScreenshot", {
       format: "png",
-      captureBeyondViewport: false
+      captureBeyondViewport: false,
     });
     await writeFile(
       join(screenshots, name),
-      Buffer.from(capture.data, "base64")
+      Buffer.from(capture.data, "base64"),
     );
   };
   await cdp("Runtime.enable");
@@ -227,16 +228,16 @@ try {
     width: 1440,
     height: 1120,
     deviceScaleFactor: 1,
-    mobile: false
+    mobile: false,
   });
   await until(
     () => evaluate("document.body.innerText.includes('Create first bullet')"),
-    "outline empty state"
+    "outline empty state",
   );
   await clickText("Create first bullet");
   await until(
     async () => (await view()).snapshot.nodes.length === 1,
-    "first human insert"
+    "first human insert",
   );
   let state = await view();
   const rootId = state.snapshot.nodes[0].id;
@@ -244,7 +245,7 @@ try {
   await key("Enter");
   await until(
     async () => (await view()).snapshot.nodes.length === 2,
-    "Enter inserts sibling"
+    "Enter inserts sibling",
   );
   state = await view();
   const contractId = state.snapshot.nodes[1].id;
@@ -254,43 +255,43 @@ try {
     async () =>
       (await view()).snapshot.nodes.find((n) => n.id === contractId).parent ===
       rootId,
-    "Tab indents"
+    "Tab indents",
   );
   await until(
     () =>
       evaluate(
-        `document.activeElement?.getAttribute("aria-label") === ${JSON.stringify(`Edit ${contractId}`)}`
+        `document.activeElement?.getAttribute("aria-label") === ${JSON.stringify(`Edit ${contractId}`)}`,
       ),
-    "focus survives indentation"
+    "focus survives indentation",
   );
   await key("Tab", 8);
   await until(
     async () =>
       (await view()).snapshot.nodes.find((n) => n.id === contractId).parent ===
       null,
-    "Shift-Tab outdents"
+    "Shift-Tab outdents",
   );
   await click(`[aria-label="Indent ${contractId}"]`);
   await until(
     async () =>
       (await view()).snapshot.nodes.find((n) => n.id === contractId).parent ===
       rootId,
-    "indent button"
+    "indent button",
   );
   await click(`[aria-label="Toggle done ${contractId}"]`);
   await until(
     async () =>
       (await view()).snapshot.nodes.find((n) => n.id === contractId).done,
-    "done toggle"
+    "done toggle",
   );
   await click(`[aria-label="Add child ${rootId}"]`);
   await until(
     async () => (await view()).snapshot.nodes.length === 3,
-    "child insert"
+    "child insert",
   );
   state = await view();
   const delegatedId = state.snapshot.nodes.find(
-    (n) => ![rootId, contractId].includes(n.id)
+    (n) => ![rootId, contractId].includes(n.id),
   ).id;
   await input(delegatedId, "Implement policy middleware");
   await evaluate("document.activeElement.blur()");
@@ -298,7 +299,7 @@ try {
     async () =>
       (await view()).snapshot.nodes.find((n) => n.id === delegatedId).text ===
       "Implement policy middleware",
-    "edit saved"
+    "edit saved",
   );
   state = await view();
   const file = join(temp, "proposal.json");
@@ -313,8 +314,8 @@ try {
           node: {
             id: "integration",
             text: "Write integration tests for role boundaries",
-            done: false
-          }
+            done: false,
+          },
         },
         {
           type: "insert",
@@ -322,52 +323,52 @@ try {
           node: {
             id: "benchmark",
             text: "Benchmark authorization latency",
-            done: false
-          }
-        }
-      ]
-    })
+            done: false,
+          },
+        },
+      ],
+    }),
   );
   const proposal = await invoke("propose", file);
   await until(
     () =>
       evaluate(
-        "document.body.innerText.includes('Write integration tests for role boundaries')"
+        "document.body.innerText.includes('Write integration tests for role boundaries')",
       ),
-    "CLI proposal appears inline"
+    "CLI proposal appears inline",
   );
   await screenshot("plan4-inline-proposal.png");
   await click('[data-proposal-node="benchmark"] button');
   await until(
     async () => (await view()).snapshot.nodes.some((n) => n.id === "benchmark"),
-    "per-node acceptance"
+    "per-node acceptance",
   );
   assert.deepEqual(
     (await view()).snapshot.proposals.find((p) => p.id === proposal.id).pending,
-    ["integration"]
+    ["integration"],
   );
   await click(`[aria-label="Run ${delegatedId}"]`);
   await until(
     () => evaluate("document.body.innerText.includes('Start run')"),
-    "run approval controls"
+    "run approval controls",
   );
   await clickText("Start run");
   await until(async () => (await view()).runs.length === 1, "UI run starts");
   run = (await view()).runs[0];
   await until(
     () => evaluate("document.body.innerText.includes('Open terminal')"),
-    "run panel appears"
+    "run panel appears",
   );
   await clickText("Open terminal");
   await until(
     () => evaluate("!!document.querySelector('.xterm')"),
-    "xterm mounted"
+    "xterm mounted",
   );
   await clickText("Attach Terminal");
   await until(
     () =>
       evaluate("document.body.innerText.toLowerCase().includes('attached')"),
-    "real WebSocket attached"
+    "real WebSocket attached",
   );
   // Send a command through xterm's keyboard into the real local PTY/tmux.
   await evaluate("document.querySelector('.xterm-helper-textarea').focus()");
@@ -378,19 +379,19 @@ try {
       (
         await exec("tmux", ["capture-pane", "-p", "-t", run.sessionName])
       ).stdout.includes("PLAN4_TERMINAL_OK"),
-    "terminal input reaches tmux"
+    "terminal input reaches tmux",
   );
   await invoke(
     "observe",
     run.id,
-    "Reading middleware and checking policy boundaries"
+    "Reading middleware and checking policy boundaries",
   );
   await until(
     () =>
       evaluate(
-        "document.body.innerText.includes('Reading middleware and checking policy boundaries')"
+        "document.body.innerText.includes('Reading middleware and checking policy boundaries')",
       ),
-    "observations appear under run"
+    "observations appear under run",
   );
   await screenshot("plan4-running-node.png");
   // Refresh reattaches to the same session; server restart recovers files + live tmux.
@@ -398,7 +399,7 @@ try {
   await until(
     () =>
       evaluate("document.body.innerText.toLowerCase().includes('attached')"),
-    "browser reload reattaches"
+    "browser reload reattaches",
   );
   const sessionPid = (
     await exec("tmux", [
@@ -406,20 +407,20 @@ try {
       "-p",
       "-t",
       run.sessionName,
-      "#{pane_pid}"
+      "#{pane_pid}",
     ])
   ).stdout;
   await stopServer();
   server = startServer("web");
   await until(
     async () => (await fetch(`${url}/api/outline`)).ok,
-    "restarted API"
+    "restarted API",
   );
   await cdp("Page.reload");
   await until(
     () =>
       evaluate("document.body.innerText.toLowerCase().includes('attached')"),
-    "server restart reattach"
+    "server restart reattach",
   );
   assert.equal(
     (
@@ -428,39 +429,39 @@ try {
         "-p",
         "-t",
         run.sessionName,
-        "#{pane_pid}"
+        "#{pane_pid}",
       ])
     ).stdout,
-    sessionPid
+    sessionPid,
   );
   assert(
     (await view()).snapshot.proposals.some((p) =>
-      p.pending.includes("integration")
-    )
+      p.pending.includes("integration"),
+    ),
   );
   await click('[data-proposal-node="integration"] button:last-child');
   await until(
     async () =>
       !(await view()).snapshot.proposals.find((p) => p.id === proposal.id)
         .pending.length,
-    "per-node rejection"
+    "per-node rejection",
   );
   await clickText("VM inventory");
   await until(
     () =>
       evaluate(`!!document.querySelector('[aria-label="Create ThreadVM"]')`),
-    "legacy VM inventory reachable"
+    "legacy VM inventory reachable",
   );
   await clickText("Outline");
   await until(
     () =>
       evaluate("document.body.innerText.includes('Implement authorization')"),
-    "return to outline"
+    "return to outline",
   );
   assert.deepEqual(errors, []);
   assert(!serverLog.includes("[terminal error:"));
   console.log(
-    "outline UI probe ok (real Chrome edits, nesting, review, run, WebSocket/xterm, browser+server recovery, VM inventory); screenshots .context/plan4-*.png"
+    "outline UI probe ok (real Chrome edits, nesting, review, run, WebSocket/xterm, browser+server recovery, VM inventory); screenshots .context/plan4-*.png",
   );
   socket.close();
 } catch (error) {
@@ -470,19 +471,19 @@ try {
       join(screenshots, "plan4-ui-failure.txt"),
       (await inspectPage("document.body.innerText")) +
         "\n" +
-        JSON.stringify(socketMessages, null, 2)
+        JSON.stringify(socketMessages, null, 2),
     );
     const capture = await cdp("Page.captureScreenshot", { format: "png" });
     await writeFile(
       join(screenshots, "plan4-ui-failure.png"),
-      Buffer.from(capture.data, "base64")
+      Buffer.from(capture.data, "base64"),
     );
   }
   throw error;
 } finally {
   if (run)
     await exec("tmux", ["kill-session", "-t", run.sessionName]).catch(
-      () => undefined
+      () => undefined,
     );
   if (chrome && chrome.exitCode === null) {
     const stopped = new Promise((done) => chrome.once("exit", done));
@@ -494,6 +495,6 @@ try {
     recursive: true,
     force: true,
     maxRetries: 5,
-    retryDelay: 100
+    retryDelay: 100,
   });
 }

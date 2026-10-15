@@ -8,16 +8,16 @@ import { Effect, Layer, Result } from "effect";
 import { ThreadVm } from "../packages/shared/dist/domain/schema.js";
 import {
   CommandService,
-  CommandServiceLive
+  CommandServiceLive,
 } from "../packages/shared/dist/services/CommandService.js";
 import {
   RemoteTerminalSessionLive,
-  terminalSessionName
+  terminalSessionName,
 } from "../packages/shared/dist/services/RemoteTerminalSession.js";
 import { SshServiceLive } from "../packages/shared/dist/services/SshService.js";
 import {
   TerminalBridge,
-  TerminalBridgeLive
+  TerminalBridgeLive,
 } from "../packages/shared/dist/services/TerminalBridge.js";
 
 const repoRoot = fileURLToPath(new URL("..", import.meta.url));
@@ -55,7 +55,7 @@ const waitFor = async (predicate, label, timeoutMs = 10_000) => {
   }
 
   throw new Error(
-    `${label} timed out${lastError ? `: ${lastError.message}` : ""}`
+    `${label} timed out${lastError ? `: ${lastError.message}` : ""}`,
   );
 };
 
@@ -64,8 +64,8 @@ const apiJson = async (baseUrl, path, init) => {
     ...init,
     headers: {
       "content-type": "application/json",
-      ...init?.headers
-    }
+      ...init?.headers,
+    },
   });
   if (!response.ok) {
     throw new Error(`${response.status} ${await response.text()}`);
@@ -86,8 +86,11 @@ class TerminalSocketClient {
     this.opened = Promise.race([
       opened,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("terminal WebSocket open timed out")), 8_000)
-      )
+        setTimeout(
+          () => reject(new Error("terminal WebSocket open timed out")),
+          8_000,
+        ),
+      ),
     ]);
     this.closed = new Promise((resolve) =>
       this.socket.addEventListener(
@@ -96,8 +99,8 @@ class TerminalSocketClient {
           this.closeEvent = event;
           resolve(event);
         },
-        { once: true }
-      )
+        { once: true },
+      ),
     );
     this.socket.addEventListener("message", (event) => {
       const message = JSON.parse(String(event.data));
@@ -114,11 +117,7 @@ class TerminalSocketClient {
 
   async waitUntil(predicate, label, timeoutMs = 8_000) {
     await this.opened;
-    const result = await waitFor(
-      async () => predicate(this),
-      label,
-      timeoutMs
-    );
+    const result = await waitFor(async () => predicate(this), label, timeoutMs);
     return result;
   }
 
@@ -127,7 +126,7 @@ class TerminalSocketClient {
       return;
     }
     const closed = new Promise((resolve) =>
-      this.socket.addEventListener("close", resolve, { once: true })
+      this.socket.addEventListener("close", resolve, { once: true }),
     );
     this.socket.close(1000, "probe-detached");
     await closed;
@@ -141,14 +140,14 @@ const verifyCommandInterruption = async (tempDir) => {
     return yield* command.execFile(
       "sh",
       ["-c", `echo $$ > ${JSON.stringify(pidFile)}; exec sleep 30`],
-      { timeoutMs: 30_000 }
+      { timeoutMs: 30_000 },
     );
   }).pipe(Effect.timeout("200 millis"), Effect.provide(CommandServiceLive));
 
   await Effect.runPromise(commandEffect).catch(() => undefined);
   const pidText = await waitFor(
     async () => await readFile(pidFile, "utf8").catch(() => undefined),
-    "interrupted command pid"
+    "interrupted command pid",
   );
   const pid = Number(pidText.trim());
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -168,8 +167,7 @@ const verifyOutputBackpressure = async (terminalCommandFile) => {
   const previousCommand = process.env.THREADVM_TERMINAL_COMMAND;
   const previousLocalTmux = process.env.THREADVM_TERMINAL_LOCAL_TMUX;
   process.env.THREADVM_TERMINAL_LOCAL_TMUX = "1";
-  process.env.THREADVM_TERMINAL_COMMAND =
-    `exec tmux new-session -A -s \"$THREADVM_SESSION_NAME\" ${JSON.stringify(terminalCommandFile)}`;
+  process.env.THREADVM_TERMINAL_COMMAND = `exec tmux new-session -A -s "$THREADVM_SESSION_NAME" ${JSON.stringify(terminalCommandFile)}`;
 
   const sshLayer = SshServiceLive.pipe(Layer.provide(CommandServiceLive));
   const remoteLayer = RemoteTerminalSessionLive.pipe(Layer.provide(sshLayer));
@@ -184,27 +182,27 @@ const verifyOutputBackpressure = async (terminalCommandFile) => {
           host: `${threadVmId}.exe.xyz`,
           state: "running",
           source: "mock",
-          ports: []
+          ports: [],
         }),
         {
           attachmentId: `attachment-${threadVmId}`,
           cols: 100,
-          rows: 30
-        }
+          rows: 30,
+        },
       );
       yield* attachment.write("__flood__\n");
       const exit = yield* Effect.result(
-        attachment.exited.pipe(Effect.timeout("10 seconds"))
+        attachment.exited.pipe(Effect.timeout("10 seconds")),
       );
       if (
         Result.isSuccess(exit) ||
         !String(exit.failure.message).includes("output queue overflowed")
       ) {
         throw new Error(
-          `terminal output backpressure did not fail visibly: ${JSON.stringify(exit)}`
+          `terminal output backpressure did not fail visibly: ${JSON.stringify(exit)}`,
         );
       }
-    })
+    }),
   ).pipe(Effect.provide(bridgeLayer));
 
   try {
@@ -232,7 +230,9 @@ const main = async () => {
     !/^threadvm-[a-z0-9-]+-[a-f0-9]{10}$/.test(firstCollisionName) ||
     !/^threadvm-[a-z0-9-]+-[a-f0-9]{10}$/.test(secondCollisionName)
   ) {
-    throw new Error("terminal session names are not safe and collision-resistant");
+    throw new Error(
+      "terminal session names are not safe and collision-resistant",
+    );
   }
 
   const port = await findPort();
@@ -258,19 +258,19 @@ const main = async () => {
               {
                 label: "dev:3000",
                 port: 3000,
-                url: "https://terminal-probe.exe.xyz:3000"
-              }
+                url: "https://terminal-probe.exe.xyz:3000",
+              },
             ],
             devLogPath: "/tmp/threadvm/terminal-probe/dev.log",
             createdAt: Date.now(),
-            updatedAt: Date.now()
-          }
-        }
+            updatedAt: Date.now(),
+          },
+        },
       },
       null,
-      2
+      2,
     ),
-    "utf8"
+    "utf8",
   );
   await writeFile(
     terminalCommandFile,
@@ -278,18 +278,18 @@ const main = async () => {
       "#!/bin/sh",
       "printf '\\033[?1000h\\033[?1006h'",
       "while IFS= read -r line; do",
-      "  if [ \"$line\" = \"__flood__\" ]; then",
+      '  if [ "$line" = "__flood__" ]; then',
       "    yes x | head -c 33554432",
       "    continue",
       "  fi",
-      "  if [ \"$line\" = \"__size__\" ]; then",
+      '  if [ "$line" = "__size__" ]; then',
       "    stty size",
       "  else",
       "    printf 'probe:%s\\n' \"$line\"",
       "  fi",
-      "done"
+      "done",
     ].join("\n"),
-    "utf8"
+    "utf8",
   );
   await chmod(terminalCommandFile, 0o755);
   await verifyCommandInterruption(tempDir);
@@ -308,13 +308,13 @@ const main = async () => {
     THREADVM_SSH_MOCK: "1",
     THREADVM_SSH_MOCK_STDOUT: "THREADVM_LOG_FULL\nmock dev log\n",
     THREADVM_TERMINAL_LOCAL_TMUX: "1",
-    THREADVM_TERMINAL_COMMAND: `exec tmux new-session -A -s \"$THREADVM_SESSION_NAME\" ${JSON.stringify(terminalCommandFile)}`
+    THREADVM_TERMINAL_COMMAND: `exec tmux new-session -A -s "$THREADVM_SESSION_NAME" ${JSON.stringify(terminalCommandFile)}`,
   };
   const startServer = () => {
     const process = spawn("node", ["apps/server/dist/main.js"], {
       cwd: repoRoot,
       env: serverEnv,
-      stdio: ["ignore", "pipe", "pipe"]
+      stdio: ["ignore", "pipe", "pipe"],
     });
     process.stdout.on("data", (chunk) => {
       serverOutput += chunk.toString("utf8");
@@ -337,32 +337,35 @@ const main = async () => {
 
   let remoteSessionName;
   try {
-    await waitFor(
-      async () => {
-        const response = await fetch(`${baseUrl}/api/threadvms`);
-        return response.ok;
-      },
-      "server startup"
-    );
+    await waitFor(async () => {
+      const response = await fetch(`${baseUrl}/api/threadvms`);
+      return response.ok;
+    }, "server startup");
 
     for (const path of ["/", "/threadvms/terminal-probe"]) {
       const response = await fetch(`${baseUrl}${path}`);
       const html = await response.text();
       if (!response.ok || !html.includes("root")) {
-        throw new Error(`static app fallback failed for ${path}: ${response.status}`);
+        throw new Error(
+          `static app fallback failed for ${path}: ${response.status}`,
+        );
       }
     }
 
     const threadVms = await apiJson(baseUrl, "/api/threadvms");
     const threadVm = threadVms.find((vm) => vm.id === threadVmId);
     if (!threadVm) {
-      throw new Error(`mock terminal-probe VM missing: ${JSON.stringify(threadVms)}`);
+      throw new Error(
+        `mock terminal-probe VM missing: ${JSON.stringify(threadVms)}`,
+      );
     }
     if (
       threadVm.startingPrompt !== "inspect terminal behavior" ||
       threadVm.pinned !== true
     ) {
-      throw new Error(`intent metadata was not preserved: ${JSON.stringify(threadVm)}`);
+      throw new Error(
+        `intent metadata was not preserved: ${JSON.stringify(threadVm)}`,
+      );
     }
 
     const ports = await apiJson(baseUrl, `/api/threadvms/${threadVm.id}/ports`);
@@ -375,7 +378,10 @@ const main = async () => {
       throw new Error(`unexpected ports response: ${JSON.stringify(ports)}`);
     }
 
-    const devLog = await apiJson(baseUrl, `/api/threadvms/${threadVm.id}/dev-log`);
+    const devLog = await apiJson(
+      baseUrl,
+      `/api/threadvms/${threadVm.id}/dev-log`,
+    );
     if (
       devLog.threadVmId !== threadVm.id ||
       devLog.path !== "/tmp/threadvm/terminal-probe/dev.log" ||
@@ -386,19 +392,19 @@ const main = async () => {
     }
 
     const invalidDimensions = await fetch(
-      `${baseUrl}/rpc/terminal/${threadVm.id}/socket?cols=0&rows=30`
+      `${baseUrl}/rpc/terminal/${threadVm.id}/socket?cols=0&rows=30`,
     );
     if (invalidDimensions.status !== 400) {
       throw new Error(
-        `invalid terminal dimensions returned ${invalidDimensions.status}`
+        `invalid terminal dimensions returned ${invalidDimensions.status}`,
       );
     }
     const invalidThreadVmId = await fetch(
-      `${baseUrl}/rpc/terminal/%20/socket?cols=100&rows=30`
+      `${baseUrl}/rpc/terminal/%20/socket?cols=100&rows=30`,
     );
     if (invalidThreadVmId.status !== 400) {
       throw new Error(
-        `invalid ThreadVM ID returned ${invalidThreadVmId.status}`
+        `invalid ThreadVM ID returned ${invalidThreadVmId.status}`,
       );
     }
 
@@ -406,7 +412,7 @@ const main = async () => {
     const first = new TerminalSocketClient(socketUrl);
     const firstReady = await first.waitUntil(
       (client) => client.messages.find((message) => message.type === "ready"),
-      "first terminal ready"
+      "first terminal ready",
     );
     if (firstReady.reused !== false) {
       throw new Error(`unexpected first attach: ${JSON.stringify(firstReady)}`);
@@ -415,14 +421,15 @@ const main = async () => {
     await first.waitUntil(
       (client) =>
         client.messages.some(
-          (message) => message.type === "status" && message.status === "attached"
+          (message) =>
+            message.type === "status" && message.status === "attached",
         ),
-      "first terminal attached"
+      "first terminal attached",
     );
     first.send({ type: "input", data: "ping\n" });
     await first.waitUntil(
       (client) => client.output.includes("probe:ping"),
-      "first terminal input"
+      "first terminal input",
     );
     first.send({ type: "resize", cols: 99, rows: 29 });
     first.send({ type: "resize", cols: 120, rows: 40 });
@@ -433,14 +440,14 @@ const main = async () => {
       const tty = spawnSync(
         "tmux",
         ["display-message", "-p", "-t", remoteSessionName, "#{pane_tty}"],
-        { encoding: "utf8" }
+        { encoding: "utf8" },
       ).stdout.trim();
       return (
         tty &&
         spawnSync(
           "stty",
           [process.platform === "darwin" ? "-f" : "-F", tty, "size"],
-          { encoding: "utf8" }
+          { encoding: "utf8" },
         ).stdout.trim() === "30 101"
       );
     }, "tmux pane PTY resize");
@@ -448,42 +455,44 @@ const main = async () => {
     try {
       await first.waitUntil(
         (client) => client.output.includes("30 101"),
-        "terminal resize"
+        "terminal resize",
       );
     } catch (error) {
-      throw new Error(`${error.message}; output=${JSON.stringify(first.output)}`);
+      throw new Error(
+        `${error.message}; output=${JSON.stringify(first.output)}`,
+      );
     }
     await first.close();
 
     const second = new TerminalSocketClient(socketUrl);
     const secondReady = await second.waitUntil(
       (client) => client.messages.find((message) => message.type === "ready"),
-      "reconnected terminal ready"
+      "reconnected terminal ready",
     );
     if (
       secondReady.reused !== true ||
       secondReady.sessionName !== firstReady.sessionName
     ) {
       throw new Error(
-        `remote tmux session was not reused: ${JSON.stringify(secondReady)}`
+        `remote tmux session was not reused: ${JSON.stringify(secondReady)}`,
       );
     }
     second.send({ type: "input", data: "after-reconnect\n" });
     await second.waitUntil(
       (client) => client.output.includes("probe:after-reconnect"),
-      "input after reconnect"
+      "input after reconnect",
     );
     await second.waitUntil(
       (client) => client.output.includes("\u001b[?1000h"),
-      "mouse mode after reconnect"
+      "mouse mode after reconnect",
     );
     second.send({ type: "ping", timestamp: 123 });
     await second.waitUntil(
       (client) =>
         client.messages.some(
-          (message) => message.type === "pong" && message.timestamp === 123
+          (message) => message.type === "pong" && message.timestamp === 123,
         ),
-      "terminal pong"
+      "terminal pong",
     );
     await second.close();
 
@@ -491,17 +500,17 @@ const main = async () => {
       const cycled = new TerminalSocketClient(socketUrl);
       const cycleReady = await cycled.waitUntil(
         (client) => client.messages.find((message) => message.type === "ready"),
-        `terminal reconnect cycle ${cycle}`
+        `terminal reconnect cycle ${cycle}`,
       );
       if (cycleReady.reused !== true) {
         throw new Error(
-          `terminal reconnect cycle ${cycle} did not reuse tmux: ${JSON.stringify(cycleReady)}`
+          `terminal reconnect cycle ${cycle} did not reuse tmux: ${JSON.stringify(cycleReady)}`,
         );
       }
       cycled.send({ type: "input", data: `cycle-${cycle}\n` });
       await cycled.waitUntil(
         (client) => client.output.includes(`probe:cycle-${cycle}`),
-        `terminal input cycle ${cycle}`
+        `terminal input cycle ${cycle}`,
       );
       await cycled.close();
     }
@@ -509,110 +518,117 @@ const main = async () => {
     const beforeBackendRestart = new TerminalSocketClient(socketUrl);
     await beforeBackendRestart.waitUntil(
       (client) => client.messages.some((message) => message.type === "ready"),
-      "terminal ready before backend restart"
+      "terminal ready before backend restart",
     );
     beforeBackendRestart.send({
       type: "input",
-      data: "before-server-restart\n"
+      data: "before-server-restart\n",
     });
     await beforeBackendRestart.waitUntil(
       (client) => client.output.includes("probe:before-server-restart"),
-      "terminal input before backend restart"
+      "terminal input before backend restart",
     );
     await stopServer(server);
     await beforeBackendRestart.closed;
 
     server = startServer();
-    await waitFor(
-      async () => {
-        const response = await fetch(`${baseUrl}/api/threadvms`);
-        return response.ok;
-      },
-      "server restart"
-    );
+    await waitFor(async () => {
+      const response = await fetch(`${baseUrl}/api/threadvms`);
+      return response.ok;
+    }, "server restart");
     const afterBackendRestart = new TerminalSocketClient(socketUrl);
     const backendRestartReady = await afterBackendRestart.waitUntil(
       (client) => client.messages.find((message) => message.type === "ready"),
-      "terminal ready after backend restart"
+      "terminal ready after backend restart",
     );
     if (
       backendRestartReady.reused !== true ||
       backendRestartReady.sessionName !== remoteSessionName
     ) {
       throw new Error(
-        `backend restart did not recover the remote tmux session: ${JSON.stringify(backendRestartReady)}`
+        `backend restart did not recover the remote tmux session: ${JSON.stringify(backendRestartReady)}`,
       );
     }
     afterBackendRestart.send({
       type: "input",
-      data: "after-server-restart\n"
+      data: "after-server-restart\n",
     });
     await afterBackendRestart.waitUntil(
       (client) => client.output.includes("probe:after-server-restart"),
-      "terminal input after backend restart"
+      "terminal input after backend restart",
     );
     await afterBackendRestart.close();
 
     const replaced = new TerminalSocketClient(socketUrl);
     await replaced.waitUntil(
       (client) => client.messages.some((message) => message.type === "ready"),
-      "replaceable terminal ready"
+      "replaceable terminal ready",
     );
     const replacement = new TerminalSocketClient(socketUrl);
     await replacement.waitUntil(
       (client) => client.messages.some((message) => message.type === "ready"),
-      "replacement terminal ready"
+      "replacement terminal ready",
     );
     await replaced.closed;
     if (replaced.closeEvent?.reason !== "terminal-replaced") {
       throw new Error(
-        `previous attachment was not replaced cleanly: ${replaced.closeEvent?.reason}`
+        `previous attachment was not replaced cleanly: ${replaced.closeEvent?.reason}`,
       );
     }
     replacement.send({ type: "input", data: "replacement-active\n" });
     await replacement.waitUntil(
       (client) => client.output.includes("probe:replacement-active"),
-      "replacement terminal input"
+      "replacement terminal input",
     );
     await replacement.close();
 
     const invalidProtocol = new TerminalSocketClient(socketUrl);
     await invalidProtocol.waitUntil(
       (client) => client.messages.some((message) => message.type === "ready"),
-      "invalid protocol terminal ready"
+      "invalid protocol terminal ready",
     );
     invalidProtocol.send({ type: "not-a-terminal-message" });
     await invalidProtocol.waitUntil(
       (client) => client.messages.some((message) => message.type === "error"),
-      "invalid protocol error"
+      "invalid protocol error",
     );
     await invalidProtocol.closed;
     if (invalidProtocol.closeEvent?.code !== 1008) {
       throw new Error(
-        `invalid protocol close code was ${invalidProtocol.closeEvent?.code}`
+        `invalid protocol close code was ${invalidProtocol.closeEvent?.code}`,
       );
     }
 
     const restarted = new TerminalSocketClient(`${socketUrl}&restart=1`);
     const restartedReady = await restarted.waitUntil(
       (client) => client.messages.find((message) => message.type === "ready"),
-      "restarted terminal ready"
+      "restarted terminal ready",
     );
     if (restartedReady.reused !== false) {
       throw new Error(
-        `terminal restart reused the old session: ${JSON.stringify(restartedReady)}`
+        `terminal restart reused the old session: ${JSON.stringify(restartedReady)}`,
       );
     }
     await restarted.close();
 
-    const tmuxServerPid = spawnSync("tmux", ["display-message", "-p", "-t", remoteSessionName, "#{pid}"], { encoding: "utf8" }).stdout.trim();
+    const tmuxServerPid = spawnSync(
+      "tmux",
+      ["display-message", "-p", "-t", remoteSessionName, "#{pid}"],
+      { encoding: "utf8" },
+    ).stdout.trim();
     await waitFor(() => {
-      const processTable = spawnSync("ps", ["-axo", "pid=,command="], { encoding: "utf8" }).stdout;
+      const processTable = spawnSync("ps", ["-axo", "pid=,command="], {
+        encoding: "utf8",
+      }).stdout;
       return !processTable.split("\n").some((line) => {
         const match = line.match(/^\s*(\d+)\s+(.*)$/);
         // Linux tmux builds may retain their launch argv instead of setting
         // the process title to "tmux: server". The server is deliberately durable.
-        return match && match[1] !== tmuxServerPid && match[2].includes(remoteSessionName);
+        return (
+          match &&
+          match[1] !== tmuxServerPid &&
+          match[2].includes(remoteSessionName)
+        );
       });
     }, "local terminal attachment cleanup");
 
@@ -624,16 +640,16 @@ const main = async () => {
       "Terminal client reached ready state",
       "Terminal attachment PTY exited",
       "Terminal WebSocket closed",
-      "Terminal attachment cleanup completed"
+      "Terminal attachment cleanup completed",
     ];
     await waitFor(
       () => lifecycleEvents.every((event) => serverOutput.includes(event)),
-      "terminal lifecycle logs"
+      "terminal lifecycle logs",
     );
     for (const terminalInput of [
       "replacement-active",
       "before-server-restart",
-      "after-server-restart"
+      "after-server-restart",
     ]) {
       if (serverOutput.includes(terminalInput)) {
         throw new Error(`terminal input leaked into logs: ${terminalInput}`);
@@ -647,7 +663,7 @@ const main = async () => {
   } finally {
     if (remoteSessionName) {
       spawn("tmux", ["kill-session", "-t", remoteSessionName], {
-        stdio: "ignore"
+        stdio: "ignore",
       });
     }
     await stopServer(server);

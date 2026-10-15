@@ -14,7 +14,8 @@
     "deploy": "vite build && alchemy deploy --stage prod",
     "destroy": "alchemy destroy --stage prod",
     "dev:stable": "THREADVM_LOCAL=1 vite --host 127.0.0.1",
-    "dev:demo": "pnpm run \"/^dev:(worker|client)$/\""
+    "dev:demo": "pnpm run \"/^dev:(worker|client)$/\"",
+    "lint": "oxlint --deny-warnings ."
   },
   "dependencies": {
     "@foldkit/ui": "catalog:",
@@ -26,10 +27,10 @@
     "@foldworks/ui": "workspace:*",
     "@lucide/icons": "catalog:",
     "@stylexjs/stylex": "catalog:",
-    "effect": "catalog:",
-    "foldkit": "catalog:",
+    "@threadvm/outline-protocol": "workspace:*",
     "@threadvm/shared": "workspace:*",
-    "@threadvm/outline-protocol": "workspace:*"
+    "effect": "catalog:",
+    "foldkit": "catalog:"
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",
