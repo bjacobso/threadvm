@@ -3,8 +3,12 @@ import { defineMessageUnion } from "foldkit/message";
 import { Outliner } from "@foldworks/outliner";
 
 import { ServerMessage } from "../shared/protocol.ts";
+import { ThemePreference } from "./theme.ts";
 
 export const Message = defineMessageUnion({
+  SelectedTheme: { preference: ThemePreference },
+  ChangedDeviceTheme: {},
+  CompletedApplyTheme: {},
   GotOutlinerMessage: { message: Outliner.Message },
 
   // The room connection.

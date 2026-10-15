@@ -2,6 +2,7 @@ import { Schema as S } from "effect";
 import { Outliner } from "@foldworks/outliner";
 
 import { AgentId, Thread, Backend, Items } from "../shared/protocol.ts";
+import { ThemePreference } from "./theme.ts";
 
 export const Flags = S.Struct({
   outlineId: S.String,
@@ -20,6 +21,7 @@ export type Countdown = typeof Countdown.Type;
 export const COUNTDOWN_MS = 2400;
 
 export const Model = S.Struct({
+  theme: ThemePreference,
   outlineId: S.String,
   sessionId: S.String,
   backend: S.NullOr(Backend),
@@ -59,6 +61,7 @@ export const Model = S.Struct({
 export type Model = typeof Model.Type;
 
 export const init = (flags: Flags): Model => ({
+  theme: "device",
   outlineId: flags.outlineId,
   sessionId: flags.sessionId,
   backend: null,

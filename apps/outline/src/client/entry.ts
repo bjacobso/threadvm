@@ -7,6 +7,7 @@ import { managedResources } from "./socket.ts";
 import { subscriptions } from "./subscriptions.ts";
 import { update } from "./update.ts";
 import { view } from "./view/app.ts";
+import { readThemePreference } from "./theme.ts";
 
 const randomId = (length: number): string =>
   Array.from(crypto.getRandomValues(new Uint8Array(length)), (byte) =>
@@ -29,7 +30,7 @@ const flags = Effect.sync((): Flags => {
 const application = Runtime.makeApplication({
   Model,
   Flags,
-  init: (flags: Flags) => ({ model: init(flags) }),
+  init: (flags: Flags) => ({ model: { ...init(flags), theme: readThemePreference() } }),
   update,
   view,
   subscriptions,

@@ -4,12 +4,23 @@ import { Subscription } from "foldkit";
 import { Message } from "./message.ts";
 import type { Model } from "./model.ts";
 import { RoomSocket, roomMessages, type RoomSocketService } from "./socket.ts";
+import { DEVICE_THEME_QUERY } from "./theme.ts";
 
 const TICK_MS = 100;
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.platform);
 
 export const subscriptions = Subscription.make<Model, Message, RoomSocketService>()((entry) => ({
+  deviceTheme: entry(
+    {},
+    {
+      modelToDependencies: () => ({}),
+      dependenciesToStream: () => Stream.fromEventListener<MediaQueryListEvent>(
+        window.matchMedia(DEVICE_THEME_QUERY),
+        "change",
+      ).pipe(Stream.map(() => Message.ChangedDeviceTheme())),
+    },
+  ),
   room: entry(
     { online: S.Boolean },
     {

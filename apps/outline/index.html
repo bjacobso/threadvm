@@ -6,7 +6,13 @@
     <meta name="description" content="An outline you think in, with agents that work beside you." />
     <script>
       (() => {
-        const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        let preference = "device";
+        try {
+          const stored = localStorage.getItem("threadvm.theme");
+          if (stored === "light" || stored === "dark") preference = stored;
+        } catch {}
+        const dark = preference === "dark" ||
+          (preference === "device" && window.matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.mode = dark ? "dark" : "light";
         document.documentElement.classList.toggle("dark", dark);
       })();
