@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en" data-theme="shadcn" data-mode="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="An outline you think in, with agents that work beside you." />
+    <script>
+      (() => {
+        const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.mode = dark ? "dark" : "light";
+        document.documentElement.classList.toggle("dark", dark);
+      })();
+    </script>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Crect x=%221%22 y=%221%22 width=%2214%22 height=%2214%22 rx=%224%22 fill=%22none%22 stroke=%22%23111%22 stroke-width=%221.5%22/%3E%3Cpath d=%22M4 5h8M6.5 8H12M6.5 11H12%22 stroke=%22%23111%22 stroke-width=%221.5%22/%3E%3C/svg%3E" />
+    <link href="/src/client/styles.css" rel="stylesheet" />
+    <title>Outline</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/client/entry.ts"></script>
+  </body>
+</html>

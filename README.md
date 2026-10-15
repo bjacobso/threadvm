@@ -6,6 +6,14 @@ Use it when an idea, bug, RFC, or experiment deserves its own clean environment,
 
 Status: early MVP scaffold. The local Effect Platform server, typed `HttpApi`, exe.dev reflection, Vite/React UI, shadcn/Tailwind app shell, Effect Atom client state, browser terminal bridge, New ThreadVM form, project registry editor, reconciliation/provisioning streams, local ThreadVM metadata cache, SSH provisioning, and basic stop/remove lifecycle actions are implemented. Workspace creation now requests the VM create/clone operation, then starts repo bootstrap and the configured dev command in a background Effect fiber.
 
+## Outline prototype
+
+[`apps/outline`](apps/outline) is a separate experience prototype: an outliner
+where bullets that mention `@claude`, `@cursor`, `@codex`, or `@conductor`
+become agent threads that ask questions and propose changes as suggestions. It
+is built with Foldkit, Foldworks, and Effect, and deploys to Cloudflare with
+Alchemy. See its README.
+
 ## What It Does
 
 ThreadVM runs a local web UI that reflects your exe.dev environments.

@@ -8,3 +8,5 @@ packages/*/dist/
 .threadvm/
 .DS_Store
 *.log
+.env
+.alchemy/
