@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 type WorkspaceName =
+  | "@threadvm/agent"
+  | "@threadvm/outline"
   | "@threadvm/cli"
   | "@threadvm/server"
   | "@threadvm/shared"
@@ -34,6 +36,16 @@ const repoRoot = fileURLToPath(new URL("..", import.meta.url));
 
 const workspaces: ReadonlyArray<Workspace> = [
   {
+    name: "@threadvm/agent",
+    root: path.join(repoRoot, "packages/agent"),
+    src: path.join(repoRoot, "packages/agent/src")
+  },
+  {
+    name: "@threadvm/outline",
+    root: path.join(repoRoot, "apps/outline"),
+    src: path.join(repoRoot, "apps/outline/src")
+  },
+  {
     name: "@threadvm/web",
     root: path.join(repoRoot, "apps/web"),
     src: path.join(repoRoot, "apps/web/src")
@@ -56,6 +68,8 @@ const workspaces: ReadonlyArray<Workspace> = [
 ];
 
 const allowedImports: Record<WorkspaceName, ReadonlySet<WorkspaceName>> = {
+  "@threadvm/agent": new Set(),
+  "@threadvm/outline": new Set(["@threadvm/shared"]),
   "@threadvm/web": new Set(["@threadvm/shared"]),
   "@threadvm/server": new Set(["@threadvm/shared"]),
   "@threadvm/cli": new Set(["@threadvm/server", "@threadvm/shared"]),
@@ -67,11 +81,15 @@ const sourceExtensions = [".ts", ".tsx", ".js", ".jsx", ".css"];
 const isSourceFile = (file: string) =>
   file.endsWith(".ts") || file.endsWith(".tsx");
 
-const isIgnoredDir = (name: string) => name === "dist" || name === "node_modules";
+const isIgnoredDir = (name: string) =>
+  name === "dist" || name === "node_modules";
 
 const inside = (candidate: string, parent: string) => {
   const relative = path.relative(parent, candidate);
-  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+  return (
+    relative === "" ||
+    (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 };
 
 const findWorkspaceByFile = (file: string) =>
@@ -172,7 +190,10 @@ const checkReference = async (
     return undefined;
   }
 
-  const resolved = await resolveRelativeImport(reference.file, reference.specifier);
+  const resolved = await resolveRelativeImport(
+    reference.file,
+    reference.specifier
+  );
   const targetWorkspace = findWorkspaceByFile(resolved);
   if (!targetWorkspace) {
     return {
@@ -229,10 +250,7 @@ const checkFeatureAtomBoundaries = async (
 
   for (const reference of references) {
     const expectedEntryPoint = featureStateEntryPoint(reference.file);
-    if (
-      expectedEntryPoint &&
-      reference.specifier === "@/state/atoms"
-    ) {
+    if (expectedEntryPoint && reference.specifier === "@/state/atoms") {
       violations.push({
         file: reference.file,
         reason: `feature state should be imported from ${expectedEntryPoint}, not @/state/atoms`
@@ -245,12 +263,14 @@ const checkFeatureAtomBoundaries = async (
 
 const main = async () => {
   const sourceFiles = (
-    await Promise.all(workspaces.map((workspace) => readSourceFiles(workspace.src)))
+    await Promise.all(
+      workspaces.map((workspace) => readSourceFiles(workspace.src))
+    )
   ).flat();
   const references = (await Promise.all(sourceFiles.map(readImports))).flat();
-  const violations = (
-    await Promise.all(references.map(checkReference))
-  ).filter((violation): violation is Violation => violation !== undefined);
+  const violations = (await Promise.all(references.map(checkReference))).filter(
+    (violation): violation is Violation => violation !== undefined
+  );
   const architectureViolations = await checkFeatureAtomBoundaries(references);
 
   if (violations.length > 0 || architectureViolations.length > 0) {

@@ -39,6 +39,7 @@ patchedDependencies:
 
 # Alchemy accepts any Effect 4 SQL driver; keep them on the catalog's Effect.
 overrides:
+  "@effect/platform-node@4.0.4>@effect/platform-node-shared": 4.0.4
   "@effect/sql-d1": 4.0.0-rc.112
   "@effect/sql-sqlite-do": 4.0.0-rc.112
   "@effect/vitest": 4.0.0-rc.112

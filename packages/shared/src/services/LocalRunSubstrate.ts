@@ -5,12 +5,19 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   Run,
+  RunControlRequest,
+  AcpConfiguration,
   RunEvent,
   Agent,
   ObserveRequest,
   OutlineId
 } from "../domain/outline.js";
-import { ThoughtsRepo, OutlineError, outlineIO } from "./ThoughtsRepo.js";
+import {
+  ThoughtsRepo,
+  OutlineError,
+  outlineIO,
+  atomicWrite
+} from "./ThoughtsRepo.js";
 import { OutlineStore, renderMarkdown } from "./OutlineStore.js";
 import { RunEventLog, projectRuns } from "./RunEventLog.js";
 import { CommandService } from "./CommandService.js";
@@ -24,6 +31,9 @@ export class LocalRunSubstrate extends Context.Service<
       nodeId: string,
       agent: typeof Agent.Type
     ) => Effect.Effect<Run, OutlineError>;
+    readonly control: (
+      request: RunControlRequest
+    ) => Effect.Effect<void, OutlineError>;
     readonly list: Effect.Effect<ReadonlyArray<Run>, OutlineError>;
     readonly observe: (
       request: ObserveRequest
@@ -173,6 +183,50 @@ export const LocalRunSubstrateLive = Layer.effect(
     return {
       list,
       authorize,
+      control: (request) =>
+        repo.withLock(
+          Effect.gen(function* () {
+            const run = (yield* rawRuns).find((r) => r.id === request.runId);
+            if (!run || run.agent !== "acp" || run.status !== "running")
+              return yield* Effect.fail(
+                new OutlineError("Control requires a running ACP session")
+              );
+            if (request.action === "permission") {
+              const history = (yield* events.read).filter(
+                (e) => e.runId === run.id
+              );
+              const permission = history.find(
+                (e) =>
+                  e.agent?.type === "permission" &&
+                  e.agent.requestId === request.requestId
+              )?.agent;
+              if (
+                !permission ||
+                !permission.options?.some((o) => o.id === request.optionId) ||
+                history.some(
+                  (e) =>
+                    e.agent?.type === "permission_resolved" &&
+                    e.agent.requestId === request.requestId
+                )
+              )
+                return yield* Effect.fail(
+                  new OutlineError("Unknown or resolved permission request")
+                );
+            }
+            yield* outlineIO(() =>
+              atomicWrite(
+                join(
+                  repo.dir,
+                  "runs",
+                  run.id,
+                  "control",
+                  `${Date.now()}-${randomUUID()}.json`
+                ),
+                JSON.stringify(request)
+              )
+            );
+          })
+        ),
       start: (nodeId, agent) =>
         Effect.gen(function* () {
           yield* Schema.decodeUnknownEffect(Agent)(agent).pipe(
@@ -184,6 +238,16 @@ export const LocalRunSubstrateLive = Layer.effect(
             return yield* Effect.fail(
               new OutlineError(`Unknown node ${nodeId}`)
             );
+          const acpConfiguration =
+            agent === "acp"
+              ? yield* outlineIO(async () =>
+                  Schema.decodeUnknownSync(AcpConfiguration)(
+                    JSON.parse(
+                      await readFile(join(repo.dir, "acp.json"), "utf8")
+                    )
+                  )
+                )
+              : undefined;
           yield* tmux(["-V"]);
           const id = randomUUID();
           const runDir = join(repo.dir, "runs", id);
@@ -202,6 +266,13 @@ export const LocalRunSubstrateLive = Layer.effect(
           const capability = randomBytes(32).toString("hex");
           yield* outlineIO(async () => {
             await mkdir(runDir, { recursive: true, mode: 0o700 });
+            await mkdir(join(runDir, "control"), { mode: 0o700 });
+            if (acpConfiguration)
+              await writeFile(
+                join(runDir, "acp.json"),
+                JSON.stringify(acpConfiguration),
+                { mode: 0o600 }
+              );
             await writeFile(join(runDir, "capability"), capability, {
               mode: 0o600
             });
@@ -241,11 +312,13 @@ export const LocalRunSubstrateLive = Layer.effect(
             const binDir = join(runDir, "bin");
             const runner = join(runDir, "runner.sh");
             const agentCommand =
-              agent === "shell"
-                ? "bash --noprofile --norc -i"
-                : agent === "codex"
-                  ? `codex ${quote(context)}`
-                  : `claude ${quote(context)}`;
+              agent === "acp"
+                ? `${quote(process.execPath)} ${quote(fileURLToPath(new URL("../../../agent/dist/main.js", import.meta.url)))}`
+                : agent === "shell"
+                  ? "bash --noprofile --norc -i"
+                  : agent === "codex"
+                    ? `codex ${quote(context)}`
+                    : `claude ${quote(context)}`;
             yield* outlineIO(async () => {
               await mkdir(binDir, { recursive: true });
               await writeFile(
@@ -332,6 +405,7 @@ export const LocalRunSubstrateLive = Layer.effect(
             );
           yield* record(run, request.kind, {
             message: request.message,
+            agent: request.agent,
             codeSha: request.codeSha,
             exitCode: request.exitCode
           });

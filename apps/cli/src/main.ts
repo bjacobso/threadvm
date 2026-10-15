@@ -5,6 +5,7 @@ import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import {
   OperationBatch,
+  RunControlRequest,
   ObserveRequest,
   ReviewRequest,
   Agent
@@ -34,6 +35,7 @@ const projectDir = resolve(
   option("--dir") ?? process.env.THREADVM_PROJECT_DIR ?? process.cwd()
 );
 const agentOption = option("--agent") ?? "shell";
+const dataOption = option("--data");
 const kind = option("--kind") ?? "observation";
 const exitCodeOption = option("--exit-code");
 const command = args.shift() ?? "web";
@@ -145,6 +147,19 @@ try {
           print(yield* runs.start(args[0], agent));
           break;
         }
+        case "cancel":
+        case "permission": {
+          yield* runs.control(
+            yield* Schema.decodeUnknownEffect(RunControlRequest)({
+              runId: args[0],
+              action: command === "cancel" ? "cancel" : "permission",
+              requestId: args[1],
+              optionId: args[2]
+            })
+          );
+          print({ queued: true });
+          break;
+        }
         case "observe": {
           if (runId && args[0] !== runId) denied();
           // Human CLI observations use the same run capability; it never enters Git.
@@ -158,6 +173,12 @@ try {
             message: args[1],
             kind,
             capability: token,
+            agent:
+              dataOption === undefined
+                ? undefined
+                : dataOption === "-"
+                  ? yield* Effect.tryPromise(() => jsonInput("-"))
+                  : JSON.parse(dataOption),
             codeSha: kind === "commit" ? args[1] : undefined,
             exitCode:
               exitCodeOption === undefined ? undefined : Number(exitCodeOption)

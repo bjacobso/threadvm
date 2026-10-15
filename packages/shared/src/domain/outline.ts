@@ -4,7 +4,7 @@ export const OutlineId = Schema.String.check(
   Schema.isPattern(/^[A-Za-z0-9][A-Za-z0-9_-]{0,95}$/)
 );
 const Revision = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
-export const Agent = Schema.Literals(["codex", "claude", "shell"]);
+export const Agent = Schema.Literals(["codex", "claude", "shell", "acp"]);
 
 export class NodeDraft extends Schema.Class<NodeDraft>("NodeDraft")({
   id: OutlineId,
@@ -101,6 +101,45 @@ export class Run extends Schema.Class<Run>("Run")({
   endedAt: Schema.optional(Schema.Number),
   exitCode: Schema.optional(Schema.Number)
 }) {}
+/** JSON boundary with the independently versioned ACP process. */
+export class AgentSignal extends Schema.Class<AgentSignal>("AgentSignal")({
+  type: Schema.Literals([
+    "initialized",
+    "session",
+    "update",
+    "permission",
+    "permission_resolved",
+    "cancelled",
+    "turn_complete"
+  ]),
+  sessionId: Schema.optional(Schema.String),
+  requestId: Schema.optional(OutlineId),
+  title: Schema.optional(Schema.String),
+  options: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        id: Schema.String,
+        name: Schema.String,
+        kind: Schema.String
+      })
+    )
+  ),
+  payload: Schema.optional(Schema.Unknown)
+}) {}
+export class RunControlRequest extends Schema.Class<RunControlRequest>(
+  "RunControlRequest"
+)({
+  runId: OutlineId,
+  action: Schema.Literals(["permission", "cancel"]),
+  requestId: Schema.optional(OutlineId),
+  optionId: Schema.optional(Schema.String)
+}) {}
+export class AcpConfiguration extends Schema.Class<AcpConfiguration>(
+  "AcpConfiguration"
+)({
+  command: Schema.String.check(Schema.isMinLength(1)),
+  args: Schema.Array(Schema.String)
+}) {}
 export class RunEvent extends Schema.Class<RunEvent>("RunEvent")({
   id: OutlineId,
   runId: OutlineId,
@@ -110,6 +149,7 @@ export class RunEvent extends Schema.Class<RunEvent>("RunEvent")({
     "starting",
     "started",
     "output",
+    "agent",
     "observation",
     "commit",
     "pr",
@@ -117,6 +157,7 @@ export class RunEvent extends Schema.Class<RunEvent>("RunEvent")({
     "failed"
   ]),
   run: Schema.optional(Run),
+  agent: Schema.optional(AgentSignal),
   message: Schema.optional(Schema.String),
   codeSha: Schema.optional(Schema.String),
   exitCode: Schema.optional(Schema.Number)
@@ -151,9 +192,17 @@ export class ObserveRequest extends Schema.Class<ObserveRequest>(
   "ObserveRequest"
 )({
   runId: OutlineId,
-  kind: Schema.Literals(["output", "observation", "commit", "pr", "finished"]),
+  kind: Schema.Literals([
+    "output",
+    "observation",
+    "commit",
+    "pr",
+    "finished",
+    "agent"
+  ]),
   message: Schema.String,
   codeSha: Schema.optional(Schema.String),
   capability: Schema.optional(Schema.String),
+  agent: Schema.optional(AgentSignal),
   exitCode: Schema.optional(Schema.Number)
 }) {}

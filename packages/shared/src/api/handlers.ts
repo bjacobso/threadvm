@@ -130,6 +130,11 @@ export const OutlineApiLive = HttpApiBuilder.group(
   "outline",
   (handlers) =>
     handlers
+      .handle("control", ({ payload }) =>
+        Effect.gen(function* () {
+          yield* (yield* LocalRunSubstrate).control(payload);
+        }).pipe(Effect.mapError(toApiError("Failed to control ACP session")))
+      )
       .handle("read", () =>
         Effect.gen(function* () {
           const store = yield* OutlineStore;

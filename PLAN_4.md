@@ -148,3 +148,84 @@ Tailwind tokens. Errors remain visible and do not discard pending input.
 SQLite indexing, exe.dev as a run substrate, nested delegation orchestration,
 multiplayer, Markdown round-trip editing and automatic code merging are deferred.
 MCP is optional; CLI is the first complete agent protocol.
+
+
+## Foldkit + ACP Integration (October 15)
+
+The user's follow-up replaces the primary React outline pane with Foldkit,
+Foldworks and StyleX. `origin/main` already added a Cloudflare experience
+prototype. The local application now uses the same upstream outliner and UI
+primitives, with a separate local update model. The Cloudflare demo retains its
+scripted agents; it does not provide local execution or authorize delegation.
+
+### Ownership and Runtime Boundaries
+
+- Foldworks owns editing, nesting, drag/reorder, selection, folding and history.
+  Local Foldkit commands translate document changes into canonical operation
+  batches. Serialize saves; preserve keystrokes during requests and disjoint
+  concurrent changes. Conflicts retain the draft and require deliberate recovery.
+- Local server `/` serves the Foldkit application. `/inventory` keeps the existing
+  exe.dev React surface. `/terminal/:runId` embeds the existing TerminalPane
+  below the delegated node, preserving its WebSocket/TerminalBridge behavior.
+- Explicit Run buttons are the only local UI delegation path. Mentioning an
+  agent or accepting proposed text never starts another agent.
+- `AgentDriver` owns protocol sessions, typed events, prompting, permission
+  continuations and cancellation. `Scope` owns subprocess cleanup, `Stream`
+  carries events, and `Deferred` waits for a permission decision.
+- T3 Code's MIT `effect-acp` source is pinned and attributed in `packages/agent`.
+  It uses Effect 4.0.4, isolated in the tmux-owned runner process. The server
+  remains on beta.94 and Foldkit on rc.112. Only schema-validated JSON crosses
+  those runtime boundaries. No blanket dependency upgrade is required.
+- ACP is the editor/agent control protocol. The existing CLI remains the
+  agent/outline write protocol. ACP updates cannot directly edit accepted intent.
+
+### Data, Services, API and CLI
+
+Add `AgentSignal`, `AcpConfiguration`, `RunControlRequest` and the `acp` executor.
+Persist initialization/capabilities, session IDs, updates, permission requests,
+answers and turn completion in ignored `events.jsonl`. The run's `acp.json`
+snapshots the project configuration. Control files are atomic and local to a run;
+HTTP server restarts leave the ACP process and its permission continuations alive.
+
+`threadvm run <nodeId> --agent acp` reads `.threadvm/acp.json`:
+
+```json
+{ "command": "/absolute/path/to/acp-agent", "args": [] }
+```
+
+The program must speak ACP on stdio. The initial adapter negotiates v1 and
+advertises no client filesystem/terminal capabilities; agents use their own
+worktree tools. Preserve initialization metadata and raw update payloads so
+additional capabilities can be added deliberately. Existing terminal-based
+shell, Codex and Claude executors continue to work.
+
+`POST /api/outline/control` and human-only `threadvm permission <runId>
+<requestId> <optionId>` / `threadvm cancel <runId>` enqueue decisions. Validate
+permission IDs/options against this run's events. Agent capabilities cannot
+answer their own permission requests. Interruption sends ACP `session/cancel`
+before scoped child cleanup. Finishing a prompt ends this run; session
+resumption and multi-turn steering are deferred.
+
+### Verification and Remaining Work
+
+- The deterministic ACP probe exercises the real stdio protocol, local worktree,
+  tmux, CLI proposals, permission continuation, partial acceptance, thought
+  commits, cancellation and restart recovery. Its peer is explicitly a test agent.
+- The Chrome local-harness probe edits the real Foldworks outliner, delegates a
+  real shell, sends xterm keyboard input into tmux, approves an ACP permission,
+  reviews a CLI proposal, restarts browser/server, and visits the VM inventory.
+- Keep the existing outline, terminal, boundaries and style checks passing.
+- Defer MCP, reconnecting a terminated ACP subprocess, client-mediated ACP
+  filesystem/terminal tools, model selection, multi-turn steering, nested
+  delegation and the prototype's richer mention/inbox interactions in local mode.
+
+
+The live integration was additionally checked with the installed
+`@agentclientprotocol/claude-agent-acp` 0.91.0 and the workspace's existing Claude
+authentication. Through ACP it requested permission, wrote and committed a proof
+file, submitted an actual CLI proposal and recorded observations plus the code
+SHA. This is separate from the deterministic regression fixture.
+
+Undo restores the content of committed deletions with fresh IDs. Rewrite the
+Foldworks history when tombstones arrive, preserving the store's no-ID-reuse
+invariant. Local collapse preferences do not become shared operations.

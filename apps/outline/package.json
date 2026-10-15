@@ -24,7 +24,8 @@
     "@lucide/icons": "catalog:",
     "@stylexjs/stylex": "catalog:",
     "effect": "catalog:",
-    "foldkit": "catalog:"
+    "foldkit": "catalog:",
+    "@threadvm/shared": "workspace:*"
   },
   "devDependencies": {
     "@effect/platform-node": "4.0.0-rc.112",

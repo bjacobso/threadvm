@@ -17,6 +17,7 @@ import {
   StartRunRequest,
   Run,
   ObserveRequest,
+  RunControlRequest,
   CreateThreadVmRequest,
   CreateThreadVmResponse,
   Project,
@@ -115,6 +116,13 @@ const ThreadVmsGroup = HttpApiGroup.make("threadvms")
   .prefix("/api");
 
 const OutlineGroup = HttpApiGroup.make("outline")
+  .add(
+    HttpApiEndpoint.post("control", "/outline/control", {
+      payload: RunControlRequest,
+      success: Schema.Void,
+      error: ApiErrorResponse
+    })
+  )
   .add(
     HttpApiEndpoint.get("read", "/outline", {
       success: OutlineView,
