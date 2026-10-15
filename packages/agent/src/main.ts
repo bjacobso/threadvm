@@ -146,7 +146,15 @@ const program = Effect.gen(function* () {
       await new Promise<void>((resolve) => {
         execFile(
           "threadvm",
-          ["observe", runId, String(error), "--kind", "failed"],
+          [
+            "observe",
+            runId,
+            String(error).slice(0, 6000),
+            "--kind",
+            "finished",
+            "--exit-code",
+            "1",
+          ],
           () => resolve(),
         );
       });

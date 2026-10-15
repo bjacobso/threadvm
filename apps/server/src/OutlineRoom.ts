@@ -145,7 +145,10 @@ const eventActivity = (events: ReadonlyArray<RunEvent>): Activity[] => {
     else if (
       event.kind === "started" ||
       event.kind === "commit" ||
-      event.kind === "failed"
+      event.kind === "failed" ||
+      (event.kind === "finished" &&
+        event.exitCode !== undefined &&
+        event.exitCode !== 0)
     )
       activity.push({
         _tag: "Step",
@@ -159,7 +162,11 @@ const eventActivity = (events: ReadonlyArray<RunEvent>): Activity[] => {
               ? "Code committed"
               : "Run failed",
         detail: event.codeSha ?? event.message ?? "",
-        state: event.kind === "failed" ? "Failed" : "Done",
+        state:
+          event.kind === "failed" ||
+          (event.kind === "finished" && event.exitCode !== 0)
+            ? "Failed"
+            : "Done",
       });
   }
   return activity;

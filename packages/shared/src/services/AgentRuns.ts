@@ -708,7 +708,7 @@ export const AgentRunsLive = Layer.effect(
         Effect.gen(function* () {
           const run = yield* authorize(request.runId, request.capability);
           if (run.status === "finished" || run.status === "failed")
-            return yield* Effect.fail(
+            return request.kind === "finished" ? undefined : yield* Effect.fail(
               new OutlineError("Run has already finished"),
             );
           yield* record(run, request.kind, {
