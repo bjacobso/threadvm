@@ -8,24 +8,24 @@ import type {
   ThreadVmPortsResponseModel,
   ThreadVmProvisioningEventModel,
   ThreadVmReconciliationEventModel,
-  ThreadVmModel
+  ThreadVmModel,
 } from "@threadvm/shared/domain";
 import { ThreadVmApi } from "@threadvm/shared/api";
 import {
   CreateThreadVmRequest,
   Project,
   ThreadVmProvisioningEvent,
-  ThreadVmReconciliationEvent
+  ThreadVmReconciliationEvent,
 } from "@threadvm/shared/domain";
 import { FetchHttpClient } from "effect/unstable/http";
 import { HttpApiClient } from "effect/unstable/httpapi";
 import { Effect, Schema } from "effect";
 
 const decodeThreadVmReconciliationEvent = Schema.decodeUnknownPromise(
-  ThreadVmReconciliationEvent
+  ThreadVmReconciliationEvent,
 );
 const decodeThreadVmProvisioningEvent = Schema.decodeUnknownPromise(
-  ThreadVmProvisioningEvent
+  ThreadVmProvisioningEvent,
 );
 
 const baseUrl =
@@ -35,8 +35,8 @@ const baseUrl =
 
 const clientPromise = Effect.runPromise(
   HttpApiClient.make(ThreadVmApi, { baseUrl }).pipe(
-    Effect.provide(FetchHttpClient.layer)
-  )
+    Effect.provide(FetchHttpClient.layer),
+  ),
 );
 
 const formatApiError = (error: unknown): Error => {
@@ -50,7 +50,7 @@ const formatApiError = (error: unknown): Error => {
 };
 
 const runApiEffect = async <A>(
-  effect: Effect.Effect<A, unknown, never>
+  effect: Effect.Effect<A, unknown, never>,
 ): Promise<A> => {
   try {
     return await Effect.runPromise(effect);
@@ -62,64 +62,66 @@ const runApiEffect = async <A>(
 export const apiPayloads = {
   project: (project: ProjectModel): Project => new Project(project),
   createThreadVmRequest: (
-    request: CreateThreadVmRequestModel
-  ): CreateThreadVmRequest => new CreateThreadVmRequest(request)
+    request: CreateThreadVmRequestModel,
+  ): CreateThreadVmRequest => new CreateThreadVmRequest(request),
 };
 
 export const threadVmApi = {
   listProjects: async (): Promise<ReadonlyArray<ProjectModel>> =>
     await runApiEffect((await clientPromise).projects.list()),
   saveProject: async (
-    project: ProjectModel
+    project: ProjectModel,
   ): Promise<ProjectRegistryResponseModel> =>
     await runApiEffect(
       (await clientPromise).projects.save({
         params: { id: project.id },
-        payload: apiPayloads.project(project)
-      })
+        payload: apiPayloads.project(project),
+      }),
     ),
   removeProject: async (
-    projectId: string
+    projectId: string,
   ): Promise<ProjectRegistryResponseModel> =>
     await runApiEffect(
-      (await clientPromise).projects.remove({ params: { id: projectId } })
+      (await clientPromise).projects.remove({ params: { id: projectId } }),
     ),
   listThreadVms: async (): Promise<ReadonlyArray<ThreadVmModel>> =>
     await runApiEffect((await clientPromise).threadvms.list()),
-  readDevLog: async (threadVmId: string): Promise<ThreadVmDevLogResponseModel> =>
+  readDevLog: async (
+    threadVmId: string,
+  ): Promise<ThreadVmDevLogResponseModel> =>
     await runApiEffect(
-      (await clientPromise).threadvms.devLog({ params: { id: threadVmId } })
+      (await clientPromise).threadvms.devLog({ params: { id: threadVmId } }),
     ),
   checkPorts: async (threadVmId: string): Promise<ThreadVmPortsResponseModel> =>
     await runApiEffect(
-      (await clientPromise).threadvms.ports({ params: { id: threadVmId } })
+      (await clientPromise).threadvms.ports({ params: { id: threadVmId } }),
     ),
   createThreadVm: async (
-    request: CreateThreadVmRequestModel
+    request: CreateThreadVmRequestModel,
   ): Promise<CreateThreadVmResponseModel> =>
     await runApiEffect(
       (await clientPromise).threadvms.create({
-        payload: apiPayloads.createThreadVmRequest(request)
-      })
+        payload: apiPayloads.createThreadVmRequest(request),
+      }),
     ),
   stopThreadVm: async (
-    threadVmId: string
+    threadVmId: string,
   ): Promise<ThreadVmLifecycleResponseModel> =>
     await runApiEffect(
-      (await clientPromise).threadvms.stop({ params: { id: threadVmId } })
+      (await clientPromise).threadvms.stop({ params: { id: threadVmId } }),
     ),
   removeThreadVm: async (
-    threadVmId: string
+    threadVmId: string,
   ): Promise<ThreadVmLifecycleResponseModel> =>
     await runApiEffect(
-      (await clientPromise).threadvms.remove({ params: { id: threadVmId } })
+      (await clientPromise).threadvms.remove({ params: { id: threadVmId } }),
     ),
   decodeReconciliationEvent: async (
-    data: string
+    data: string,
   ): Promise<ThreadVmReconciliationEventModel> =>
     await decodeThreadVmReconciliationEvent(JSON.parse(data)),
   decodeProvisioningEvent: async (
-    data: string
+    data: string,
   ): Promise<ThreadVmProvisioningEventModel> =>
-    await decodeThreadVmProvisioningEvent(JSON.parse(data))
+    await decodeThreadVmProvisioningEvent(JSON.parse(data)),
 };

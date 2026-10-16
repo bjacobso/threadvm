@@ -9,7 +9,7 @@ import {
   Trash2Icon,
   GitBranchIcon,
   TerminalIcon,
-  CheckIcon
+  CheckIcon,
 } from "lucide-react";
 import {
   InsertOperation,
@@ -22,7 +22,7 @@ import {
   type OutlineOperation,
   type Proposal,
   type Run,
-  type ThreadVmModel
+  type ThreadVmModel,
 } from "@threadvm/shared/domain";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import { TerminalPane } from "@/features/terminal/TerminalPane";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ import {
   outlineBusyAtom,
   outlineErrorAtom,
   refreshOutline,
-  useAtomRef
+  useAtomRef,
 } from "./outlineAtoms";
 
 const opId = (op: OutlineOperation) =>
@@ -51,7 +51,7 @@ const opId = (op: OutlineOperation) =>
 function RunPanel({ run }: { run: Run }) {
   const view = useAtomRef(outlineAtom);
   const [terminalOpen, setTerminalOpen] = useState(
-    () => window.localStorage.getItem(`threadvm.run.${run.id}`) === "open"
+    () => window.localStorage.getItem(`threadvm.run.${run.id}`) === "open",
   );
   const selected = useMemo<ThreadVmModel>(
     () => ({
@@ -61,16 +61,16 @@ function RunPanel({ run }: { run: Run }) {
       state: "running",
       source: "cache",
       branch: run.branch,
-      ports: []
+      ports: [],
     }),
-    [run.id, run.agent, run.branch]
+    [run.id, run.agent, run.branch],
   );
   const observations =
     view?.events
       .filter(
         (e) =>
           e.runId === run.id &&
-          ["observation", "output", "commit", "pr", "failed"].includes(e.kind)
+          ["observation", "output", "commit", "pr", "failed"].includes(e.kind),
       )
       .slice(-5) ?? [];
   return (
@@ -86,7 +86,7 @@ function RunPanel({ run }: { run: Run }) {
               ? "text-status-running"
               : run.status === "failed"
                 ? "text-status-failed"
-                : "text-muted-foreground"
+                : "text-muted-foreground",
           )}
         >
           <span className="size-1.5 rounded-full bg-current" />
@@ -105,7 +105,7 @@ function RunPanel({ run }: { run: Run }) {
             setTerminalOpen(!terminalOpen);
             window.localStorage.setItem(
               `threadvm.run.${run.id}`,
-              terminalOpen ? "closed" : "open"
+              terminalOpen ? "closed" : "open",
             );
           }}
         >
@@ -135,7 +135,7 @@ function RunPanel({ run }: { run: Run }) {
 function ProposalCard({
   proposal,
   nodeId,
-  operations
+  operations,
 }: {
   proposal: Proposal;
   nodeId: string;
@@ -202,7 +202,7 @@ function ProposalCard({
 
 function NodeEditor({
   node,
-  onAdd
+  onAdd,
 }: {
   node: Node;
   onAdd: (parent: string | null, after?: string) => Promise<void>;
@@ -226,10 +226,10 @@ function NodeEditor({
         new UpdateOperation({
           type: "update",
           id: node.id,
-          patch: new NodePatch({ text })
-        })
+          patch: new NodePatch({ text }),
+        }),
       ],
-      editingRevision.current
+      editingRevision.current,
     );
   };
   const move = async (operation: MoveOperation) => {
@@ -237,7 +237,7 @@ function NodeEditor({
       window.requestAnimationFrame(() =>
         document
           .querySelector<HTMLInputElement>(`[aria-label="Edit ${node.id}"]`)
-          ?.focus()
+          ?.focus(),
       );
   };
   const indent = () =>
@@ -246,8 +246,8 @@ function NodeEditor({
       new MoveOperation({
         type: "move",
         id: node.id,
-        parent: siblings[index - 1].id
-      })
+        parent: siblings[index - 1].id,
+      }),
     );
   const outdent = () => {
     const parent = view.snapshot.nodes.find((n) => n.id === node.parent);
@@ -258,8 +258,8 @@ function NodeEditor({
           type: "move",
           id: node.id,
           parent: parent.parent,
-          after: parent.id
-        })
+          after: parent.id,
+        }),
       )
     );
   };
@@ -270,8 +270,8 @@ function NodeEditor({
           type: "move",
           id: node.id,
           parent: node.parent,
-          after: index > 1 ? siblings[index - 2].id : null
-        })
+          after: index > 1 ? siblings[index - 2].id : null,
+        }),
       );
     if (direction === 1 && index < siblings.length - 1)
       return move(
@@ -279,8 +279,8 @@ function NodeEditor({
           type: "move",
           id: node.id,
           parent: node.parent,
-          after: siblings[index + 1].id
-        })
+          after: siblings[index + 1].id,
+        }),
       );
   };
   return (
@@ -296,8 +296,8 @@ function NodeEditor({
               new UpdateOperation({
                 type: "update",
                 id: node.id,
-                patch: new NodePatch({ done: !node.done })
-              })
+                patch: new NodePatch({ done: !node.done }),
+              }),
             ])
           }
         >
@@ -312,7 +312,7 @@ function NodeEditor({
           value={text}
           className={cn(
             "h-9 min-w-16 flex-1 border-transparent bg-transparent shadow-none focus-visible:border-input",
-            node.done && "text-muted-foreground line-through"
+            node.done && "text-muted-foreground line-through",
           )}
           onFocus={() => {
             editing.current = true;
@@ -402,7 +402,7 @@ function NodeEditor({
             aria-label={`Delete ${node.id}`}
             onClick={() =>
               void outlineActions.apply([
-                new DeleteOperation({ type: "delete", id: node.id })
+                new DeleteOperation({ type: "delete", id: node.id }),
               ])
             }
           >
@@ -474,14 +474,14 @@ export function OutlinePane() {
         type: "insert",
         parent,
         after,
-        node: new NodeDraft({ id, text: "", done: false })
-      })
+        node: new NodeDraft({ id, text: "", done: false }),
+      }),
     ]);
     if (ok)
       window.requestAnimationFrame(() =>
         document
           .querySelector<HTMLInputElement>(`[aria-label="Edit ${id}"]`)
-          ?.focus()
+          ?.focus(),
       );
   };
   const proposals =
@@ -491,15 +491,15 @@ export function OutlinePane() {
     ...proposals.flatMap((proposal) =>
       proposal.batch.operations
         .filter(
-          (op) => op.type === "insert" && proposal.pending.includes(opId(op))
+          (op) => op.type === "insert" && proposal.pending.includes(opId(op)),
         )
-        .map(opId)
-    )
+        .map(opId),
+    ),
   ]);
   const unplaced = proposals.flatMap((proposal) =>
     proposal.pending.flatMap((nodeId) => {
       const operations = proposal.batch.operations.filter(
-        (op) => opId(op) === nodeId
+        (op) => opId(op) === nodeId,
       );
       const first = operations[0];
       const missing =
@@ -507,11 +507,11 @@ export function OutlinePane() {
           ? first.parent !== null && !availableIds.has(first.parent)
           : !availableIds.has(nodeId);
       return missing ? [{ proposal, nodeId, operations }] : [];
-    })
+    }),
   );
   const renderChildren = (
     parent: string | null,
-    ancestors = new Set<string>()
+    ancestors = new Set<string>(),
   ): React.ReactNode => {
     if (!view || (parent && ancestors.has(parent))) return null;
     const visited = new Set(ancestors);
@@ -554,7 +554,7 @@ export function OutlinePane() {
                   p.pending.includes(opId(op)) &&
                   opId(op) === entry.id &&
                   op.type !== "insert" &&
-                  op.type !== "move"
+                  op.type !== "move",
               );
               return ops.length ? (
                 <div key={p.id} className="ml-10">
@@ -580,7 +580,7 @@ export function OutlinePane() {
               proposal={entry.proposal!}
               nodeId={entry.id}
               operations={entry.proposal!.batch.operations.filter(
-                (op) => opId(op) === entry.id
+                (op) => opId(op) === entry.id,
               )}
             />
           </div>

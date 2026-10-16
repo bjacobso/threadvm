@@ -4,7 +4,11 @@
 import { Duration, Effect, Option, Queue, Schema as S, Stream } from "effect";
 import { Command, ManagedResource } from "foldkit";
 
-import { ClientMessage, ClientMessageJson, ServerMessageJson } from "../shared/protocol.ts";
+import {
+  ClientMessage,
+  ClientMessageJson,
+  ServerMessageJson,
+} from "../shared/protocol.ts";
 import { Message } from "./message.ts";
 import type { Model } from "./model.ts";
 
@@ -26,39 +30,49 @@ const socketFactory: Effect.Effect<(outlineId: string) => WebSocket> =
       )
     : Effect.succeed((outlineId) => new WebSocket(socketUrl(outlineId)));
 
-export const managedResources = ManagedResource.make<Model, Message>()((entry) => ({
-  roomSocket: entry(S.Option(S.String), {
-    resource: RoomSocket,
-    modelToMaybeRequirements: (model) =>
-      model.connection === "Offline" ? Option.none() : Option.some(model.outlineId),
-    acquire: (outlineId) =>
-      Effect.flatMap(socketFactory, (open) => Effect.callback<WebSocket, Error>((resume) => {
-        const socket = open(outlineId);
-        const opened = () => {
-          socket.removeEventListener("error", failed);
-          resume(Effect.succeed(socket));
-        };
-        const failed = () => {
-          socket.removeEventListener("open", opened);
-          resume(Effect.fail(new Error("Could not reach the outline")));
-        };
-        socket.addEventListener("open", opened);
-        socket.addEventListener("error", failed);
-        return Effect.sync(() => {
-          socket.removeEventListener("open", opened);
-          socket.removeEventListener("error", failed);
-        });
-      })).pipe(
-        Effect.timeout(CONNECT_TIMEOUT),
-        Effect.catchTag("TimeoutError", () => Effect.fail(new Error("Connection timed out"))),
-      ),
-    release: (socket) => Effect.sync(() => socket.close()),
-    onAcquired: () => Message.OpenedSocket(),
-    onReleased: () => Message.ReleasedSocket(),
-    onAcquireError: (error) =>
-      Message.FailedSocket({ error: error instanceof Error ? error.message : "Unknown error" }),
+export const managedResources = ManagedResource.make<Model, Message>()(
+  (entry) => ({
+    roomSocket: entry(S.Option(S.String), {
+      resource: RoomSocket,
+      modelToMaybeRequirements: (model) =>
+        model.connection === "Offline"
+          ? Option.none()
+          : Option.some(model.outlineId),
+      acquire: (outlineId) =>
+        Effect.flatMap(socketFactory, (open) =>
+          Effect.callback<WebSocket, Error>((resume) => {
+            const socket = open(outlineId);
+            const opened = () => {
+              socket.removeEventListener("error", failed);
+              resume(Effect.succeed(socket));
+            };
+            const failed = () => {
+              socket.removeEventListener("open", opened);
+              resume(Effect.fail(new Error("Could not reach the outline")));
+            };
+            socket.addEventListener("open", opened);
+            socket.addEventListener("error", failed);
+            return Effect.sync(() => {
+              socket.removeEventListener("open", opened);
+              socket.removeEventListener("error", failed);
+            });
+          }),
+        ).pipe(
+          Effect.timeout(CONNECT_TIMEOUT),
+          Effect.catchTag("TimeoutError", () =>
+            Effect.fail(new Error("Connection timed out")),
+          ),
+        ),
+      release: (socket) => Effect.sync(() => socket.close()),
+      onAcquired: () => Message.OpenedSocket(),
+      onReleased: () => Message.ReleasedSocket(),
+      onAcquireError: (error) =>
+        Message.FailedSocket({
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
+    }),
   }),
-}));
+);
 
 const decodeServerMessage = S.decodeUnknownOption(ServerMessageJson);
 
@@ -70,7 +84,10 @@ export const roomMessages = (socket: WebSocket) =>
         const received = (event: MessageEvent) => {
           const message = decodeServerMessage(event.data);
           if (Option.isSome(message))
-            Queue.offerUnsafe(queue, Message.ReceivedServerMessage({ message: message.value }));
+            Queue.offerUnsafe(
+              queue,
+              Message.ReceivedServerMessage({ message: message.value }),
+            );
         };
         const closed = () => {
           Queue.offerUnsafe(queue, Message.ClosedSocket());
@@ -99,13 +116,16 @@ export const Send = Command.define("SendToRoom", {
       Effect.flatMap((socket) =>
         Effect.try({
           try: () => {
-            for (const message of messages) socket.send(encodeClientMessage(message));
+            for (const message of messages)
+              socket.send(encodeClientMessage(message));
             return Message.CompletedSend({ delivered: true });
           },
           catch: () => "send failed",
         }),
       ),
-      Effect.catch(() => Effect.succeed(Message.CompletedSend({ delivered: false }))),
+      Effect.catch(() =>
+        Effect.succeed(Message.CompletedSend({ delivered: false })),
+      ),
     ),
 });
 

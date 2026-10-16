@@ -143,7 +143,7 @@ export const AgentConfigurationLive = Layer.effect(
             profile: new AgentProfile({
               id: id!,
               kind: agent.kind === "terminal" ? "terminal" : "acp",
-              ...(command ?? {}),
+              ...command,
             }),
             sandbox,
             sandboxName,

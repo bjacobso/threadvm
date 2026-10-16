@@ -5,7 +5,7 @@ import {
   FolderCogIcon,
   PlusIcon,
   RefreshCwIcon,
-  SearchIcon
+  SearchIcon,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
-  TooltipTrigger
+  TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
   inventoryErrorAtom,
@@ -24,13 +24,13 @@ import {
   selectedThreadVmIdAtom,
   setSelectedThreadVmId,
   threadVmsAtom,
-  useAtomRef
+  useAtomRef,
 } from "./threadVmAtoms";
 import { ThreadVmRow } from "./ThreadVmRow";
 import { firstPreviewUrl, threadVmHostClipboardText } from "./threadVmActions";
 import {
   nextThreadVmSelection,
-  threadVmNavigationAction
+  threadVmNavigationAction,
 } from "./threadVmNavigation";
 
 interface ThreadVmListProps {
@@ -42,7 +42,7 @@ interface ThreadVmListProps {
 export function ThreadVmList({
   onOpenQuickSwitch,
   onOpenNewThreadVm,
-  onOpenProjectRegistry
+  onOpenProjectRegistry,
 }: ThreadVmListProps) {
   const threadVms = useAtomRef(threadVmsAtom);
   const selectedId = useAtomRef(selectedThreadVmIdAtom);
@@ -76,7 +76,7 @@ export function ThreadVmList({
     const nextId = nextThreadVmSelection(
       threadVms.map((threadVm) => threadVm.id),
       selectedId,
-      action
+      action,
     );
     if (!nextId) {
       return;
@@ -168,10 +168,7 @@ export function ThreadVmList({
       ) : null}
 
       <ScrollArea className="min-h-0 flex-1">
-        <nav
-          className="flex flex-col py-0.5"
-          onKeyDown={navigateThreadVms}
-        >
+        <nav className="flex flex-col py-0.5" onKeyDown={navigateThreadVms}>
           {loading && threadVms.length === 0
             ? Array.from({ length: 7 }).map((_, index) => (
                 <Skeleton key={index} className="mx-2 my-1 h-7 rounded-sm" />

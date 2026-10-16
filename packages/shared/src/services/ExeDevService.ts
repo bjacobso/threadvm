@@ -1,11 +1,14 @@
 import { Context, Effect, Layer } from "effect";
 import { Port, ThreadVm } from "../domain/schema.js";
-import { CommandError, CommandService } from "./CommandService.js";
+import { CommandService } from "./CommandService.js";
 
 export class ExeDevError {
   readonly _tag = "ExeDevError";
 
-  constructor(readonly message: string, readonly cause?: unknown) {}
+  constructor(
+    readonly message: string,
+    readonly cause?: unknown,
+  ) {}
 }
 
 export class ExeDevService extends Context.Service<
@@ -15,23 +18,23 @@ export class ExeDevService extends Context.Service<
     readonly getVm: (id: string) => Effect.Effect<ThreadVm, ExeDevError>;
     readonly cloneVm: (
       base: string,
-      name: string
+      name: string,
     ) => Effect.Effect<ThreadVm, ExeDevError>;
     readonly createVm: (
       name: string,
-      image: string
+      image: string,
     ) => Effect.Effect<ThreadVm, ExeDevError>;
     readonly tagVm: (
       id: string,
-      tags: ReadonlyArray<string>
+      tags: ReadonlyArray<string>,
     ) => Effect.Effect<void, ExeDevError>;
     readonly untagVm: (
       id: string,
-      tags: ReadonlyArray<string>
+      tags: ReadonlyArray<string>,
     ) => Effect.Effect<void, ExeDevError>;
     readonly commentVm: (
       id: string,
-      comment: string
+      comment: string,
     ) => Effect.Effect<void, ExeDevError>;
     readonly stopVm: (id: string) => Effect.Effect<void, ExeDevError>;
     readonly removeVm: (id: string) => Effect.Effect<void, ExeDevError>;
@@ -53,12 +56,15 @@ const parseVmLine = (line: string): ThreadVm | undefined => {
   }
 
   const parts = trimmed.split(/\s+/);
-  const firstVmToken = parts[0] === "•" || parts[0] === "-" ? parts[1] : parts[0];
+  const firstVmToken =
+    parts[0] === "•" || parts[0] === "-" ? parts[1] : parts[0];
   if (!firstVmToken) {
     return undefined;
   }
 
-  const host = firstVmToken.includes(".") ? firstVmToken : `${firstVmToken}.exe.xyz`;
+  const host = firstVmToken.includes(".")
+    ? firstVmToken
+    : `${firstVmToken}.exe.xyz`;
   const name = firstVmToken.replace(/\.exe\.xyz$/, "");
   const stateToken =
     parts.find((part) =>
@@ -68,8 +74,8 @@ const parseVmLine = (line: string): ThreadVm | undefined => {
         "stopped",
         "failed",
         "creating",
-        "bootstrapping"
-      ].includes(part.toLowerCase())
+        "bootstrapping",
+      ].includes(part.toLowerCase()),
     ) ?? "unknown";
   const tags = parts
     .filter((part) => part.startsWith("#") && part.length > 1)
@@ -83,7 +89,7 @@ const parseVmLine = (line: string): ThreadVm | undefined => {
     source: "exe",
     tags,
     ports: [],
-    raw: line
+    raw: line,
   });
 };
 
@@ -102,7 +108,7 @@ const mockVm = () =>
     source: "mock",
     tags: ["threadvm", "mock"],
     ports: [],
-    raw: "THREADVM_EXEDEV_MOCK=1"
+    raw: "THREADVM_EXEDEV_MOCK=1",
   });
 
 export const ExeDevServiceLive = Layer.effect(
@@ -113,7 +119,9 @@ export const ExeDevServiceLive = Layer.effect(
     const runExe = (args: ReadonlyArray<string>) =>
       command
         .execFile("ssh", ["exe.dev", ...args], { timeoutMs: 60_000 })
-        .pipe(Effect.mapError(toExeError(`ssh exe.dev ${args.join(" ")} failed`)));
+        .pipe(
+          Effect.mapError(toExeError(`ssh exe.dev ${args.join(" ")} failed`)),
+        );
 
     const listVms =
       process.env.THREADVM_EXEDEV_MOCK === "1"
@@ -132,13 +140,13 @@ export const ExeDevServiceLive = Layer.effect(
                     new Port({
                       label: "diagnostic",
                       port: 0,
-                      url: "ssh exe.dev ls failed"
-                    })
+                      url: "ssh exe.dev ls failed",
+                    }),
                   ],
-                  raw: error.message
-                })
-              ])
-            )
+                  raw: error.message,
+                }),
+              ]),
+            ),
           );
 
     const getVm = (id: string) =>
@@ -148,7 +156,7 @@ export const ExeDevServiceLive = Layer.effect(
           return vm
             ? Effect.succeed(vm)
             : Effect.fail(new ExeDevError(`ThreadVM not found: ${id}`));
-        })
+        }),
       );
 
     const syntheticVm = (name: string) =>
@@ -158,7 +166,7 @@ export const ExeDevServiceLive = Layer.effect(
         host: `${name}.exe.xyz`,
         state: "creating",
         source: "exe",
-        ports: []
+        ports: [],
       });
 
     return {
@@ -167,7 +175,9 @@ export const ExeDevServiceLive = Layer.effect(
       cloneVm: (base, name) =>
         runExe(["cp", base, name]).pipe(Effect.as(syntheticVm(name))),
       createVm: (name, image) =>
-        runExe(["new", name, "--image", image]).pipe(Effect.as(syntheticVm(name))),
+        runExe(["new", name, "--image", image]).pipe(
+          Effect.as(syntheticVm(name)),
+        ),
       tagVm: (id, tags) =>
         tags.length === 0
           ? Effect.void
@@ -179,7 +189,7 @@ export const ExeDevServiceLive = Layer.effect(
       commentVm: (id, comment) =>
         runExe(["comment", id, comment]).pipe(Effect.asVoid),
       stopVm: (id) => runExe(["stop", id]).pipe(Effect.asVoid),
-      removeVm: (id) => runExe(["rm", id]).pipe(Effect.asVoid)
+      removeVm: (id) => runExe(["rm", id]).pipe(Effect.asVoid),
     } as const;
-  })
+  }),
 );

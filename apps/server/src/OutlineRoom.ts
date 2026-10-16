@@ -29,7 +29,6 @@ import {
   OperationBatch,
   ReviewRequest,
   RunControlRequest,
-  type Run,
   type RunEvent,
   type Proposal,
 } from "@threadvm/shared/domain";
@@ -395,7 +394,8 @@ export const OutlineRoomLive = Layer.effect(
           return {
             id: run.threadId ?? run.id,
             nodeId: run.nodeId,
-            agent: (run.executor ?? run.agentProfile?.id ??
+            agent: (run.executor ??
+              run.agentProfile?.id ??
               (run.agent === "acp" ? "claude" : run.agent)) as AgentId,
             prompt:
               run.contextNodes?.find((n) => n.id === run.nodeId)?.text ??

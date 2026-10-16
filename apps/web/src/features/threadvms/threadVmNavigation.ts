@@ -5,7 +5,7 @@ interface ThreadVmNavigationEvent {
 }
 
 export const threadVmNavigationAction = (
-  event: ThreadVmNavigationEvent
+  event: ThreadVmNavigationEvent,
 ): ThreadVmNavigationAction | undefined => {
   switch (event.key) {
     case "ArrowDown":
@@ -24,7 +24,7 @@ export const threadVmNavigationAction = (
 export const nextThreadVmSelection = (
   ids: ReadonlyArray<string>,
   selectedId: string | undefined,
-  action: ThreadVmNavigationAction
+  action: ThreadVmNavigationAction,
 ) => {
   if (ids.length === 0) {
     return undefined;

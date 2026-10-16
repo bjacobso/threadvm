@@ -31,7 +31,7 @@ const waitForHttp = async (url, expectedText) => {
         return;
       }
       lastError = new Error(
-        `${url} returned ${response.status} without expected content`
+        `${url} returned ${response.status} without expected content`,
       );
     } catch (error) {
       lastError = error;
@@ -57,7 +57,7 @@ const terminate = async (child) => {
 
   await Promise.race([
     new Promise((resolve) => child.once("exit", resolve)),
-    new Promise((resolve) => setTimeout(resolve, 3000))
+    new Promise((resolve) => setTimeout(resolve, 3000)),
   ]);
 
   if (
@@ -74,20 +74,23 @@ const terminate = async (child) => {
 };
 
 const main = async () => {
-  const [apiPort, webPort] = await Promise.all([findFreePort(), findFreePort()]);
+  const [apiPort, webPort] = await Promise.all([
+    findFreePort(),
+    findFreePort(),
+  ]);
   const output = [];
   const env = {
     ...process.env,
     THREADVM_PORT: String(apiPort),
     THREADVM_WEB_PORT: String(webPort),
     FORCE_COLOR: "0",
-    NO_COLOR: "1"
+    NO_COLOR: "1",
   };
   const child = spawn("pnpm", ["dev"], {
     cwd: process.cwd(),
     detached: true,
     env,
-    stdio: ["ignore", "pipe", "pipe"]
+    stdio: ["ignore", "pipe", "pipe"],
   });
 
   const collect = (chunk) => {
@@ -102,14 +105,11 @@ const main = async () => {
 
   try {
     await Promise.all([
-      waitForHttp(
-        `http://127.0.0.1:${apiPort}/docs/openapi.json`,
-        '"openapi"'
-      ),
-      waitForHttp(`http://127.0.0.1:${webPort}/`, "ThreadVM")
+      waitForHttp(`http://127.0.0.1:${apiPort}/docs/openapi.json`, '"openapi"'),
+      waitForHttp(`http://127.0.0.1:${webPort}/`, "ThreadVM"),
     ]);
     console.log(
-      `dev probe ok (server http://127.0.0.1:${apiPort}, web http://127.0.0.1:${webPort})`
+      `dev probe ok (server http://127.0.0.1:${apiPort}, web http://127.0.0.1:${webPort})`,
     );
   } catch (error) {
     console.error("dev probe failed");

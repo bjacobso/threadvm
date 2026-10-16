@@ -15,14 +15,14 @@
     "dev:stable": "pnpm run build && node dist/main.js",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint --deny-warnings .",
     "start": "node dist/main.js"
   },
   "dependencies": {
     "@effect/platform-node": "^4.0.0-beta.94",
+    "@threadvm/outline-protocol": "workspace:*",
     "@threadvm/shared": "workspace:*",
-    "effect": "^4.0.0-beta.94",
-    "@threadvm/outline-protocol": "workspace:*"
+    "effect": "^4.0.0-beta.94"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

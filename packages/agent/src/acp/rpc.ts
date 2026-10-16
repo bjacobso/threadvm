@@ -106,17 +106,23 @@ const PromptRpc = Rpc.make(AGENT_METHODS.session_prompt, {
   error: AcpSchema.Error,
 });
 
-const SetSessionConfigOptionRpc = Rpc.make(AGENT_METHODS.session_set_config_option, {
-  payload: AcpSchema.SetSessionConfigOptionRequest,
-  success: AcpSchema.SetSessionConfigOptionResponse,
-  error: AcpSchema.Error,
-});
+const SetSessionConfigOptionRpc = Rpc.make(
+  AGENT_METHODS.session_set_config_option,
+  {
+    payload: AcpSchema.SetSessionConfigOptionRequest,
+    success: AcpSchema.SetSessionConfigOptionResponse,
+    error: AcpSchema.Error,
+  },
+);
 
-const RequestPermissionRpc = Rpc.make(CLIENT_METHODS.session_request_permission, {
-  payload: AcpSchema.RequestPermissionRequest,
-  success: AcpSchema.RequestPermissionResponse,
-  error: AcpSchema.Error,
-});
+const RequestPermissionRpc = Rpc.make(
+  CLIENT_METHODS.session_request_permission,
+  {
+    payload: AcpSchema.RequestPermissionRequest,
+    success: AcpSchema.RequestPermissionResponse,
+    error: AcpSchema.Error,
+  },
+);
 
 const ElicitationRpc = Rpc.make(CLIENT_METHODS.elicitation_create, {
   payload: AcpSchema.CreateElicitationRequest,
@@ -149,7 +155,10 @@ const CompatInitializeRpc = Rpc.make(AGENT_METHODS.initialize, {
   // field names. A union encoder would select one branch and discard the
   // other generation's fields before they reach the agent.
   payload: Schema.Unknown,
-  success: Schema.Union([AcpSchema.InitializeResponse, AcpSchemaV1.InitializeResponse]),
+  success: Schema.Union([
+    AcpSchema.InitializeResponse,
+    AcpSchemaV1.InitializeResponse,
+  ]),
   error: AcpSchema.Error,
 });
 
@@ -166,7 +175,10 @@ const CompatLogoutV1Rpc = Rpc.make(V1_AGENT_METHODS.logout, {
 });
 
 const CompatNewSessionRpc = Rpc.make(AGENT_METHODS.session_new, {
-  payload: Schema.Union([AcpSchema.NewSessionRequest, AcpSchemaV1.NewSessionRequest]),
+  payload: Schema.Union([
+    AcpSchema.NewSessionRequest,
+    AcpSchemaV1.NewSessionRequest,
+  ]),
   success: Schema.Union([
     Schema.Struct({
       ...AcpSchemaV1.NewSessionResponse.fields,
@@ -187,13 +199,22 @@ const CompatLoadSessionV1Rpc = Rpc.make(V1_AGENT_METHODS.session_load, {
 });
 
 const CompatListSessionsRpc = Rpc.make(AGENT_METHODS.session_list, {
-  payload: Schema.Union([AcpSchema.ListSessionsRequest, AcpSchemaV1.ListSessionsRequest]),
-  success: Schema.Union([AcpSchemaV1.ListSessionsResponse, AcpSchema.ListSessionsResponse]),
+  payload: Schema.Union([
+    AcpSchema.ListSessionsRequest,
+    AcpSchemaV1.ListSessionsRequest,
+  ]),
+  success: Schema.Union([
+    AcpSchemaV1.ListSessionsResponse,
+    AcpSchema.ListSessionsResponse,
+  ]),
   error: AcpSchema.Error,
 });
 
 const CompatForkSessionRpc = Rpc.make(AGENT_METHODS.session_fork, {
-  payload: Schema.Union([AcpSchema.ForkSessionRequest, AcpSchemaV1.ForkSessionRequest]),
+  payload: Schema.Union([
+    AcpSchema.ForkSessionRequest,
+    AcpSchemaV1.ForkSessionRequest,
+  ]),
   success: Schema.Union([
     Schema.Struct({
       ...AcpSchemaV1.ForkSessionResponse.fields,
@@ -205,7 +226,10 @@ const CompatForkSessionRpc = Rpc.make(AGENT_METHODS.session_fork, {
 });
 
 const CompatResumeSessionRpc = Rpc.make(AGENT_METHODS.session_resume, {
-  payload: Schema.Union([AcpSchema.ResumeSessionRequest, AcpSchemaV1.ResumeSessionRequest]),
+  payload: Schema.Union([
+    AcpSchema.ResumeSessionRequest,
+    AcpSchemaV1.ResumeSessionRequest,
+  ]),
   success: Schema.Union([
     Schema.Struct({
       ...AcpSchemaV1.ResumeSessionResponse.fields,
@@ -217,8 +241,14 @@ const CompatResumeSessionRpc = Rpc.make(AGENT_METHODS.session_resume, {
 });
 
 const CompatCloseSessionRpc = Rpc.make(AGENT_METHODS.session_close, {
-  payload: Schema.Union([AcpSchema.CloseSessionRequest, AcpSchemaV1.CloseSessionRequest]),
-  success: Schema.Union([AcpSchema.CloseSessionResponse, AcpSchemaV1.CloseSessionResponse]),
+  payload: Schema.Union([
+    AcpSchema.CloseSessionRequest,
+    AcpSchemaV1.CloseSessionRequest,
+  ]),
+  success: Schema.Union([
+    AcpSchema.CloseSessionResponse,
+    AcpSchemaV1.CloseSessionResponse,
+  ]),
   error: AcpSchema.Error,
 });
 
@@ -252,17 +282,20 @@ const CompatPromptRpc = Rpc.make(AGENT_METHODS.session_prompt, {
   error: AcpSchema.Error,
 });
 
-const CompatSetSessionConfigOptionRpc = Rpc.make(AGENT_METHODS.session_set_config_option, {
-  payload: Schema.Union([
-    AcpSchema.SetSessionConfigOptionRequest,
-    AcpSchemaV1.SetSessionConfigOptionRequest,
-  ]),
-  success: Schema.Union([
-    AcpSchemaV1.SetSessionConfigOptionResponse,
-    AcpSchema.SetSessionConfigOptionResponse,
-  ]),
-  error: AcpSchema.Error,
-});
+const CompatSetSessionConfigOptionRpc = Rpc.make(
+  AGENT_METHODS.session_set_config_option,
+  {
+    payload: Schema.Union([
+      AcpSchema.SetSessionConfigOptionRequest,
+      AcpSchemaV1.SetSessionConfigOptionRequest,
+    ]),
+    success: Schema.Union([
+      AcpSchemaV1.SetSessionConfigOptionResponse,
+      AcpSchema.SetSessionConfigOptionResponse,
+    ]),
+    error: AcpSchema.Error,
+  },
+);
 
 const CompatSetSessionModelRpc = Rpc.make(V1_AGENT_METHODS.session_set_model, {
   payload: AcpCompat.SetSessionModelRequest,
@@ -298,14 +331,20 @@ export const CompatAgentRpcs = RpcGroup.make(
   CompatSetSessionConfigOptionRpc,
 );
 
-const CompatRequestPermissionRpc = Rpc.make(CLIENT_METHODS.session_request_permission, {
-  payload: Schema.Union([AcpSchema.RequestPermissionRequest, AcpSchemaV1.RequestPermissionRequest]),
-  success: Schema.Union([
-    AcpSchema.RequestPermissionResponse,
-    AcpSchemaV1.RequestPermissionResponse,
-  ]),
-  error: AcpSchema.Error,
-});
+const CompatRequestPermissionRpc = Rpc.make(
+  CLIENT_METHODS.session_request_permission,
+  {
+    payload: Schema.Union([
+      AcpSchema.RequestPermissionRequest,
+      AcpSchemaV1.RequestPermissionRequest,
+    ]),
+    success: Schema.Union([
+      AcpSchema.RequestPermissionResponse,
+      AcpSchemaV1.RequestPermissionResponse,
+    ]),
+    error: AcpSchema.Error,
+  },
+);
 
 const CompatElicitationRpc = Rpc.make(CLIENT_METHODS.elicitation_create, {
   // Decode in the handler so malformed requests receive ACP's invalid-params error.
@@ -323,7 +362,9 @@ const legacyElicitationRpc = <const Method extends string>(method: Method) =>
     payload: AcpSchema.CreateElicitationRequest,
     success: Schema.Struct({
       action: AcpSchema.CreateElicitationResponse,
-      _meta: Schema.optionalKey(Schema.NullOr(Schema.Record(Schema.String, Schema.Json))),
+      _meta: Schema.optionalKey(
+        Schema.NullOr(Schema.Record(Schema.String, Schema.Json)),
+      ),
     }),
     error: AcpSchema.Error,
   });
@@ -384,11 +425,14 @@ const ReleaseTerminalV1Rpc = Rpc.make(V1_CLIENT_METHODS.terminal_release, {
   error: AcpSchemaV1.Error,
 });
 
-const WaitForTerminalExitV1Rpc = Rpc.make(V1_CLIENT_METHODS.terminal_wait_for_exit, {
-  payload: AcpSchemaV1.WaitForTerminalExitRequest,
-  success: AcpSchemaV1.WaitForTerminalExitResponse,
-  error: AcpSchemaV1.Error,
-});
+const WaitForTerminalExitV1Rpc = Rpc.make(
+  V1_CLIENT_METHODS.terminal_wait_for_exit,
+  {
+    payload: AcpSchemaV1.WaitForTerminalExitRequest,
+    success: AcpSchemaV1.WaitForTerminalExitResponse,
+    error: AcpSchemaV1.Error,
+  },
+);
 
 const KillTerminalV1Rpc = Rpc.make(V1_CLIENT_METHODS.terminal_kill, {
   payload: AcpSchemaV1.KillTerminalRequest,

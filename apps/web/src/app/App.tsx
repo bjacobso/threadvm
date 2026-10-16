@@ -7,14 +7,14 @@ import { Toaster } from "@/components/ui/sonner";
 import {
   ResizableHandle,
   ResizablePanel,
-  ResizablePanelGroup
+  ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
 } from "@/components/ui/sheet";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { InspectorPanel } from "@/features/inspector/InspectorPanel";
@@ -31,7 +31,7 @@ import {
   reconciliationStreamAtom,
   refreshThreadVmsAtom,
   useAtomRef,
-  useSelectedThreadVm
+  useSelectedThreadVm,
 } from "@/state/atoms";
 
 type FocusedPanel = "inventory" | "terminal" | "inspector";
@@ -39,7 +39,7 @@ type FocusedPanel = "inventory" | "terminal" | "inspector";
 const panelFrame = (panel: FocusedPanel, focusedPanel: FocusedPanel) =>
   cn(
     "size-full min-h-0 min-w-0 outline-none",
-    panel === focusedPanel && "ring-1 ring-inset ring-ring/50"
+    panel === focusedPanel && "ring-1 ring-inset ring-ring/50",
   );
 
 function VmInventoryApp() {
@@ -164,7 +164,7 @@ function VmInventoryApp() {
 
 export function App() {
   const localRun = /^\/terminal\/([A-Za-z0-9_-]+)$/.exec(
-    window.location.pathname
+    window.location.pathname,
   )?.[1];
   if (localRun)
     return (
@@ -178,7 +178,7 @@ export function App() {
               host: "localhost",
               state: "running",
               source: "cache",
-              ports: []
+              ports: [],
             }}
           />
         </div>

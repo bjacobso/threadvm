@@ -46,10 +46,15 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
     return Effect.gen(function* () {
       let items: Items = (yield* state.storage.get<Items>(DOCUMENT_KEY)) ?? [];
       const threads = new Map<string, Thread>();
-      for (const thread of (yield* state.storage.list<Thread>({ prefix: "thread:" })).values())
+      for (const thread of (yield* state.storage.list<Thread>({
+        prefix: "thread:",
+      })).values())
         threads.set(thread.id, thread);
 
-      const broadcast = (message: ServerMessage, except?: Cloudflare.WebSocket) =>
+      const broadcast = (
+        message: ServerMessage,
+        except?: Cloudflare.WebSocket,
+      ) =>
         Effect.gen(function* () {
           const text = encode(message);
           for (const socket of yield* state.getWebSockets()) {
@@ -67,7 +72,11 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
 
       const depthOf = (thread: Thread): number => {
         let depth = 0;
-        for (let id = thread.parentThreadId; id !== null && depth < 8; depth += 1)
+        for (
+          let id = thread.parentThreadId;
+          id !== null && depth < 8;
+          depth += 1
+        )
           id = threads.get(id)?.parentThreadId ?? null;
         return depth;
       };
@@ -104,7 +113,12 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
       const finish = (event: BeatEvent) =>
         Effect.gen(function* () {
           const thread = threads.get(event.threadId);
-          if (thread === undefined || !isPlaying(thread) || thread.cursor !== event.cursor) return;
+          if (
+            thread === undefined ||
+            !isPlaying(thread) ||
+            thread.cursor !== event.cursor
+          )
+            return;
           const beat = beatOf(thread);
           if (beat === undefined || !isTimed(beat)) return;
           yield* saveThread(finishBeat(thread, beat, Date.now()));
@@ -121,7 +135,11 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
           threads.set(thread.id, thread);
           yield* state.storage.put(threadKey(thread.id), thread);
         }
-        yield* broadcast({ _tag: "Snapshot", items, threads: [...threads.values()] });
+        yield* broadcast({
+          _tag: "Snapshot",
+          items,
+          threads: [...threads.values()],
+        });
         for (const thread of seeded.threads) yield* advance(thread.id);
       });
 
@@ -165,7 +183,9 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
             case "Resolve": {
               const thread = threads.get(message.threadId);
               if (thread === undefined) return;
-              yield* saveThread(resolve(thread, message.opIds, message.state, now));
+              yield* saveThread(
+                resolve(thread, message.opIds, message.state, now),
+              );
               yield* advance(thread.id);
               return;
             }
@@ -182,7 +202,12 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
               return;
             }
             case "Push":
-              return yield* socket.send(encode({ _tag: "Error", message: "Git push is available in local mode" }));
+              return yield* socket.send(
+                encode({
+                  _tag: "Error",
+                  message: "Git push is available in local mode",
+                }),
+              );
             case "ResetDemo":
               return yield* reset;
           }
@@ -191,7 +216,8 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
       return {
         alarm: () =>
           Effect.gen(function* () {
-            for (const event of yield* Cloudflare.Workers.processScheduledEvents)
+            for (const event of yield* Cloudflare.Workers
+              .processScheduledEvents)
               yield* finish(event.payload as BeatEvent);
           }),
         fetch: Effect.gen(function* () {
@@ -205,7 +231,8 @@ export default class OutlineRoom extends Cloudflare.DurableObject<OutlineRoom>()
           socket: Cloudflare.WebSocket,
           raw: string | ArrayBuffer,
         ) {
-          const text = typeof raw === "string" ? raw : new TextDecoder().decode(raw);
+          const text =
+            typeof raw === "string" ? raw : new TextDecoder().decode(raw);
           const message = decode(text);
           if (message._tag === "None") return;
           yield* handle(socket, message.value);

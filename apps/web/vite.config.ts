@@ -12,8 +12,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url))
-    }
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
   },
   server: {
     port: webPort,
@@ -22,11 +22,11 @@ export default defineConfig({
       "/api": apiOrigin,
       "/rpc": {
         target: apiWsOrigin,
-        ws: true
-      }
-    }
+        ws: true,
+      },
+    },
   },
   build: {
-    outDir: "dist"
-  }
+    outDir: "dist",
+  },
 });

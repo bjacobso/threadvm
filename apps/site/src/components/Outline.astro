@@ -44,81 +44,77 @@ const tokens = (text: string) =>
 ---
 
 <div class="ol" aria-label={label}>
-  {
-    rows.map((row) => {
-      const content = (
-        <>
-          <span class="ol__dot" aria-hidden="true">
-            {row.suggested ? "+" : ""}
-          </span>
-          <span class="ol__text">
-            {tokens(row.text).map((token) =>
-              token.kind === "mention" ? (
-                <span class="mention" data-agent={token.agent}>
-                  {token.text}
-                </span>
-              ) : token.kind === "tag" ? (
-                <span class="tag">{token.text}</span>
-              ) : (
-                token.text
-              ),
-            )}
-          </span>
-          {row.badge?.kind === "tally" ? (
-            <span class="ol__badges">
-              {row.badge.needs ? (
-                <span class="tally" data-kind="needs">
-                  <i aria-hidden="true" />
-                  {row.badge.needs}
-                  <span class="sr-only"> need you</span>
-                </span>
-              ) : null}
-              {row.badge.review ? (
-                <span class="tally" data-kind="review">
-                  <i aria-hidden="true" />
-                  {row.badge.review}
-                  <span class="sr-only"> to review</span>
-                </span>
-              ) : null}
-            </span>
-          ) : row.badge ? (
-            <span class="ol__badges">
-              <span class="chip" data-kind={row.badge.kind}>
-                <span class="avatar" data-agent={row.badge.agent}>
-                  {AGENTS[row.badge.agent]}
-                </span>
-                {row.badge.kind === "review" ? null : (
-                  <i aria-hidden="true" />
-                )}
-                {row.badge.label}
+  {rows.map((row) => {
+    const content = (
+      <>
+        <span class="ol__dot" aria-hidden="true">
+          {row.suggested ? "+" : ""}
+        </span>
+        <span class="ol__text">
+          {tokens(row.text).map((token) =>
+            token.kind === "mention" ? (
+              <span class="mention" data-agent={token.agent}>
+                {token.text}
               </span>
+            ) : token.kind === "tag" ? (
+              <span class="tag">{token.text}</span>
+            ) : (
+              token.text
+            ),
+          )}
+        </span>
+        {row.badge?.kind === "tally" ? (
+          <span class="ol__badges">
+            {row.badge.needs ? (
+              <span class="tally" data-kind="needs">
+                <i aria-hidden="true" />
+                {row.badge.needs}
+                <span class="sr-only"> need you</span>
+              </span>
+            ) : null}
+            {row.badge.review ? (
+              <span class="tally" data-kind="review">
+                <i aria-hidden="true" />
+                {row.badge.review}
+                <span class="sr-only"> to review</span>
+              </span>
+            ) : null}
+          </span>
+        ) : row.badge ? (
+          <span class="ol__badges">
+            <span class="chip" data-kind={row.badge.kind}>
+              <span class="avatar" data-agent={row.badge.agent}>
+                {AGENTS[row.badge.agent]}
+              </span>
+              {row.badge.kind === "review" ? null : <i aria-hidden="true" />}
+              {row.badge.label}
             </span>
-          ) : row.suggested ? (
-            <span class="ol__review" aria-label="Suggestion: accept or reject">
-              <span aria-hidden="true">✓</span>
-              <span aria-hidden="true">×</span>
-            </span>
-          ) : null}
-        </>
-      );
-      return row.children?.length ? (
-        <details class="ol__branch" open={!row.folded}>
-          <summary class="ol__row" data-suggested={row.suggested}>
-            <span class="ol__toggle" aria-hidden="true">
-              <svg viewBox="0 0 9 9">
-                <path d="M2 1l5 3.5L2 8z" />
-              </svg>
-            </span>
-            {content}
-          </summary>
-          <Astro.self rows={row.children} />
-        </details>
-      ) : (
-        <div class="ol__row" data-suggested={row.suggested}>
-          <span class="ol__toggle" aria-hidden="true" />
+          </span>
+        ) : row.suggested ? (
+          <span class="ol__review" aria-label="Suggestion: accept or reject">
+            <span aria-hidden="true">✓</span>
+            <span aria-hidden="true">×</span>
+          </span>
+        ) : null}
+      </>
+    );
+    return row.children?.length ? (
+      <details class="ol__branch" open={!row.folded}>
+        <summary class="ol__row" data-suggested={row.suggested}>
+          <span class="ol__toggle" aria-hidden="true">
+            <svg viewBox="0 0 9 9">
+              <path d="M2 1l5 3.5L2 8z" />
+            </svg>
+          </span>
           {content}
-        </div>
-      );
-    })
-  }
+        </summary>
+        <Astro.self rows={row.children} />
+      </details>
+    ) : (
+      <div class="ol__row" data-suggested={row.suggested}>
+        <span class="ol__toggle" aria-hidden="true" />
+        {content}
+      </div>
+    );
+  })}
 </div>

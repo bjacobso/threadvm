@@ -8,14 +8,14 @@ import {
   writeFile,
   readFile,
   rm,
-  appendFile
+  appendFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { applyOperations } from "../packages/shared/src/services/OutlineStore.js";
 import {
   OutlineSnapshot,
-  OperationBatch
+  OperationBatch,
 } from "../packages/shared/src/domain/outline.js";
 
 const exec = promisify(execFile);
@@ -30,7 +30,7 @@ const invoke = async (args: string[], env: Record<string, string> = {}) => {
   const result = await exec(
     process.execPath,
     [cli, ...args, "--dir", project],
-    { env: { ...process.env, ...env } }
+    { env: { ...process.env, ...env } },
   );
   return result.stdout.trim() ? JSON.parse(result.stdout) : undefined;
 };
@@ -43,17 +43,17 @@ const show = () => invoke(["outline", "show"]);
 const apply = async (
   name: string,
   baseRevision: number,
-  operations: unknown[]
+  operations: unknown[],
 ) =>
   invoke([
     "outline",
     "apply",
-    await batchFile(name, { baseRevision, operations })
+    await batchFile(name, { baseRevision, operations }),
   ]);
 const insert = (id: string, parent: string | null, text = id) => ({
   type: "insert",
   parent,
-  node: { id, text, done: false }
+  node: { id, text, done: false },
 });
 let session: string | undefined;
 try {
@@ -66,48 +66,48 @@ try {
   await invoke(["init"]);
   assert.equal(
     await git("check-ignore", ".threadvm/snapshot.json"),
-    ".threadvm/snapshot.json"
+    ".threadvm/snapshot.json",
   );
   const initialCommits = Number(
-    await thoughtGit("rev-list", "--count", "HEAD")
+    await thoughtGit("rev-list", "--count", "HEAD"),
   );
   await apply("seed", 0, [
     insert("intent", null, "Implement authorization"),
     insert("contract", "intent", "Define contract"),
-    insert("tests", "intent", "Write integration tests")
+    insert("tests", "intent", "Write integration tests"),
   ]);
   assert.equal(
     Number(await thoughtGit("rev-list", "--count", "HEAD")),
-    initialCommits + 1
+    initialCommits + 1,
   );
   await apply("human", 1, [
-    { type: "update", id: "contract", patch: { done: true } }
+    { type: "update", id: "contract", patch: { done: true } },
   ]);
   await apply("disjoint", 1, [
     {
       type: "update",
       id: "tests",
-      patch: { text: "Exercise authorization boundaries" }
-    }
+      patch: { text: "Exercise authorization boundaries" },
+    },
   ]);
   await assert.rejects(
     apply("conflict", 1, [
-      { type: "update", id: "contract", patch: { text: "Stale contract" } }
-    ])
+      { type: "update", id: "contract", patch: { text: "Stale contract" } },
+    ]),
   );
   assert.equal((await show()).snapshot.revision, 3);
   const stableHead = await thoughtGit("rev-parse", "HEAD");
   await assert.rejects(
     apply("atomic-failure", 3, [
       insert("must_not_exist", null),
-      { type: "move", id: "intent", parent: "unknown" }
-    ])
+      { type: "move", id: "intent", parent: "unknown" },
+    ]),
   );
   assert.equal(await thoughtGit("rev-parse", "HEAD"), stableHead);
   assert(
     !(await show()).snapshot.nodes.some(
-      (n: { id: string }) => n.id === "must_not_exist"
-    )
+      (n: { id: string }) => n.id === "must_not_exist",
+    ),
   );
   const proposal = await invoke([
     "propose",
@@ -115,48 +115,48 @@ try {
       baseRevision: 3,
       operations: [
         insert("middleware", "intent", "Implement policy middleware"),
-        insert("benchmark", "intent", "Benchmark policy latency")
-      ]
-    })
+        insert("benchmark", "intent", "Benchmark policy latency"),
+      ],
+    }),
   ]);
   assert.equal((await show()).snapshot.nodes.length, 3);
   const beforeAccept = Number(await thoughtGit("rev-list", "--count", "HEAD"));
   await invoke(["proposal", "accept", proposal.id, "middleware"]);
   assert.equal(
     Number(await thoughtGit("rev-list", "--count", "HEAD")),
-    beforeAccept + 1
+    beforeAccept + 1,
   );
   let view = await show();
   assert.deepEqual(view.snapshot.proposals[0].accepted, ["middleware"]);
   assert.deepEqual(view.snapshot.proposals[0].pending, ["benchmark"]);
   assert(
-    view.snapshot.nodes.some((n: { id: string }) => n.id === "middleware")
+    view.snapshot.nodes.some((n: { id: string }) => n.id === "middleware"),
   );
   await invoke(["proposal", "reject", proposal.id, "benchmark"]);
   const current = view.snapshot.revision;
   await Promise.all([
     apply("concurrent-a", current, [insert("parallel_a", null)]),
-    apply("concurrent-b", current, [insert("parallel_b", null)])
+    apply("concurrent-b", current, [insert("parallel_b", null)]),
   ]);
   view = await show();
   assert.equal(view.snapshot.revision, current + 2);
   await assert.rejects(
     apply("cycle", view.snapshot.revision, [
-      { type: "move", id: "intent", parent: "middleware" }
-    ])
+      { type: "move", id: "intent", parent: "middleware" },
+    ]),
   );
   await mkdir(join(thoughts, ".writer-lock"));
   await writeFile(join(thoughts, ".writer-lock", "owner"), "99999999");
   await apply("move", view.snapshot.revision, [
-    { type: "move", id: "tests", parent: null, after: "intent" }
+    { type: "move", id: "tests", parent: null, after: "intent" },
   ]);
   view = await show();
   const staleBase = view.snapshot.revision;
   await apply("delete", staleBase, [{ type: "delete", id: "parallel_a" }]);
   await assert.rejects(
     apply("missing-anchor", staleBase, [
-      { ...insert("orphan", null), after: "parallel_a" }
-    ])
+      { ...insert("orphan", null), after: "parallel_a" },
+    ]),
   );
   // An interrupted pre-commit projection write is never accepted on restart.
   await writeFile(join(thoughts, "snapshot.json"), "interrupted write");
@@ -166,27 +166,27 @@ try {
   assert.equal(run.status, "running");
   assert.equal(
     await exec("git", ["-C", run.worktree, "branch", "--show-current"]).then(
-      (r) => r.stdout.trim()
+      (r) => r.stdout.trim(),
     ),
-    run.branch
+    run.branch,
   );
   await exec("tmux", ["has-session", "-t", session]);
   const token = await readFile(
     join(thoughts, "runs", run.id, "capability"),
-    "utf8"
+    "utf8",
   );
   const agentEnv = { THREADVM_RUN_ID: run.id, THREADVM_RUN_CAPABILITY: token };
   await invoke(
     ["observe", run.id, "Reading middleware and validating boundary cases"],
-    agentEnv
+    agentEnv,
   );
   await invoke(["observe", run.id, run.codeSha, "--kind", "commit"], agentEnv);
   await assert.rejects(invoke(["run", "intent"], agentEnv));
   await assert.rejects(
-    invoke(["outline", "apply", join(project, "seed.json")], agentEnv)
+    invoke(["outline", "apply", join(project, "seed.json")], agentEnv),
   );
   await assert.rejects(
-    invoke(["observe", "another-run", "Not mine"], agentEnv)
+    invoke(["observe", "another-run", "Not mine"], agentEnv),
   );
   view = await show();
   const agentProposal = await invoke(
@@ -194,10 +194,10 @@ try {
       "propose",
       await batchFile("agent-proposal", {
         baseRevision: view.snapshot.revision,
-        operations: [insert("agent_note", "middleware", "Add policy fixtures")]
-      })
+        operations: [insert("agent_note", "middleware", "Add policy fixtures")],
+      }),
     ],
-    agentEnv
+    agentEnv,
   );
   assert.equal(agentProposal.runId, run.id);
   // The shell really inherits the protocol environment and runs the CLI from its worktree.
@@ -206,14 +206,14 @@ try {
     "-t",
     session,
     "threadvm observe \"$THREADVM_RUN_ID\" 'Observation from attached shell'",
-    "Enter"
+    "Enter",
   ]);
   for (let attempt = 0; attempt < 60; attempt++) {
     view = await show();
     if (
       view.events.some(
         (e: { message: string }) =>
-          e.message === "Observation from attached shell"
+          e.message === "Observation from attached shell",
       )
     )
       break;
@@ -222,8 +222,8 @@ try {
   assert(
     view.events.some(
       (e: { message: string }) =>
-        e.message === "Observation from attached shell"
-    )
+        e.message === "Observation from attached shell",
+    ),
   );
   await appendFile(join(thoughts, "events.jsonl"), '{"torn":');
   await invoke(["observe", run.id, "Recovered torn final append"], agentEnv);
@@ -232,26 +232,26 @@ try {
   assert(
     restarted.runs.some(
       (r: { id: string; status: string }) =>
-        r.id === run.id && r.status === "running"
-    )
+        r.id === run.id && r.status === "running",
+    ),
   );
   assert(
     restarted.events.some(
-      (e: { message: string }) => e.message === "Recovered torn final append"
-    )
+      (e: { message: string }) => e.message === "Recovered torn final append",
+    ),
   );
   assert.deepEqual(restarted.snapshot.proposals[0].rejected, ["benchmark"]);
   assert(
     restarted.snapshot.proposals.some(
       (p: { id: string; pending: string[] }) =>
-        p.id === agentProposal.id && p.pending.includes("agent_note")
-    )
+        p.id === agentProposal.id && p.pending.includes("agent_note"),
+    ),
   );
   const tracked = await thoughtGit("ls-files");
   assert(
     !tracked.includes("events.jsonl") &&
       !tracked.includes("capability") &&
-      !tracked.includes("worktrees/")
+      !tracked.includes("worktrees/"),
   );
   const records = (await readFile(join(thoughts, "ops.jsonl"), "utf8"))
     .trim()
@@ -261,23 +261,23 @@ try {
   assert(
     records.some(
       (batch) =>
-        batch.proposalId === proposal.id && batch.operations.length === 1
-    )
+        batch.proposalId === proposal.id && batch.operations.length === 1,
+    ),
   );
   let replayed = new OutlineSnapshot({
     revision: 0,
     nodes: [],
     tombstones: {},
-    proposals: []
+    proposals: [],
   });
   for (const record of records)
     replayed = applyOperations(
       replayed,
-      Schema.decodeUnknownSync(OperationBatch)(record)
+      Schema.decodeUnknownSync(OperationBatch)(record),
     );
   assert.deepEqual(
     JSON.parse(JSON.stringify(replayed.nodes)),
-    restarted.snapshot.nodes
+    restarted.snapshot.nodes,
   );
   assert.deepEqual(replayed.tombstones, restarted.snapshot.tombstones);
   const bare = join(project, "thoughts-remote.git");
@@ -286,9 +286,9 @@ try {
   await invoke(["push"]);
   assert.equal(
     await exec("git", ["--git-dir", bare, "rev-parse", "refs/heads/main"]).then(
-      (r) => r.stdout.trim()
+      (r) => r.stdout.trim(),
     ),
-    await thoughtGit("rev-parse", "HEAD")
+    await thoughtGit("rev-parse", "HEAD"),
   );
   await exec("tmux", ["send-keys", "-t", session, "exit", "Enter"]);
   for (let attempt = 0; attempt < 60; attempt++) {
@@ -302,13 +302,13 @@ try {
   }
   assert.equal(
     view.runs.find((r: { id: string }) => r.id === run.id).status,
-    "finished"
+    "finished",
   );
   // The runner commits a concise final result separately from runtime events.
   for (let attempt = 0; attempt < 60; attempt++) {
     if (
       (await thoughtGit("show", `HEAD:summaries/${run.id}.md`)).includes(
-        "## Result"
+        "## Result",
       )
     )
       break;
@@ -316,11 +316,11 @@ try {
   }
   assert(
     (await thoughtGit("show", `HEAD:summaries/${run.id}.md`)).includes(
-      `Code HEAD: ${run.codeSha}`
-    )
+      `Code HEAD: ${run.codeSha}`,
+    ),
   );
   console.log(
-    "outline probe ok (CLI, conflicts, partial review, concurrent writers, thought commits, worktree/tmux, scoped agent writes, recovery, remotes)"
+    "outline probe ok (CLI, conflicts, partial review, concurrent writers, thought commits, worktree/tmux, scoped agent writes, recovery, remotes)",
   );
 } finally {
   if (session)

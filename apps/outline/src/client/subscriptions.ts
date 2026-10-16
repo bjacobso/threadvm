@@ -7,19 +7,29 @@ import { RoomSocket, roomMessages, type RoomSocketService } from "./socket.ts";
 
 const TICK_MS = 100;
 
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/u.test(navigator.platform);
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad/u.test(navigator.platform);
 
-export const subscriptions = Subscription.make<Model, Message, RoomSocketService>()((entry) => ({
+export const subscriptions = Subscription.make<
+  Model,
+  Message,
+  RoomSocketService
+>()((entry) => ({
   room: entry(
     { online: S.Boolean },
     {
-      modelToDependencies: (model) => ({ online: model.connection === "Online" }),
+      modelToDependencies: (model) => ({
+        online: model.connection === "Online",
+      }),
       dependenciesToStream: ({ online }) =>
         online
           ? Stream.unwrap(
               RoomSocket.get.pipe(
                 Effect.map(roomMessages),
-                Effect.catchTag("ResourceNotAvailable", () => Effect.succeed(Stream.empty)),
+                Effect.catchTag("ResourceNotAvailable", () =>
+                  Effect.succeed(Stream.empty),
+                ),
               ),
             )
           : Stream.empty,
@@ -29,7 +39,9 @@ export const subscriptions = Subscription.make<Model, Message, RoomSocketService
   countdowns: entry(
     { counting: S.Boolean },
     {
-      modelToDependencies: (model) => ({ counting: Object.keys(model.countdowns).length > 0 }),
+      modelToDependencies: (model) => ({
+        counting: Object.keys(model.countdowns).length > 0,
+      }),
       dependenciesToStream: ({ counting }) =>
         counting
           ? Stream.tick(`${TICK_MS} millis`).pipe(
@@ -50,7 +62,8 @@ export const subscriptions = Subscription.make<Model, Message, RoomSocketService
           type: "keydown",
           toMessage: (event) => {
             const mod = isMac ? event.metaKey : event.ctrlKey;
-            if (!mod || event.altKey || event.key.toLowerCase() !== "j") return Option.none();
+            if (!mod || event.altKey || event.key.toLowerCase() !== "j")
+              return Option.none();
             event.preventDefault();
             return Option.some(Message.JumpedToAttention({ kind: "Any" }));
           },

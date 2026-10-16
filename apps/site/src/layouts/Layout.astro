@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import ThemeToggle from "../components/ThemeToggle.astro";
 interface Props {
   title?: string;
   description?: string;
@@ -25,17 +26,27 @@ const socialImage = Astro.site
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
-    <meta
-      name="theme-color"
-      content="#ffffff"
-      media="(prefers-color-scheme: light)"
-    />
-    <meta
-      name="theme-color"
-      content="#09090b"
-      media="(prefers-color-scheme: dark)"
-    />
+    <meta name="theme-color" content="#ffffff" />
     <meta name="color-scheme" content="light dark" />
+    <script is:inline>
+      (() => {
+        let preference = "device";
+        try {
+          const stored = localStorage.getItem("threadvm.theme");
+          if (stored === "light" || stored === "dark") preference = stored;
+        } catch {}
+        const dark =
+          preference === "dark" ||
+          (preference === "device" &&
+            matchMedia("(prefers-color-scheme: dark)").matches);
+        document.documentElement.dataset.mode = dark ? "dark" : "light";
+        document.documentElement.dataset.themePreference = preference;
+      })();
+    </script>
+    <script>
+      import { setupTheme } from "../theme";
+      setupTheme();
+    </script>
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
@@ -53,7 +64,9 @@ const socialImage = Astro.site
     <title>{title}</title>
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
     <header class="site-header">
       <a class="brand" href="/" aria-label="ThreadVM home">
         <span class="brand-mark" aria-hidden="true"></span>
@@ -61,12 +74,22 @@ const socialImage = Astro.site
         <span class="brand-doc">{crumb}</span>
       </a>
       <nav class="site-nav" aria-label="Main navigation">
-        <a class="nav-pill" href="/#demo">Demo</a>
-        <a class="nav-pill" href="/#idea">The idea</a>
-        <a class="nav-pill" href="/#notes">Notes</a>
+        <a class="nav-pill" href="/#demo">
+          Demo
+        </a>
+        <a class="nav-pill" href="/#idea">
+          The idea
+        </a>
+        <a class="nav-pill" href="/#notes">
+          Notes
+        </a>
       </nav>
       <div class="site-header__end">
-        <a class="button button-ghost" href="https://github.com/bjacobso/threadvm">
+        <ThemeToggle />
+        <a
+          class="button button-ghost"
+          href="https://github.com/bjacobso/threadvm"
+        >
           Source <span aria-hidden="true">↗</span>
         </a>
       </div>
@@ -76,13 +99,24 @@ const socialImage = Astro.site
     </main>
     <footer class="site-footer">
       <div class="hints" aria-label="Outline shortcuts">
-        <span><kbd>Return</kbd> new bullet</span>
-        <span><kbd>Tab</kbd> nest</span>
-        <span><kbd>@</kbd> ask an agent</span>
+        <span>
+          <kbd>Return</kbd> new bullet
+        </span>
+        <span>
+          <kbd>Tab</kbd> nest
+        </span>
+        <span>
+          <kbd>@</kbd> ask an agent
+        </span>
       </div>
       <div class="site-footer__links">
-        <span class="live"><span class="live__dot" aria-hidden="true"></span>An ongoing, open-source exploration</span>
-        <a href="https://github.com/bjacobso/threadvm">Follow along on GitHub ↗</a>
+        <span class="live">
+          <span class="live__dot" aria-hidden="true"></span>An ongoing,
+          open-source exploration
+        </span>
+        <a href="https://github.com/bjacobso/threadvm">
+          Follow along on GitHub ↗
+        </a>
       </div>
     </footer>
   </body>

@@ -48,8 +48,24 @@
   --header-height: 52px;
 }
 
+:root[data-mode="dark"] {
+  color-scheme: dark;
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #09090b;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --border: #27272a;
+  --input: #3f3f46;
+  --ring: #71717a;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-panel: 0 0 0 1px var(--border), 0 1px 3px rgb(0 0 0 / 30%);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-mode]) {
     color-scheme: dark;
     --background: #09090b;
     --foreground: #fafafa;
@@ -237,6 +253,8 @@ kbd {
 
 .site-header__end {
   display: flex;
+  align-items: center;
+  gap: 8px;
   justify-content: flex-end;
   flex: 1;
 }
@@ -276,6 +294,20 @@ kbd {
 .site-header .button {
   height: 30px;
   font-size: 13px;
+}
+.site-header .theme-toggle {
+  justify-content: center;
+  min-width: 84px;
+  padding-inline: 10px;
+}
+.theme-toggle[hidden],
+.theme-icon {
+  display: none;
+}
+:root[data-theme-preference="light"] .theme-icon--light,
+:root[data-theme-preference="dark"] .theme-icon--dark,
+:root[data-theme-preference="device"] .theme-icon--device {
+  display: block;
 }
 .button-sm {
   height: 28px;
@@ -1172,7 +1204,8 @@ a.inbox-card:hover {
 @keyframes beacon {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--tone, var(--needs)) 45%, transparent);
+    box-shadow: 0 0 0 0
+      color-mix(in oklab, var(--tone, var(--needs)) 45%, transparent);
   }
   50% {
     box-shadow: 0 0 0 4px transparent;

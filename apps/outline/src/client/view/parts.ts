@@ -15,7 +15,12 @@ import { Icon } from "@foldworks/ui";
 import type { Html, HtmlBuilder } from "foldkit/html";
 
 import { agentInfo } from "../../shared/agents.ts";
-import { pendingOps, type AgentId, type StepKind, type Thread } from "../../shared/protocol.ts";
+import {
+  pendingOps,
+  type AgentId,
+  type StepKind,
+  type Thread,
+} from "../../shared/protocol.ts";
 import type { Message } from "../message.ts";
 
 export type H = HtmlBuilder<Message>;
@@ -46,7 +51,9 @@ export const statusLabel = (thread: Thread): string => {
       return `${count} to review`;
     }
     case "Done":
-      return pendingOps(thread).length > 0 ? `${pendingOps(thread).length} to review` : "Done";
+      return pendingOps(thread).length > 0
+        ? `${pendingOps(thread).length} to review`
+        : "Done";
     case "Cancelled":
       return "Stopped";
     case "Failed":
@@ -57,7 +64,8 @@ export const statusLabel = (thread: Thread): string => {
 /** Used as `data-status` for color. */
 export const statusTone = (thread: Thread): string => {
   if (thread.status === "NeedsInput") return "needs";
-  if (pendingOps(thread).length > 0 && thread.status !== "Cancelled") return "review";
+  if (pendingOps(thread).length > 0 && thread.status !== "Cancelled")
+    return "review";
   switch (thread.status) {
     case "Queued":
     case "Provisioning":
@@ -80,13 +88,22 @@ const STEP_ICONS: Readonly<Record<StepKind, LucideIconData>> = {
   think: Brain,
 };
 
-export const stepIcon = (kind: StepKind, state: "Running" | "Done" | "Failed", h: H): Html =>
+export const stepIcon = (
+  kind: StepKind,
+  state: "Running" | "Done" | "Failed",
+  h: H,
+): Html =>
   h.span(
     [h.Class("step__icon"), h.DataAttribute("state", state)],
     [
       Icon.view(
         {
-          icon: state === "Running" ? LoaderCircle : state === "Failed" ? CircleAlert : STEP_ICONS[kind],
+          icon:
+            state === "Running"
+              ? LoaderCircle
+              : state === "Failed"
+                ? CircleAlert
+                : STEP_ICONS[kind],
           size: 14,
         },
         h,

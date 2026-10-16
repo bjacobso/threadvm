@@ -16,7 +16,10 @@ type WritableProjectFile = {
 export class ConfigError {
   readonly _tag = "ConfigError";
 
-  constructor(readonly message: string, readonly cause?: unknown) {}
+  constructor(
+    readonly message: string,
+    readonly cause?: unknown,
+  ) {}
 }
 
 export class ConfigService extends Context.Service<
@@ -26,10 +29,10 @@ export class ConfigService extends Context.Service<
     readonly getProject: (id: string) => Effect.Effect<Project, ConfigError>;
     readonly saveProject: (
       id: string,
-      project: Project
+      project: Project,
     ) => Effect.Effect<ReadonlyArray<Project>, ConfigError>;
     readonly deleteProject: (
-      id: string
+      id: string,
     ) => Effect.Effect<ReadonlyArray<Project>, ConfigError>;
   }
 >()("ConfigService") {}
@@ -45,7 +48,7 @@ const omitUndefined = <A>(value: A): A => {
     return Object.fromEntries(
       Object.entries(value)
         .filter(([, item]) => item !== undefined)
-        .map(([key, item]) => [key, omitUndefined(item)])
+        .map(([key, item]) => [key, omitUndefined(item)]),
     ) as A;
   }
   return value;
@@ -63,11 +66,11 @@ const projectsFromRaw = (raw: RawProjectsFile): ReadonlyArray<Project> =>
   });
 
 const rawFromProjects = (
-  projects: ReadonlyArray<Project>
+  projects: ReadonlyArray<Project>,
 ): WritableProjectFile => ({
   projects: Object.fromEntries(
-    projects.map((project) => [project.id, projectToRaw(project)])
-  )
+    projects.map((project) => [project.id, projectToRaw(project)]),
+  ),
 });
 
 export const ConfigServiceLive = Layer.effect(
@@ -75,7 +78,9 @@ export const ConfigServiceLive = Layer.effect(
   Effect.sync(() => {
     const configPath =
       process.env.THREADVM_PROJECTS_FILE ??
-      fileURLToPath(new URL("../../../../examples/projects.yaml", import.meta.url));
+      fileURLToPath(
+        new URL("../../../../examples/projects.yaml", import.meta.url),
+      );
 
     const readRawProjects = Effect.tryPromise({
       try: () => readFile(configPath, "utf8"),
@@ -85,9 +90,9 @@ export const ConfigServiceLive = Layer.effect(
         }
         return new ConfigError(
           `Failed to read project config at ${configPath}`,
-          cause
+          cause,
         );
-      }
+      },
     }).pipe(
       Effect.map((contents) => YAML.parse(contents) as RawProjectsFile),
       Effect.catch((error) => {
@@ -104,9 +109,12 @@ export const ConfigServiceLive = Layer.effect(
           return Effect.fail(error);
         }
         return Effect.fail(
-          new ConfigError(`Failed to parse project config at ${configPath}`, error)
+          new ConfigError(
+            `Failed to parse project config at ${configPath}`,
+            error,
+          ),
         );
-      })
+      }),
     );
 
     const readProjects = readRawProjects.pipe(Effect.map(projectsFromRaw));
@@ -119,13 +127,16 @@ export const ConfigServiceLive = Layer.effect(
             configPath,
             YAML.stringify(rawFromProjects(projects), {
               lineWidth: 0,
-              sortMapEntries: true
+              sortMapEntries: true,
             }),
-            "utf8"
+            "utf8",
           );
         },
         catch: (cause) =>
-          new ConfigError(`Failed to write project config at ${configPath}`, cause)
+          new ConfigError(
+            `Failed to write project config at ${configPath}`,
+            cause,
+          ),
       }).pipe(Effect.andThen(Effect.succeed(projects)));
 
     const getProject = (id: string) =>
@@ -141,16 +152,18 @@ export const ConfigServiceLive = Layer.effect(
         if (id !== project.id) {
           return yield* Effect.fail(
             new ConfigError(
-              `Project id mismatch: path id '${id}' does not match payload id '${project.id}'`
-            )
+              `Project id mismatch: path id '${id}' does not match payload id '${project.id}'`,
+            ),
           );
         }
         const projects = yield* readProjects;
-        const withoutExisting = projects.filter((candidate) => candidate.id !== id);
+        const withoutExisting = projects.filter(
+          (candidate) => candidate.id !== id,
+        );
         return yield* writeProjects(
           [...withoutExisting, project].sort((left, right) =>
-            left.id.localeCompare(right.id)
-          )
+            left.id.localeCompare(right.id),
+          ),
         );
       });
 
@@ -164,6 +177,11 @@ export const ConfigServiceLive = Layer.effect(
         return yield* writeProjects(nextProjects);
       });
 
-    return { listProjects: readProjects, getProject, saveProject, deleteProject } as const;
-  })
+    return {
+      listProjects: readProjects,
+      getProject,
+      saveProject,
+      deleteProject,
+    } as const;
+  }),
 );

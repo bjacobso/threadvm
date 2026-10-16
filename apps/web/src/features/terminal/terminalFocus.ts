@@ -6,7 +6,7 @@ interface FocusableTerminal {
 }
 
 export const focusTerminalPane = (
-  terminal: FocusableTerminal | null | undefined
+  terminal: FocusableTerminal | null | undefined,
 ) => {
   focusedPanelAtom.set("terminal");
   terminal?.focus();
@@ -15,7 +15,7 @@ export const focusTerminalPane = (
 export const forwardSurfaceMouseEventToTerminal = (
   event: MouseEvent,
   terminal: FocusableTerminal | null | undefined,
-  surface: HTMLElement | null | undefined
+  surface: HTMLElement | null | undefined,
 ) => {
   focusedPanelAtom.set("terminal");
 
@@ -51,7 +51,7 @@ export const forwardSurfaceMouseEventToTerminal = (
       screenX: event.screenX,
       screenY: event.screenY,
       shiftKey: event.shiftKey,
-      altKey: event.altKey
-    })
+      altKey: event.altKey,
+    }),
   );
 };

@@ -11,11 +11,11 @@ import {
   ThreadVmLifecycleResponse,
   ThreadVmMetadata,
   ThreadVmPortStatus,
-  ThreadVmPortsResponse
+  ThreadVmPortsResponse,
 } from "../domain/schema.js";
 import type { CommandResult } from "./CommandService.js";
-import { ConfigError, ConfigService } from "./ConfigService.js";
-import { ExeDevError, ExeDevService } from "./ExeDevService.js";
+import { ConfigService } from "./ConfigService.js";
+import { ExeDevService } from "./ExeDevService.js";
 import { LocalStore } from "./LocalStore.js";
 import { RemoteTerminalSession } from "./RemoteTerminalSession.js";
 import { SshError, SshService } from "./SshService.js";
@@ -23,7 +23,10 @@ import { SshError, SshService } from "./SshService.js";
 export class WorkspaceError {
   readonly _tag = "WorkspaceError";
 
-  constructor(readonly message: string, readonly cause?: unknown) {}
+  constructor(
+    readonly message: string,
+    readonly cause?: unknown,
+  ) {}
 }
 
 const slugify = (input: string) =>
@@ -53,7 +56,7 @@ const threadVmStateTags = [
   "stopped",
   "failed",
   "destroying",
-  "unknown"
+  "unknown",
 ].map((state) => `threadvm-state-${state}`);
 
 const threadVmMutableTags = [...threadVmStateTags, "threadvm-pinned"];
@@ -61,22 +64,27 @@ const threadVmMutableTags = [...threadVmStateTags, "threadvm-pinned"];
 export class WorkspaceService extends Context.Service<
   WorkspaceService,
   {
-    readonly listThreadVms: Effect.Effect<ReadonlyArray<ThreadVm>, WorkspaceError>;
-    readonly getThreadVm: (id: string) => Effect.Effect<ThreadVm, WorkspaceError>;
+    readonly listThreadVms: Effect.Effect<
+      ReadonlyArray<ThreadVm>,
+      WorkspaceError
+    >;
+    readonly getThreadVm: (
+      id: string,
+    ) => Effect.Effect<ThreadVm, WorkspaceError>;
     readonly readDevLog: (
-      id: string
+      id: string,
     ) => Effect.Effect<ThreadVmDevLogResponse, WorkspaceError>;
     readonly checkPorts: (
-      id: string
+      id: string,
     ) => Effect.Effect<ThreadVmPortsResponse, WorkspaceError>;
     readonly createThreadVm: (
-      request: CreateThreadVmRequest
+      request: CreateThreadVmRequest,
     ) => Effect.Effect<CreateThreadVmResponse, WorkspaceError>;
     readonly stopThreadVm: (
-      id: string
+      id: string,
     ) => Effect.Effect<ThreadVmLifecycleResponse, WorkspaceError>;
     readonly removeThreadVm: (
-      id: string
+      id: string,
     ) => Effect.Effect<ThreadVmLifecycleResponse, WorkspaceError>;
   }
 >()("WorkspaceService") {}
@@ -128,10 +136,10 @@ const commandResultExcerpt = (result: CommandResult) =>
   truncateMiddle(
     [
       result.stdout.trim() ? `stdout:\n${result.stdout.trim()}` : "",
-      result.stderr.trim() ? `stderr:\n${result.stderr.trim()}` : ""
+      result.stderr.trim() ? `stderr:\n${result.stderr.trim()}` : "",
     ]
       .filter(Boolean)
-      .join("\n\n")
+      .join("\n\n"),
   );
 
 const provisioningOutputExcerpt = (value: unknown) => {
@@ -143,7 +151,7 @@ const provisioningOutputExcerpt = (value: unknown) => {
           return excerpt ? `command ${index + 1}:\n${excerpt}` : "";
         })
         .filter(Boolean)
-        .join("\n\n")
+        .join("\n\n"),
     );
   }
 
@@ -174,7 +182,7 @@ const provisioningFailureOutputExcerpt = (cause: unknown) => {
       exitCode:
         "exitCode" in commandError && typeof commandError.exitCode === "number"
           ? commandError.exitCode
-          : 1
+          : 1,
     });
   }
   return undefined;
@@ -196,18 +204,22 @@ export const WorkspaceServiceLive = Layer.effect(
           new Port({
             label: `dev:${port}`,
             port,
-            url: `https://${threadVm.host}:${port}`
-          })
+            url: `https://${threadVm.host}:${port}`,
+          }),
       );
 
     const tagsForMetadata = (metadata: ThreadVmMetadata) => [
       "threadvm",
       "threadvm-managed",
       ...(metadata.pinned ? ["threadvm-pinned"] : []),
-      ...(metadata.project ? [`threadvm-project-${tagify(metadata.project)}`] : []),
+      ...(metadata.project
+        ? [`threadvm-project-${tagify(metadata.project)}`]
+        : []),
       ...(metadata.slug ? [`threadvm-slug-${tagify(metadata.slug)}`] : []),
       ...(metadata.state ? [`threadvm-state-${tagify(metadata.state)}`] : []),
-      ...(metadata.branch ? [`threadvm-branch-${tagify(metadata.branch)}`] : [])
+      ...(metadata.branch
+        ? [`threadvm-branch-${tagify(metadata.branch)}`]
+        : []),
     ];
 
     const writeExeMetadata = (threadVm: ThreadVm, metadata: ThreadVmMetadata) =>
@@ -219,16 +231,18 @@ export const WorkspaceServiceLive = Layer.effect(
           Effect.andThen(
             metadata.summary
               ? exe.commentVm(threadVm.id, shortComment(metadata.summary))
-              : Effect.void
+              : Effect.void,
           ),
           Effect.mapError(
-            toWorkspaceError(`Failed to write exe.dev metadata for ${threadVm.name}`)
-          )
+            toWorkspaceError(
+              `Failed to write exe.dev metadata for ${threadVm.name}`,
+            ),
+          ),
         );
 
     const enrichThreadVm = (
       threadVm: ThreadVm,
-      metadata: ThreadVmMetadata | undefined
+      metadata: ThreadVmMetadata | undefined,
     ) =>
       metadata === undefined
         ? threadVm
@@ -255,7 +269,7 @@ export const WorkspaceServiceLive = Layer.effect(
             lastProvisioningError: metadata.lastProvisioningError,
             provisioningSteps: metadata.provisioningSteps,
             createdAt: metadata.createdAt,
-            updatedAt: metadata.updatedAt
+            updatedAt: metadata.updatedAt,
           });
 
     const metadataFromThreadVm = (
@@ -266,7 +280,7 @@ export const WorkspaceServiceLive = Layer.effect(
       startingPrompt: string | undefined,
       pinned: boolean | undefined,
       branch: string,
-      state: ThreadVm["state"]
+      state: ThreadVm["state"],
     ) => {
       const now = Date.now();
       const workspaceMetadataDir = posix.join(project.workdir, ".harness");
@@ -286,18 +300,18 @@ export const WorkspaceServiceLive = Layer.effect(
         devLogPath: `/tmp/threadvm/${threadVm.id}/dev.log`,
         provisioningSteps: [],
         createdAt: now,
-        updatedAt: now
+        updatedAt: now,
       });
     };
 
     const updateMetadata = (
       current: ThreadVmMetadata,
-      patch: Partial<ThreadVmMetadata>
+      patch: Partial<ThreadVmMetadata>,
     ) =>
       new ThreadVmMetadata({
         ...current,
         ...patch,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       });
 
     const remoteWorkdir = (project: Project, cwd: string | undefined) =>
@@ -306,18 +320,20 @@ export const WorkspaceServiceLive = Layer.effect(
     const runRemote = (
       threadVm: ThreadVm,
       script: string,
-      timeoutMs = 120_000
+      timeoutMs = 120_000,
     ) =>
       ssh
         .exec(threadVm.host, script, { timeoutMs })
         .pipe(
-          Effect.mapError(toWorkspaceError(`SSH command failed on ${threadVm.name}`))
+          Effect.mapError(
+            toWorkspaceError(`SSH command failed on ${threadVm.name}`),
+          ),
         );
 
     const writeRemoteMetadata = (
       threadVm: ThreadVm,
       project: Project,
-      metadata: ThreadVmMetadata
+      metadata: ThreadVmMetadata,
     ) => {
       const metadataPath =
         metadata.metadataPath ??
@@ -340,10 +356,10 @@ export const WorkspaceServiceLive = Layer.effect(
           lastProvisioningError: metadata.lastProvisioningError,
           provisioningSteps: metadata.provisioningSteps,
           createdAt: metadata.createdAt,
-          updatedAt: metadata.updatedAt
+          updatedAt: metadata.updatedAt,
         },
         null,
-        2
+        2,
       );
 
       return runRemote(
@@ -353,14 +369,14 @@ export const WorkspaceServiceLive = Layer.effect(
           `mkdir -p ${shellQuote(posix.dirname(metadataPath))}`,
           `cat > ${shellQuote(metadataPath)} <<'THREADVM_METADATA'`,
           json,
-          "THREADVM_METADATA"
-        ].join("\n")
+          "THREADVM_METADATA",
+        ].join("\n"),
       );
     };
 
     const readRemoteMetadata = (
       threadVm: ThreadVm,
-      projects: ReadonlyArray<Project>
+      projects: ReadonlyArray<Project>,
     ): Effect.Effect<ThreadVmMetadata | undefined, never> => {
       if (threadVm.source === "mock" || projects.length === 0) {
         return Effect.succeed(undefined);
@@ -370,61 +386,69 @@ export const WorkspaceServiceLive = Layer.effect(
         .filter(
           (project) =>
             threadVm.name === project.id ||
-            threadVm.name.startsWith(`${project.id}-`)
+            threadVm.name.startsWith(`${project.id}-`),
         )
-        .map((project) => posix.join(project.workdir, ".harness", "threadvm.json"));
+        .map((project) =>
+          posix.join(project.workdir, ".harness", "threadvm.json"),
+        );
 
       if (candidatePaths.length === 0) {
         return Effect.succeed(undefined);
       }
       const script = [
         "set -euo pipefail",
-        "for path in \"$@\"; do",
-        "  if [ -s \"$path\" ]; then",
-        "    cat \"$path\"",
+        'for path in "$@"; do',
+        '  if [ -s "$path" ]; then',
+        '    cat "$path"',
         "    exit 0",
         "  fi",
         "done",
-        "exit 3"
+        "exit 3",
       ].join("\n");
 
       return ssh
         .exec(
           threadVm.host,
           `bash -s -- ${candidatePaths.map(shellQuote).join(" ")} <<'THREADVM_READ_METADATA'\n${script}\nTHREADVM_READ_METADATA`,
-          { timeoutMs: 30_000 }
+          { timeoutMs: 30_000 },
         )
         .pipe(
           Effect.flatMap((result) =>
             Effect.try({
               try: () => JSON.parse(result.stdout) as unknown,
-              catch: () => undefined
-            })
+              catch: () => undefined,
+            }),
           ),
           Effect.flatMap((parsed) =>
-            parsed === undefined ? Effect.succeed(undefined) : decodeMetadata(parsed)
+            parsed === undefined
+              ? Effect.succeed(undefined)
+              : decodeMetadata(parsed),
           ),
           Effect.map((metadata) =>
-            metadata?.id === threadVm.id ? metadata : undefined
+            metadata?.id === threadVm.id ? metadata : undefined,
           ),
-          Effect.catch(() => Effect.succeed(undefined))
+          Effect.catch(() => Effect.succeed(undefined)),
         );
     };
 
     const resolveMetadata = (
       threadVm: ThreadVm,
       localMetadata: ThreadVmMetadata | undefined,
-      projects: ReadonlyArray<Project>
+      projects: ReadonlyArray<Project>,
     ) =>
       localMetadata
         ? Effect.succeed(localMetadata)
         : readRemoteMetadata(threadVm, projects).pipe(
             Effect.tap((metadata) =>
-              metadata ? rememberThreadVm(metadata) : Effect.void
-            )
+              metadata ? rememberThreadVm(metadata) : Effect.void,
+            ),
           );
 
-    const prepareRepo = (threadVm: ThreadVm, project: Project, branch: string) =>
+    const prepareRepo = (
+      threadVm: ThreadVm,
+      project: Project,
+      branch: string,
+    ) =>
       runRemote(
         threadVm,
         [
@@ -439,21 +463,21 @@ export const WorkspaceServiceLive = Layer.effect(
           `  git -C ${shellQuote(project.workdir)} checkout ${shellQuote(branch)}`,
           "else",
           `  git -C ${shellQuote(project.workdir)} checkout -B ${shellQuote(branch)} ${shellQuote(`origin/${project.defaultBranch}`)}`,
-          "fi"
+          "fi",
         ].join("\n"),
-        300_000
+        300_000,
       );
 
     const withProvisioningStep = (
       metadata: ThreadVmMetadata,
-      step: ProvisioningStep
+      step: ProvisioningStep,
     ) => {
       const existingSteps = metadata.provisioningSteps ?? [];
       return updateMetadata(metadata, {
         provisioningSteps: [
           ...existingSteps.filter((candidate) => candidate.id !== step.id),
-          step
-        ]
+          step,
+        ],
       });
     };
 
@@ -463,10 +487,10 @@ export const WorkspaceServiceLive = Layer.effect(
       label: string,
       status: ProvisioningStep["status"],
       message?: string,
-      outputExcerpt?: string
+      outputExcerpt?: string,
     ) => {
       const existing = (metadata.provisioningSteps ?? []).find(
-        (step) => step.id === id
+        (step) => step.id === id,
       );
       const now = Date.now();
       return withProvisioningStep(
@@ -476,29 +500,33 @@ export const WorkspaceServiceLive = Layer.effect(
           label,
           status,
           startedAt:
-            status === "running" ? now : existing?.startedAt ?? metadata.updatedAt,
+            status === "running"
+              ? now
+              : (existing?.startedAt ?? metadata.updatedAt),
           finishedAt:
             status === "succeeded" || status === "failed" ? now : undefined,
           message,
-          outputExcerpt
-        })
+          outputExcerpt,
+        }),
       );
     };
 
     const persistProvisioningMetadata = (
       threadVm: ThreadVm,
       project: Project,
-      metadata: ThreadVmMetadata
+      metadata: ThreadVmMetadata,
     ) =>
       rememberThreadVm(metadata).pipe(
         Effect.andThen(
-          writeExeMetadata(threadVm, metadata).pipe(Effect.catch(() => Effect.void))
+          writeExeMetadata(threadVm, metadata).pipe(
+            Effect.catch(() => Effect.void),
+          ),
         ),
         Effect.andThen(
           writeRemoteMetadata(threadVm, project, metadata).pipe(
-            Effect.catch(() => Effect.void)
-          )
-        )
+            Effect.catch(() => Effect.void),
+          ),
+        ),
       );
 
     const runProvisioningStep = (
@@ -507,7 +535,7 @@ export const WorkspaceServiceLive = Layer.effect(
       metadata: ThreadVmMetadata,
       id: string,
       label: string,
-      work: Effect.Effect<unknown, WorkspaceError>
+      work: Effect.Effect<unknown, WorkspaceError>,
     ) => {
       const running = setProvisioningStep(metadata, id, label, "running");
       return persistProvisioningMetadata(threadVm, project, running).pipe(
@@ -519,10 +547,10 @@ export const WorkspaceServiceLive = Layer.effect(
             label,
             "succeeded",
             undefined,
-            provisioningOutputExcerpt(result)
+            provisioningOutputExcerpt(result),
           );
           return persistProvisioningMetadata(threadVm, project, succeeded).pipe(
-            Effect.as(succeeded)
+            Effect.as(succeeded),
           );
         }),
         Effect.catch((cause) => {
@@ -533,12 +561,12 @@ export const WorkspaceServiceLive = Layer.effect(
             label,
             "failed",
             message,
-            provisioningFailureOutputExcerpt(cause)
+            provisioningFailureOutputExcerpt(cause),
           );
           return persistProvisioningMetadata(threadVm, project, failed).pipe(
-            Effect.andThen(Effect.fail(cause))
+            Effect.andThen(Effect.fail(cause)),
           );
-        })
+        }),
       );
     };
 
@@ -551,21 +579,23 @@ export const WorkspaceServiceLive = Layer.effect(
             [
               "set -euo pipefail",
               `cd ${shellQuote(project.workdir)}`,
-              bootstrapCommand
+              bootstrapCommand,
             ].join("\n"),
-            600_000
+            600_000,
           ),
-        { concurrency: 1 }
+        { concurrency: 1 },
       );
 
     const startDevServer = (
       threadVm: ThreadVm,
       project: Project,
-      metadata: ThreadVmMetadata
+      metadata: ThreadVmMetadata,
     ) => {
       const devDir = remoteWorkdir(project, project.dev.cwd);
-      const pidPath = metadata.devPidPath ?? `/tmp/threadvm/${threadVm.id}/dev.pid`;
-      const logPath = metadata.devLogPath ?? `/tmp/threadvm/${threadVm.id}/dev.log`;
+      const pidPath =
+        metadata.devPidPath ?? `/tmp/threadvm/${threadVm.id}/dev.pid`;
+      const logPath =
+        metadata.devLogPath ?? `/tmp/threadvm/${threadVm.id}/dev.log`;
 
       return runRemote(
         threadVm,
@@ -577,8 +607,8 @@ export const WorkspaceServiceLive = Layer.effect(
           "  exit 0",
           "fi",
           `nohup bash -lc ${shellQuote(project.dev.command)} > ${shellQuote(logPath)} 2>&1 < /dev/null &`,
-          `echo $! > ${shellQuote(pidPath)}`
-        ].join("\n")
+          `echo $! > ${shellQuote(pidPath)}`,
+        ].join("\n"),
       );
     };
 
@@ -597,27 +627,27 @@ export const WorkspaceServiceLive = Layer.effect(
           "while [ $SECONDS -lt $deadline ]; do",
           "  missing=0",
           "  for port in $ports; do",
-          "    if ! timeout 1 bash -lc \"</dev/tcp/127.0.0.1/$port\" >/dev/null 2>&1; then",
+          '    if ! timeout 1 bash -lc "</dev/tcp/127.0.0.1/$port" >/dev/null 2>&1; then',
           "      missing=1",
           "      break",
           "    fi",
           "  done",
-          "  if [ \"$missing\" -eq 0 ]; then",
+          '  if [ "$missing" -eq 0 ]; then',
           "    exit 0",
           "  fi",
           "  sleep 2",
           "done",
-          "echo \"Configured dev ports did not become ready: $ports\" >&2",
-          "exit 1"
+          'echo "Configured dev ports did not become ready: $ports" >&2',
+          "exit 1",
         ].join("\n"),
-        75_000
+        75_000,
       );
     };
 
     const provisionThreadVm = (
       threadVm: ThreadVm,
       project: Project,
-      metadata: ThreadVmMetadata
+      metadata: ThreadVmMetadata,
     ) =>
       Effect.gen(function* () {
         if (!metadata.branch) {
@@ -625,7 +655,7 @@ export const WorkspaceServiceLive = Layer.effect(
         }
         const bootstrapping = updateMetadata(metadata, {
           state: "bootstrapping",
-          lastProvisioningError: undefined
+          lastProvisioningError: undefined,
         });
         yield* rememberThreadVm(bootstrapping);
 
@@ -640,10 +670,10 @@ export const WorkspaceServiceLive = Layer.effect(
             .pipe(
               Effect.mapError(
                 toWorkspaceError(
-                  `Failed to provision terminal runtime on ${threadVm.name}`
-                )
-              )
-            )
+                  `Failed to provision terminal runtime on ${threadVm.name}`,
+                ),
+              ),
+            ),
         );
         current = yield* runProvisioningStep(
           threadVm,
@@ -651,7 +681,7 @@ export const WorkspaceServiceLive = Layer.effect(
           current,
           "prepare-repo",
           "Prepare repository and branch",
-          prepareRepo(threadVm, project, metadata.branch)
+          prepareRepo(threadVm, project, metadata.branch),
         );
         current = yield* runProvisioningStep(
           threadVm,
@@ -659,7 +689,7 @@ export const WorkspaceServiceLive = Layer.effect(
           current,
           "write-metadata",
           "Write VM metadata",
-          writeRemoteMetadata(threadVm, project, current)
+          writeRemoteMetadata(threadVm, project, current),
         );
         current = yield* runProvisioningStep(
           threadVm,
@@ -667,7 +697,7 @@ export const WorkspaceServiceLive = Layer.effect(
           current,
           "bootstrap",
           "Run bootstrap commands",
-          runBootstrap(threadVm, project)
+          runBootstrap(threadVm, project),
         );
         current = yield* runProvisioningStep(
           threadVm,
@@ -675,7 +705,7 @@ export const WorkspaceServiceLive = Layer.effect(
           current,
           "start-dev",
           "Start dev command",
-          startDevServer(threadVm, project, current)
+          startDevServer(threadVm, project, current),
         );
         current = yield* runProvisioningStep(
           threadVm,
@@ -683,12 +713,12 @@ export const WorkspaceServiceLive = Layer.effect(
           current,
           "probe-ports",
           "Probe configured ports",
-          probeConfiguredPorts(threadVm, project)
+          probeConfiguredPorts(threadVm, project),
         );
 
         const ready = updateMetadata(current, {
           state: "ready",
-          lastProvisioningError: undefined
+          lastProvisioningError: undefined,
         });
         yield* rememberThreadVm(ready);
         yield* writeRemoteMetadata(threadVm, project, ready);
@@ -699,16 +729,18 @@ export const WorkspaceServiceLive = Layer.effect(
       const [vms, metadata, projects] = yield* Effect.all(
         [
           exe.listVms.pipe(
-            Effect.mapError(toWorkspaceError("Failed to list ThreadVMs"))
+            Effect.mapError(toWorkspaceError("Failed to list ThreadVMs")),
           ),
           store.listThreadVmMetadata.pipe(
-            Effect.mapError(toWorkspaceError("Failed to load ThreadVM metadata"))
+            Effect.mapError(
+              toWorkspaceError("Failed to load ThreadVM metadata"),
+            ),
           ),
           config.listProjects.pipe(
-            Effect.mapError(toWorkspaceError("Failed to load project config"))
-          )
+            Effect.mapError(toWorkspaceError("Failed to load project config")),
+          ),
         ] as const,
-        { concurrency: 2 }
+        { concurrency: 2 },
       );
       const metadataById = new Map(metadata.map((entry) => [entry.id, entry]));
       return yield* Effect.forEach(
@@ -717,13 +749,13 @@ export const WorkspaceServiceLive = Layer.effect(
           resolveMetadata(
             threadVm,
             metadataById.get(threadVm.id),
-            projects
+            projects,
           ).pipe(
             Effect.map((resolvedMetadata) =>
-              enrichThreadVm(threadVm, resolvedMetadata)
-            )
+              enrichThreadVm(threadVm, resolvedMetadata),
+            ),
           ),
-        { concurrency: 4 }
+        { concurrency: 4 },
       );
     });
 
@@ -731,24 +763,30 @@ export const WorkspaceServiceLive = Layer.effect(
       Effect.gen(function* () {
         const [threadVm, metadata, projects] = yield* Effect.all(
           [
-            exe.getVm(id).pipe(
-              Effect.mapError(toWorkspaceError(`Failed to get ${id}`))
-            ),
-            store.getThreadVmMetadata(id).pipe(
-              Effect.mapError(
-                toWorkspaceError(`Failed to load ThreadVM metadata for ${id}`)
-              )
-            ),
+            exe
+              .getVm(id)
+              .pipe(Effect.mapError(toWorkspaceError(`Failed to get ${id}`))),
+            store
+              .getThreadVmMetadata(id)
+              .pipe(
+                Effect.mapError(
+                  toWorkspaceError(
+                    `Failed to load ThreadVM metadata for ${id}`,
+                  ),
+                ),
+              ),
             config.listProjects.pipe(
-              Effect.mapError(toWorkspaceError("Failed to load project config"))
-            )
+              Effect.mapError(
+                toWorkspaceError("Failed to load project config"),
+              ),
+            ),
           ] as const,
-          { concurrency: 2 }
+          { concurrency: 2 },
         );
         const resolvedMetadata = yield* resolveMetadata(
           threadVm,
           metadata,
-          projects
+          projects,
         );
         return enrichThreadVm(threadVm, resolvedMetadata);
       });
@@ -759,7 +797,9 @@ export const WorkspaceServiceLive = Layer.effect(
         const path = threadVm.devLogPath;
         if (!path) {
           return yield* Effect.fail(
-            new WorkspaceError(`No dev log path is recorded for ${threadVm.name}`)
+            new WorkspaceError(
+              `No dev log path is recorded for ${threadVm.name}`,
+            ),
           );
         }
 
@@ -770,23 +810,25 @@ export const WorkspaceServiceLive = Layer.effect(
             "set -euo pipefail",
             `path=${shellQuote(path)}`,
             `limit=${byteLimit}`,
-            "if [ ! -e \"$path\" ]; then",
+            'if [ ! -e "$path" ]; then',
             "  exit 4",
             "fi",
             "size=$(wc -c < \"$path\" | tr -d ' ')",
-            "if [ \"$size\" -gt \"$limit\" ]; then",
+            'if [ "$size" -gt "$limit" ]; then',
             "  echo THREADVM_LOG_TRUNCATED",
             "else",
             "  echo THREADVM_LOG_FULL",
             "fi",
-            "tail -c \"$limit\" \"$path\""
+            'tail -c "$limit" "$path"',
           ].join("\n"),
-          30_000
+          30_000,
         );
 
         const markerEnd = result.stdout.indexOf("\n");
         const marker =
-          markerEnd === -1 ? result.stdout.trim() : result.stdout.slice(0, markerEnd);
+          markerEnd === -1
+            ? result.stdout.trim()
+            : result.stdout.slice(0, markerEnd);
         const content =
           markerEnd === -1 ? "" : result.stdout.slice(markerEnd + 1);
 
@@ -795,7 +837,7 @@ export const WorkspaceServiceLive = Layer.effect(
           path,
           content,
           truncated: marker === "THREADVM_LOG_TRUNCATED",
-          observedAt: Date.now()
+          observedAt: Date.now(),
         });
       });
 
@@ -810,9 +852,9 @@ export const WorkspaceServiceLive = Layer.effect(
               ...port,
               status: "unknown",
               message,
-              observedAt
-            })
-        )
+              observedAt,
+            }),
+        ),
       });
     };
 
@@ -824,12 +866,15 @@ export const WorkspaceServiceLive = Layer.effect(
           return new ThreadVmPortsResponse({
             threadVmId: id,
             ports: [],
-            observedAt
+            observedAt,
           });
         }
 
         if (threadVm.source === "mock") {
-          return unknownPortStatuses(threadVm, "Port probes are skipped for mock VMs");
+          return unknownPortStatuses(
+            threadVm,
+            "Port probes are skipped for mock VMs",
+          );
         }
 
         const ports = threadVm.ports.map((port) => String(port.port)).join(" ");
@@ -839,14 +884,14 @@ export const WorkspaceServiceLive = Layer.effect(
             "set -euo pipefail",
             `ports=${shellQuote(ports)}`,
             "for port in $ports; do",
-            "  if timeout 1 bash -lc \"</dev/tcp/127.0.0.1/$port\" >/dev/null 2>&1; then",
+            '  if timeout 1 bash -lc "</dev/tcp/127.0.0.1/$port" >/dev/null 2>&1; then',
             "    printf '%s reachable\\n' \"$port\"",
             "  else",
             "    printf '%s unreachable\\n' \"$port\"",
             "  fi",
-            "done"
+            "done",
           ].join("\n"),
-          30_000
+          30_000,
         );
 
         const statusByPort = new Map(
@@ -856,9 +901,9 @@ export const WorkspaceServiceLive = Layer.effect(
             .filter(
               (parts): parts is [string, "reachable" | "unreachable"] =>
                 parts.length >= 2 &&
-                (parts[1] === "reachable" || parts[1] === "unreachable")
+                (parts[1] === "reachable" || parts[1] === "unreachable"),
             )
-            .map(([port, status]) => [Number(port), status] as const)
+            .map(([port, status]) => [Number(port), status] as const),
         );
 
         return new ThreadVmPortsResponse({
@@ -873,21 +918,29 @@ export const WorkspaceServiceLive = Layer.effect(
                 status === "unknown"
                   ? "No probe result was returned for this port"
                   : undefined,
-              observedAt
+              observedAt,
             });
-          })
+          }),
         });
       });
 
     const rememberThreadVm = (metadata: ThreadVmMetadata) =>
-      store.upsertThreadVmMetadata(metadata).pipe(
-        Effect.mapError(toWorkspaceError("Failed to write ThreadVM metadata"))
-      );
+      store
+        .upsertThreadVmMetadata(metadata)
+        .pipe(
+          Effect.mapError(
+            toWorkspaceError("Failed to write ThreadVM metadata"),
+          ),
+        );
 
     const forgetThreadVm = (id: string) =>
-      store.removeThreadVmMetadata(id).pipe(
-        Effect.mapError(toWorkspaceError("Failed to remove ThreadVM metadata"))
-      );
+      store
+        .removeThreadVmMetadata(id)
+        .pipe(
+          Effect.mapError(
+            toWorkspaceError("Failed to remove ThreadVM metadata"),
+          ),
+        );
 
     const createThreadVm = (request: CreateThreadVmRequest) =>
       Effect.gen(function* () {
@@ -901,9 +954,10 @@ export const WorkspaceServiceLive = Layer.effect(
         const image = request.image ?? project.image ?? "exeuntu";
         const branch = request.branch ?? `${project.branchPrefix ?? ""}${slug}`;
 
-        const threadVm = yield* (baseDevbox
-          ? exe.cloneVm(baseDevbox, vmName)
-          : exe.createVm(vmName, image)
+        const threadVm = yield* (
+          baseDevbox
+            ? exe.cloneVm(baseDevbox, vmName)
+            : exe.createVm(vmName, image)
         ).pipe(Effect.mapError(toWorkspaceError("exe.dev VM creation failed")));
 
         const metadata = metadataFromThreadVm(
@@ -914,46 +968,46 @@ export const WorkspaceServiceLive = Layer.effect(
           request.startingPrompt,
           request.pinned,
           branch,
-          "creating"
+          "creating",
         );
         yield* rememberThreadVm(metadata);
         yield* writeExeMetadata(threadVm, metadata).pipe(
-          Effect.catch(() => Effect.void)
+          Effect.catch(() => Effect.void),
         );
         const bootstrapping = updateMetadata(metadata, {
           state: "bootstrapping",
-          lastProvisioningError: undefined
+          lastProvisioningError: undefined,
         });
         yield* rememberThreadVm(bootstrapping);
         yield* writeExeMetadata(threadVm, bootstrapping).pipe(
-          Effect.catch(() => Effect.void)
+          Effect.catch(() => Effect.void),
         );
         yield* provisionThreadVm(threadVm, project, metadata).pipe(
           Effect.catch((cause) =>
             Effect.gen(function* () {
               const failed = updateMetadata(bootstrapping, {
                 state: "failed",
-                lastProvisioningError: commandFailureMessage(cause)
+                lastProvisioningError: commandFailureMessage(cause),
               });
               yield* rememberThreadVm(failed);
               yield* writeRemoteMetadata(threadVm, project, failed).pipe(
-                Effect.catch(() => Effect.void)
+                Effect.catch(() => Effect.void),
               );
-            })
+            }),
           ),
-          Effect.forkDetach
+          Effect.forkDetach,
         );
 
         return new CreateThreadVmResponse({
           threadVm: enrichThreadVm(
             new ThreadVm({
               ...threadVm,
-              state: "bootstrapping"
+              state: "bootstrapping",
             }),
-            bootstrapping
+            bootstrapping,
           ),
           message:
-            "VM was created. Repo bootstrap and dev command startup are running in the background."
+            "VM was created. Repo bootstrap and dev command startup are running in the background.",
         });
       });
 
@@ -966,9 +1020,9 @@ export const WorkspaceServiceLive = Layer.effect(
         return new ThreadVmLifecycleResponse({
           threadVm: new ThreadVm({
             ...threadVm,
-            state: "stopped"
+            state: "stopped",
           }),
-          message: `Stop requested for ${threadVm.name}.`
+          message: `Stop requested for ${threadVm.name}.`,
         });
       });
 
@@ -982,9 +1036,9 @@ export const WorkspaceServiceLive = Layer.effect(
         return new ThreadVmLifecycleResponse({
           threadVm: new ThreadVm({
             ...threadVm,
-            state: "destroying"
+            state: "destroying",
           }),
-          message: `Remove requested for ${threadVm.name}.`
+          message: `Remove requested for ${threadVm.name}.`,
         });
       });
 
@@ -995,7 +1049,7 @@ export const WorkspaceServiceLive = Layer.effect(
       checkPorts,
       createThreadVm,
       stopThreadVm,
-      removeThreadVm
+      removeThreadVm,
     } as const;
-  })
+  }),
 );

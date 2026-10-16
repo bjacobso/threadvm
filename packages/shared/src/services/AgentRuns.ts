@@ -462,7 +462,7 @@ export const AgentRunsLive = Layer.effect(
           const runDir = join(repo.dir, "runs", id);
           const codeSha = yield* repo.projectGit(["rev-parse", "HEAD"]);
           const contextIds = new Set([nodeId]);
-          for (let changed = true; changed; ) {
+          for (let changed = true; changed;) {
             changed = false;
             for (const n of snapshot.nodes)
               if (
@@ -474,7 +474,7 @@ export const AgentRunsLive = Layer.effect(
                 changed = true;
               }
           }
-          for (let parent = node.parent; parent; ) {
+          for (let parent = node.parent; parent;) {
             contextIds.add(parent);
             parent =
               snapshot.nodes.find((n) => n.id === parent)?.parent ?? null;
@@ -708,9 +708,11 @@ export const AgentRunsLive = Layer.effect(
         Effect.gen(function* () {
           const run = yield* authorize(request.runId, request.capability);
           if (run.status === "finished" || run.status === "failed")
-            return request.kind === "finished" ? undefined : yield* Effect.fail(
-              new OutlineError("Run has already finished"),
-            );
+            return request.kind === "finished"
+              ? undefined
+              : yield* Effect.fail(
+                  new OutlineError("Run has already finished"),
+                );
           yield* record(run, request.kind, {
             message: request.message,
             agent: request.agent,

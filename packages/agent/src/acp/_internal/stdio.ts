@@ -10,7 +10,9 @@ import * as AcpError from "../errors.ts";
 
 const encoder = new TextEncoder();
 
-export const makeChildStdio = (handle: ChildProcessSpawner.ChildProcessHandle) =>
+export const makeChildStdio = (
+  handle: ChildProcessSpawner.ChildProcessHandle,
+) =>
   Stdio.make({
     args: Effect.succeed([]),
     stdin: handle.stdout,
@@ -34,7 +36,9 @@ export const makeInMemoryStdio = Effect.fn("makeInMemoryStdio")(function* () {
         Sink.forEach((chunk: string | Uint8Array) =>
           Queue.offer(
             output,
-            typeof chunk === "string" ? chunk : decoder.decode(chunk, { stream: true }),
+            typeof chunk === "string"
+              ? chunk
+              : decoder.decode(chunk, { stream: true }),
           ),
         ),
       stderr: () => Sink.drain,
@@ -59,5 +63,6 @@ export const makeTerminationError = (
         pid: handle.pid,
         cause,
       }),
-    onSuccess: (code) => new AcpError.AcpProcessExitedError({ code, pid: handle.pid }),
+    onSuccess: (code) =>
+      new AcpError.AcpProcessExitedError({ code, pid: handle.pid }),
   });

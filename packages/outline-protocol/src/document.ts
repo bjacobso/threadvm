@@ -149,7 +149,7 @@ export const diff = (
         });
     }
   }
-  for (const node of [...working])
+  for (const node of working)
     if (!wanted.has(node.id) && working.some((n) => n.id === node.id))
       add({ type: "delete", id: node.id });
   return operations;

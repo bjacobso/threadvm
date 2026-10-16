@@ -13,7 +13,7 @@ import { ThreadVmApi } from "./ThreadVmApi.js";
 const toApiError = (message: string) => (cause: unknown) =>
   new ApiError({
     message,
-    detail: cause instanceof Error ? cause.message : String(cause)
+    detail: cause instanceof Error ? cause.message : String(cause),
   });
 
 export const ProjectsApiLive = HttpApiBuilder.group(
@@ -25,9 +25,9 @@ export const ProjectsApiLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const config = yield* ConfigService;
           return yield* config.listProjects.pipe(
-            Effect.mapError(toApiError("Failed to load projects"))
+            Effect.mapError(toApiError("Failed to load projects")),
           );
-        })
+        }),
       )
       .handle("save", ({ params: { id }, payload }) =>
         Effect.gen(function* () {
@@ -38,9 +38,9 @@ export const ProjectsApiLive = HttpApiBuilder.group(
           return new ProjectRegistryResponse({
             projects,
             project: payload,
-            message: `Saved project ${id}`
+            message: `Saved project ${id}`,
           });
-        })
+        }),
       )
       .handle("remove", ({ params: { id } }) =>
         Effect.gen(function* () {
@@ -48,14 +48,14 @@ export const ProjectsApiLive = HttpApiBuilder.group(
           const projects = yield* config
             .deleteProject(id)
             .pipe(
-              Effect.mapError(toApiError(`Failed to remove project ${id}`))
+              Effect.mapError(toApiError(`Failed to remove project ${id}`)),
             );
           return new ProjectRegistryResponse({
             projects,
-            message: `Removed project ${id}`
+            message: `Removed project ${id}`,
           });
-        })
-      )
+        }),
+      ),
 );
 
 export const ThreadVmsApiLive = HttpApiBuilder.group(
@@ -67,9 +67,9 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
         Effect.gen(function* () {
           const workspaces = yield* WorkspaceService;
           return yield* workspaces.listThreadVms.pipe(
-            Effect.mapError(toApiError("Failed to list ThreadVMs"))
+            Effect.mapError(toApiError("Failed to list ThreadVMs")),
           );
-        })
+        }),
       )
       .handle("get", ({ params: { id } }) =>
         Effect.gen(function* () {
@@ -77,7 +77,7 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           return yield* workspaces
             .getThreadVm(id)
             .pipe(Effect.mapError(toApiError(`Failed to load ${id}`)));
-        })
+        }),
       )
       .handle("devLog", ({ params: { id } }) =>
         Effect.gen(function* () {
@@ -85,9 +85,9 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           return yield* workspaces
             .readDevLog(id)
             .pipe(
-              Effect.mapError(toApiError(`Failed to read dev log for ${id}`))
+              Effect.mapError(toApiError(`Failed to read dev log for ${id}`)),
             );
-        })
+        }),
       )
       .handle("ports", ({ params: { id } }) =>
         Effect.gen(function* () {
@@ -95,9 +95,9 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           return yield* workspaces
             .checkPorts(id)
             .pipe(
-              Effect.mapError(toApiError(`Failed to check ports for ${id}`))
+              Effect.mapError(toApiError(`Failed to check ports for ${id}`)),
             );
-        })
+        }),
       )
       .handle("create", ({ payload }) =>
         Effect.gen(function* () {
@@ -105,7 +105,7 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           return yield* workspaces
             .createThreadVm(payload)
             .pipe(Effect.mapError(toApiError("Failed to create ThreadVM")));
-        })
+        }),
       )
       .handle("stop", ({ params: { id } }) =>
         Effect.gen(function* () {
@@ -113,7 +113,7 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           return yield* workspaces
             .stopThreadVm(id)
             .pipe(Effect.mapError(toApiError(`Failed to stop ${id}`)));
-        })
+        }),
       )
       .handle("remove", ({ params: { id } }) =>
         Effect.gen(function* () {
@@ -121,8 +121,8 @@ export const ThreadVmsApiLive = HttpApiBuilder.group(
           return yield* workspaces
             .removeThreadVm(id)
             .pipe(Effect.mapError(toApiError(`Failed to remove ${id}`)));
-        })
-      )
+        }),
+      ),
 );
 
 export const OutlineApiLive = HttpApiBuilder.group(
@@ -133,7 +133,7 @@ export const OutlineApiLive = HttpApiBuilder.group(
       .handle("control", ({ payload }) =>
         Effect.gen(function* () {
           yield* (yield* AgentRuns).control(payload);
-        }).pipe(Effect.mapError(toApiError("Failed to control ACP session")))
+        }).pipe(Effect.mapError(toApiError("Failed to control ACP session"))),
       )
       .handle("read", () =>
         Effect.gen(function* () {
@@ -145,55 +145,55 @@ export const OutlineApiLive = HttpApiBuilder.group(
             projectDir: repo.projectDir,
             snapshot: yield* store.read,
             runs: yield* runs.list,
-            events: yield* events.read
+            events: yield* events.read,
           });
         }).pipe(
           Effect.mapError(
-            toApiError("Failed to read outline; run threadvm init first")
-          )
-        )
+            toApiError("Failed to read outline; run threadvm init first"),
+          ),
+        ),
       )
       .handle("apply", ({ payload }) =>
         Effect.gen(function* () {
           return yield* (yield* OutlineStore).apply(payload);
-        }).pipe(Effect.mapError(toApiError("Failed to apply outline batch")))
+        }).pipe(Effect.mapError(toApiError("Failed to apply outline batch"))),
       )
       .handle("propose", ({ payload }) =>
         Effect.gen(function* () {
           if (payload.runId)
             yield* (yield* AgentRuns).authorize(
               payload.runId,
-              payload.capability
+              payload.capability,
             );
           return yield* (yield* OutlineStore).propose(
             payload.batch,
-            payload.runId
+            payload.runId,
           );
-        }).pipe(Effect.mapError(toApiError("Failed to submit proposal")))
+        }).pipe(Effect.mapError(toApiError("Failed to submit proposal"))),
       )
       .handle("review", ({ payload }) =>
         Effect.gen(function* () {
           return yield* (yield* OutlineStore).review(payload);
-        }).pipe(Effect.mapError(toApiError("Failed to review proposal")))
+        }).pipe(Effect.mapError(toApiError("Failed to review proposal"))),
       )
       .handle("run", ({ payload }) =>
         Effect.gen(function* () {
           return yield* (yield* AgentRuns).start(
             payload.nodeId,
             payload.agent,
-            {sandbox:payload.sandbox}
+            { sandbox: payload.sandbox },
           );
-        }).pipe(Effect.mapError(toApiError("Failed to start local run")))
+        }).pipe(Effect.mapError(toApiError("Failed to start local run"))),
       )
       .handle("observe", ({ payload }) =>
         Effect.gen(function* () {
           yield* (yield* AgentRuns).observe(payload);
-        }).pipe(Effect.mapError(toApiError("Failed to record observation")))
-      )
+        }).pipe(Effect.mapError(toApiError("Failed to record observation"))),
+      ),
 );
 
 export const ThreadVmApiHandlersLive = Layer.mergeAll(
   OutlineApiLive,
   ProjectsApiLive,
-  ThreadVmsApiLive
+  ThreadVmsApiLive,
 );

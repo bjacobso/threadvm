@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdtemp, mkdir, writeFile, rm, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
@@ -190,12 +190,6 @@ try {
     pointerClick(
       `[...document.querySelectorAll('button')].find(el => el.textContent.trim() === ${JSON.stringify(text)})`,
     );
-  const input = async (nodeId, text) => {
-    await evaluate(
-      `document.querySelector(${JSON.stringify(`[aria-label="Edit ${nodeId}"]`)}).focus()`,
-    );
-    await cdp("Input.insertText", { text });
-  };
   const key = async (name, modifiers = 0) => {
     const codes = { Enter: 13, Tab: 9, ArrowUp: 38, ArrowDown: 40 };
     await cdp("Input.dispatchKeyEvent", {
@@ -257,9 +251,6 @@ try {
       (await view()).snapshot.nodes.some((n) => n.parent !== null),
     "human batches persisted",
   );
-  const delegatedId = (await view()).snapshot.nodes.find(
-    (n) => n.parent !== null,
-  ).id;
   const rootId = (await view()).snapshot.nodes.find(
     (n) => n.parent === null,
   ).id;

@@ -10,7 +10,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Field,
@@ -18,7 +18,7 @@ import {
   FieldDescription,
   FieldError,
   FieldGroup,
-  FieldLabel
+  FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,7 +27,7 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +35,7 @@ import {
   createThreadVmActionAtom,
   createThreadVmAtom,
   projectConfigAtom,
-  useAtomRef
+  useAtomRef,
 } from "./threadVmAtoms";
 
 interface NewThreadVmDialogProps {
@@ -50,7 +50,7 @@ const trimOrUndefined = (value: string) => {
 
 export function NewThreadVmDialog({
   open,
-  onOpenChange
+  onOpenChange,
 }: NewThreadVmDialogProps) {
   const projectConfig = useAtomRef(projectConfigAtom);
   const createState = useAtomRef(createThreadVmAtom);
@@ -64,8 +64,9 @@ export function NewThreadVmDialog({
   const [submitted, setSubmitted] = useState(false);
 
   const project = useMemo(
-    () => projectConfig.projects.find((candidate) => candidate.id === projectId),
-    [projectConfig.projects, projectId]
+    () =>
+      projectConfig.projects.find((candidate) => candidate.id === projectId),
+    [projectConfig.projects, projectId],
   );
 
   useEffect(() => {
@@ -104,14 +105,14 @@ export function NewThreadVmDialog({
         ...(trimOrUndefined(startingPrompt)
           ? { startingPrompt: trimOrUndefined(startingPrompt) }
           : {}),
-        ...(pinned ? { pinned } : {})
+        ...(pinned ? { pinned } : {}),
       });
       toast.success(`Created ${response.threadVm.name}`);
       onOpenChange(false);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
       toast.error("ThreadVM creation failed", {
-        description: message
+        description: message,
       });
     }
   };
@@ -155,7 +156,10 @@ export function NewThreadVmDialog({
                 onValueChange={setProjectId}
                 disabled={creating || projectConfig.loading}
               >
-                <SelectTrigger id="threadvm-project" aria-invalid={projectInvalid}>
+                <SelectTrigger
+                  id="threadvm-project"
+                  aria-invalid={projectInvalid}
+                >
                   <SelectValue placeholder="Select a project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,7 +254,10 @@ export function NewThreadVmDialog({
               />
             </Field>
 
-            <Field orientation="horizontal" data-disabled={creating || undefined}>
+            <Field
+              orientation="horizontal"
+              data-disabled={creating || undefined}
+            >
               <FieldContent>
                 <FieldLabel htmlFor="threadvm-pinned">Pinned</FieldLabel>
                 <FieldDescription>

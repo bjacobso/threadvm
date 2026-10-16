@@ -7,8 +7,7 @@ const base = new URL(url);
 await mkdir(".context", { recursive: true });
 await mkdir("docs/images", { recursive: true });
 
-const story = (key) =>
-  `document.querySelector('.story').dataset.${key}`;
+const story = (key) => `document.querySelector('.story').dataset.${key}`;
 /** Text inside the embedded outline. */
 const frameText = `(document.querySelector('[data-frame]').contentDocument?.body?.innerText ?? '')`;
 
@@ -83,7 +82,9 @@ await withChrome(
     await new Promise((resolve) => setTimeout(resolve, 9000));
     assert.equal(await evaluate(story("stage")), "Review");
     assert.match(
-      await evaluate(`document.querySelector('[data-driver-label]').textContent`),
+      await evaluate(
+        `document.querySelector('[data-driver-label]').textContent`,
+      ),
       /driving/,
     );
     await capture(".context/site-demo-review.png");
@@ -153,7 +154,9 @@ await withChrome(
       `document.querySelector('#idea .ol__branch .ol__branch > summary').click()`,
     );
     assert.equal(
-      await evaluate(`document.querySelector('#idea .ol__branch .ol__branch').open`),
+      await evaluate(
+        `document.querySelector('#idea .ol__branch .ol__branch').open`,
+      ),
       false,
     );
     await evaluate(

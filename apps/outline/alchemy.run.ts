@@ -11,7 +11,9 @@ export default Alchemy.Stack(
   "ThreadvmOutline",
   {
     providers: Cloudflare.providers(),
-    state: process.env.ALCHEMY_LOCAL_STATE ? Alchemy.localState() : Cloudflare.state(),
+    state: process.env.ALCHEMY_LOCAL_STATE
+      ? Alchemy.localState()
+      : Cloudflare.state(),
   },
   Effect.gen(function* () {
     const api = yield* Api;

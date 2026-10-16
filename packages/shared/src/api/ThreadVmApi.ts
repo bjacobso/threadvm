@@ -3,7 +3,7 @@ import {
   HttpApiEndpoint,
   HttpApiGroup,
   HttpApiSchema,
-  OpenApi
+  OpenApi,
 } from "effect/unstable/httpapi";
 import { Schema } from "effect";
 import {
@@ -25,42 +25,42 @@ import {
   ThreadVm,
   ThreadVmDevLogResponse,
   ThreadVmLifecycleResponse,
-  ThreadVmPortsResponse
+  ThreadVmPortsResponse,
 } from "../domain/schema.js";
 
 const IdParams = Schema.Struct({
-  id: Schema.String
+  id: Schema.String,
 });
 
 const ApiErrorResponse = ApiError.pipe(HttpApiSchema.status(500));
 const AcceptedThreadVmResponse = CreateThreadVmResponse.pipe(
-  HttpApiSchema.status(202)
+  HttpApiSchema.status(202),
 );
 const AcceptedThreadVmLifecycleResponse = ThreadVmLifecycleResponse.pipe(
-  HttpApiSchema.status(202)
+  HttpApiSchema.status(202),
 );
 
 const ProjectsGroup = HttpApiGroup.make("projects")
   .add(
     HttpApiEndpoint.get("list", "/projects", {
       success: Schema.Array(Project),
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.put("save", "/projects/:id", {
       params: IdParams,
       payload: Project,
       success: ProjectRegistryResponse,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.delete("remove", "/projects/:id", {
       params: IdParams,
       success: ProjectRegistryResponse,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .prefix("/api");
 
@@ -68,50 +68,50 @@ const ThreadVmsGroup = HttpApiGroup.make("threadvms")
   .add(
     HttpApiEndpoint.get("list", "/threadvms", {
       success: Schema.Array(ThreadVm),
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.get("get", "/threadvms/:id", {
       params: IdParams,
       success: ThreadVm,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.get("devLog", "/threadvms/:id/dev-log", {
       params: IdParams,
       success: ThreadVmDevLogResponse,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.get("ports", "/threadvms/:id/ports", {
       params: IdParams,
       success: ThreadVmPortsResponse,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.post("create", "/threadvms", {
       payload: CreateThreadVmRequest,
       success: AcceptedThreadVmResponse,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.post("stop", "/threadvms/:id/stop", {
       params: IdParams,
       success: AcceptedThreadVmLifecycleResponse,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.delete("remove", "/threadvms/:id", {
       params: IdParams,
       success: AcceptedThreadVmLifecycleResponse,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .prefix("/api");
 
@@ -120,49 +120,49 @@ const OutlineGroup = HttpApiGroup.make("outline")
     HttpApiEndpoint.post("control", "/outline/control", {
       payload: RunControlRequest,
       success: Schema.Void,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.get("read", "/outline", {
       success: OutlineView,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.post("apply", "/outline/batches", {
       payload: OperationBatch,
       success: OutlineSnapshot,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.post("propose", "/outline/proposals", {
       payload: ProposalRequest,
       success: Proposal,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.post("review", "/outline/review", {
       payload: ReviewRequest,
       success: OutlineSnapshot,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.post("run", "/outline/runs", {
       payload: StartRunRequest,
       success: Run,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .add(
     HttpApiEndpoint.post("observe", "/outline/observations", {
       payload: ObserveRequest,
       success: Schema.Void,
-      error: ApiErrorResponse
-    })
+      error: ApiErrorResponse,
+    }),
   )
   .prefix("/api");
 
@@ -173,5 +173,5 @@ export class ThreadVmApi extends HttpApi.make("ThreadVmApi")
   .annotate(OpenApi.Summary, "ThreadVM local control API")
   .annotate(
     OpenApi.Description,
-    "Effect Platform API for reflecting exe.dev ThreadVMs and attaching browser terminals."
+    "Effect Platform API for reflecting exe.dev ThreadVMs and attaching browser terminals.",
   ) {}

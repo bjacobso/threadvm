@@ -3,12 +3,12 @@ import {
   TerminalInputMessage,
   TerminalPingMessage,
   TerminalResizeMessage,
-  TerminalServerMessage
+  TerminalServerMessage,
 } from "@threadvm/shared/domain";
 import { Schema } from "effect";
 import {
   activeTerminalVmKey,
-  terminalSessionAtomFamily
+  terminalSessionAtomFamily,
 } from "./terminalAtoms";
 import { writeStored } from "@/state/storage";
 
@@ -53,7 +53,7 @@ const socketBaseUrl = () => {
 export const terminalSocketUrl = (
   threadVmId: string,
   size: TerminalSize,
-  restart: boolean
+  restart: boolean,
 ) => {
   const url = socketBaseUrl();
   url.pathname = `/rpc/terminal/${encodeURIComponent(threadVmId)}/socket`;
@@ -90,7 +90,7 @@ export const terminalSessionActionAtom = {
     lastRemoteSizes.delete(threadVmId);
     terminalSessionAtomFamily(threadVmId).set({
       status: "detached",
-      connection: undefined
+      connection: undefined,
     });
 
     if (forget) {
@@ -113,7 +113,7 @@ export const terminalSessionActionAtom = {
   resize: (
     threadVmId: string | undefined,
     size: TerminalSize | undefined,
-    force = false
+    force = false,
   ) => {
     if (!threadVmId || !size) {
       return;
@@ -125,11 +125,7 @@ export const terminalSessionActionAtom = {
     }
 
     const lastSize = lastRemoteSizes.get(threadVmId);
-    if (
-      !force &&
-      lastSize?.cols === size.cols &&
-      lastSize.rows === size.rows
-    ) {
+    if (!force && lastSize?.cols === size.cols && lastSize.rows === size.rows) {
       return;
     }
 
@@ -139,8 +135,8 @@ export const terminalSessionActionAtom = {
         new TerminalResizeMessage({
           type: "resize",
           cols: size.cols,
-          rows: size.rows
-        })
+          rows: size.rows,
+        }),
       )
     ) {
       lastRemoteSizes.set(threadVmId, size);
@@ -179,7 +175,7 @@ export const terminalSessionActionAtom = {
       heartbeat = window.setInterval(() => {
         send(
           socket,
-          new TerminalPingMessage({ type: "ping", timestamp: Date.now() })
+          new TerminalPingMessage({ type: "ping", timestamp: Date.now() }),
         );
       }, heartbeatIntervalMs);
     };
@@ -196,8 +192,8 @@ export const terminalSessionActionAtom = {
                 attachmentId: message.attachmentId,
                 sessionName: message.sessionName,
                 createdAt: message.createdAt,
-                reused: message.reused
-              }
+                reused: message.reused,
+              },
             });
             lastRemoteSizes.set(threadVm.id, size);
             writeStored(activeTerminalVmKey, threadVm.id);
@@ -208,14 +204,14 @@ export const terminalSessionActionAtom = {
           case "status":
             sessionAtom.set({
               status: message.status,
-              connection: sessionAtom.value.connection
+              connection: sessionAtom.value.connection,
             });
             break;
           case "error":
             view.writeln(`\r\n[terminal error: ${message.message}]`);
             sessionAtom.set({
               status: "disconnected",
-              connection: sessionAtom.value.connection
+              connection: sessionAtom.value.connection,
             });
             break;
           case "pong":
@@ -223,7 +219,7 @@ export const terminalSessionActionAtom = {
         }
       } catch (cause) {
         view.writeln(
-          `\r\n[terminal protocol error: ${cause instanceof Error ? cause.message : String(cause)}]`
+          `\r\n[terminal protocol error: ${cause instanceof Error ? cause.message : String(cause)}]`,
         );
         socket.close(1008, "invalid-server-message");
       }
@@ -235,7 +231,7 @@ export const terminalSessionActionAtom = {
       }
       sessionAtom.set({
         status: "disconnected",
-        connection: sessionAtom.value.connection
+        connection: sessionAtom.value.connection,
       });
     };
 
@@ -253,11 +249,11 @@ export const terminalSessionActionAtom = {
       const exited = event.reason === "terminal-exited";
       sessionAtom.set({
         status: exited ? "exited" : "disconnected",
-        connection: sessionAtom.value.connection
+        connection: sessionAtom.value.connection,
       });
       view.writeln(
-        `\r\n[terminal ${exited ? "exited" : ready ? "disconnected" : "attach failed"}]`
+        `\r\n[terminal ${exited ? "exited" : ready ? "disconnected" : "attach failed"}]`,
       );
     };
-  }
+  },
 } as const;

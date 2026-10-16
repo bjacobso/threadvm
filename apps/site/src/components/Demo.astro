@@ -39,15 +39,13 @@ const steps = [
 <div class="demo" data-demo>
   <div class="story" data-stage="Write" data-driving="Story">
     <ol class="story__steps">
-      {
-        steps.map((step, index) => (
-          <li class="story__step" data-step={step.stage}>
-            <span class="story__dot" aria-hidden="true" />
-            <span class="story__index">{index + 1}</span>
-            {step.title}
-          </li>
-        ))
-      }
+      {steps.map((step, index) => (
+        <li class="story__step" data-step={step.stage}>
+          <span class="story__dot" aria-hidden="true" />
+          <span class="story__index">{index + 1}</span>
+          {step.title}
+        </li>
+      ))}
     </ol>
     <div class="story__end">
       <span class="story__driver" data-driver>
@@ -63,16 +61,15 @@ const steps = [
     <iframe
       src="/demo/"
       title="Interactive outline demo with scripted agents"
-      data-frame></iframe>
+      data-frame
+    ></iframe>
   </div>
   <div class="story-detail" aria-live="polite">
-    {
-      steps.map((step, index) => (
-        <p data-detail={step.stage} hidden={index !== 0}>
-          <strong>{step.title}.</strong> {step.detail}
-        </p>
-      ))
-    }
+    {steps.map((step, index) => (
+      <p data-detail={step.stage} hidden={index !== 0}>
+        <strong>{step.title}.</strong> {step.detail}
+      </p>
+    ))}
   </div>
 </div>
 

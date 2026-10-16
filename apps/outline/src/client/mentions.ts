@@ -26,11 +26,15 @@ const tagsOf = (items: Items): ReadonlyArray<string> => {
 export const dataFor = (items: Items): Mentions.Data => ({
   entities,
   tags: tagsOf(items),
-  unknownMention: (name) => `No agent named @${name}. Try @claude, @cursor, @codex, or @conductor.`,
+  unknownMention: (name) =>
+    `No agent named @${name}. Try @claude, @cursor, @codex, or @conductor.`,
 });
 
 /** Painted spans for a bullet, with each agent mention colored as its agent. */
-export const spansOf = (text: string, data: Mentions.Data): ReadonlyArray<TextSpan> | undefined => {
+export const spansOf = (
+  text: string,
+  data: Mentions.Data,
+): ReadonlyArray<TextSpan> | undefined => {
   const { tokens } = Mentions.analyze(text, data);
   if (tokens.length === 0) return undefined;
   const marks = Mentions.recognize(text);
@@ -38,8 +42,12 @@ export const spansOf = (text: string, data: Mentions.Data): ReadonlyArray<TextSp
     const token = part.covering.tokens[0];
     if (token === undefined) return { text: part.text };
     const mark = marks.find((candidate) => candidate.from === token.from);
-    const agent = mark?.kind === "mention" ? Mentions.resolve(mark, data)?.id : undefined;
-    return { text: part.text, kind: agent === undefined ? token.kind : `agent-${agent}` };
+    const agent =
+      mark?.kind === "mention" ? Mentions.resolve(mark, data)?.id : undefined;
+    return {
+      text: part.text,
+      kind: agent === undefined ? token.kind : `agent-${agent}`,
+    };
   });
 };
 
@@ -48,8 +56,14 @@ export const diagnosticsOf = (text: string, data: Mentions.Data) =>
 
 export const suggestionsAt = (items: Items, text: string, caret: number) => {
   const query = Mentions.queryAt(text, caret);
-  return query === undefined ? undefined : Mentions.suggestions(query, text, dataFor(items));
+  return query === undefined
+    ? undefined
+    : Mentions.suggestions(query, text, dataFor(items));
 };
 
-export const describeAt = (items: Items, text: string, offset: number, lenient: boolean) =>
-  Mentions.describe(text, offset, dataFor(items), {}, lenient);
+export const describeAt = (
+  items: Items,
+  text: string,
+  offset: number,
+  lenient: boolean,
+) => Mentions.describe(text, offset, dataFor(items), {}, lenient);

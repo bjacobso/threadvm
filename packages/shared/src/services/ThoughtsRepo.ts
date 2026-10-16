@@ -6,7 +6,7 @@ import {
   rename,
   rm,
   stat,
-  appendFile
+  appendFile,
 } from "node:fs/promises";
 import { join, resolve, dirname, relative } from "node:path";
 import { CommandService } from "./CommandService.js";
@@ -18,7 +18,7 @@ export const outlineIO = <A>(work: () => Promise<A>) =>
   Effect.tryPromise({
     try: work,
     catch: (cause) =>
-      new OutlineError(cause instanceof Error ? cause.message : String(cause))
+      new OutlineError(cause instanceof Error ? cause.message : String(cause)),
   });
 export const atomicWrite = async (path: string, content: string) => {
   const tmp = `${path}.${process.pid}.tmp`;
@@ -58,7 +58,7 @@ const acquire = async (path: string) => {
       }
       if (Date.now() - started > 35_000)
         throw new OutlineError(
-          "Timed out waiting for thoughts repository writer"
+          "Timed out waiting for thoughts repository writer",
         );
       await new Promise((done) => setTimeout(done, 25));
     }
@@ -72,27 +72,27 @@ export class ThoughtsRepo extends Context.Service<
     readonly dir: string;
     readonly init: Effect.Effect<void, OutlineError>;
     readonly git: (
-      args: ReadonlyArray<string>
+      args: ReadonlyArray<string>,
     ) => Effect.Effect<string, OutlineError>;
     readonly projectGit: (
-      args: ReadonlyArray<string>
+      args: ReadonlyArray<string>,
     ) => Effect.Effect<string, OutlineError>;
     readonly withLock: <A, E, R>(
-      work: Effect.Effect<A, E, R>
+      work: Effect.Effect<A, E, R>,
     ) => Effect.Effect<A, E | OutlineError, R>;
     readonly remoteAdd: (
       name: string,
-      url: string
+      url: string,
     ) => Effect.Effect<string, OutlineError>;
     readonly push: (
       remote?: string,
-      branch?: string
+      branch?: string,
     ) => Effect.Effect<string, OutlineError>;
   }
 >()("ThoughtsRepo") {}
 
 export const ThoughtsRepoLive = (
-  projectDir = process.env.THREADVM_PROJECT_DIR ?? process.cwd()
+  projectDir = process.env.THREADVM_PROJECT_DIR ?? process.cwd(),
 ) =>
   Layer.effect(
     ThoughtsRepo,
@@ -103,7 +103,7 @@ export const ThoughtsRepoLive = (
       const exec = (cwd: string, args: ReadonlyArray<string>) =>
         commands.execFile("git", args, { cwd, timeoutMs: 60_000 }).pipe(
           Effect.map((r) => r.stdout.trimEnd()),
-          Effect.mapError((e) => new OutlineError(`${e.message}: ${e.stderr}`))
+          Effect.mapError((e) => new OutlineError(`${e.message}: ${e.stderr}`)),
         );
       const git = (args: ReadonlyArray<string>) => exec(dir, args);
       const projectGit = (args: ReadonlyArray<string>) => exec(project, args);
@@ -113,9 +113,9 @@ export const ThoughtsRepoLive = (
             outlineIO(() => acquire(join(dir, ".writer-lock"))),
             () =>
               outlineIO(() =>
-                rm(join(dir, ".writer-lock"), { recursive: true, force: true })
-              ).pipe(Effect.orDie)
-          ).pipe(Effect.andThen(work))
+                rm(join(dir, ".writer-lock"), { recursive: true, force: true }),
+              ).pipe(Effect.orDie),
+          ).pipe(Effect.andThen(work)),
         );
       const init = Effect.gen(function* () {
         yield* outlineIO(() => mkdir(dir, { recursive: true }));
@@ -123,14 +123,14 @@ export const ThoughtsRepoLive = (
           Effect.gen(function* () {
             const excludePath = resolve(
               project,
-              yield* projectGit(["rev-parse", "--git-path", "info/exclude"])
+              yield* projectGit(["rev-parse", "--git-path", "info/exclude"]),
             );
             const top = yield* projectGit(["rev-parse", "--show-toplevel"]);
             const ignored = `/${relative(top, dir).split("\\").join("/")}/`;
             yield* outlineIO(async () => {
               await mkdir(dirname(excludePath), { recursive: true });
               const content = await readFile(excludePath, "utf8").catch(
-                () => ""
+                () => "",
               );
               if (!content.split("\n").includes(ignored))
                 await appendFile(excludePath, `\n${ignored}\n`);
@@ -141,8 +141,8 @@ export const ThoughtsRepoLive = (
             yield* outlineIO(() =>
               writeFile(
                 join(dir, ".gitignore"),
-                "events.jsonl\nruns/\ntranscripts/\nworktrees/\n.writer-lock/\n*.tmp\n"
-              )
+                "events.jsonl\nruns/\ntranscripts/\nworktrees/\n.writer-lock/\n*.tmp\n",
+              ),
             );
             yield* outlineIO(async () => {
               try {
@@ -153,7 +153,7 @@ export const ThoughtsRepoLive = (
                 await writeFile(join(dir, "events.jsonl"), "");
               }
             });
-          })
+          }),
         );
       });
       return {
@@ -165,7 +165,7 @@ export const ThoughtsRepoLive = (
         withLock,
         remoteAdd: (name, url) => git(["remote", "add", "--", name, url]),
         push: (remote = "origin", branch = "main") =>
-          git(["push", "--", remote, branch])
+          git(["push", "--", remote, branch]),
       };
-    })
+    }),
   );

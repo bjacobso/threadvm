@@ -146,7 +146,7 @@ See [PLAN_4.md](./PLAN_4.md) for the design.
 
 ![ThreadVM local outline with a seeded project, inline suggestions, and an Inbox for review](apps/site/public/screenshots/outline.png)
 
-*The local interface with a sample project and proposals submitted through the CLI.*
+_The local interface with a sample project and proposals submitted through the CLI._
 
 ### ACP agents
 
@@ -303,6 +303,9 @@ Useful checks:
 
 ```sh
 pnpm typecheck
+pnpm test
+pnpm lint
+pnpm fmt:check
 pnpm probe:boundaries
 pnpm probe:dev
 pnpm probe:web-style
@@ -310,6 +313,14 @@ pnpm probe:terminal
 curl http://127.0.0.1:3333/api/threadvms
 curl http://127.0.0.1:3333/docs/openapi.json
 ```
+
+GitHub Actions runs typechecking, tests, Oxlint, and Oxfmt as separate checks on
+pull requests and pushes to `main`. `pnpm test` runs the first-party workspace
+tests plus the boundary, web-style, and terminal UI probes, building their
+workspace dependencies first. Run `pnpm lint:fix` for safe lint fixes and
+`pnpm fmt` to format the repository, including Astro components. Vendored code,
+generated ACP bindings, and `.context` files are excluded from linting and
+formatting.
 
 ## Architecture
 

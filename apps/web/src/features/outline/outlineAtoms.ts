@@ -8,7 +8,7 @@ import {
   ReviewRequest,
   StartRunRequest,
   type OutlineView,
-  type OutlineOperation
+  type OutlineOperation,
 } from "@threadvm/shared/domain";
 export { useAtomRef } from "@/state/atoms";
 
@@ -17,8 +17,8 @@ export const outlineErrorAtom = AtomRef.make<string | undefined>(undefined);
 export const outlineBusyAtom = AtomRef.make(false);
 const client = Effect.runPromise(
   HttpApiClient.make(ThreadVmApi, { baseUrl: window.location.origin }).pipe(
-    Effect.provide(FetchHttpClient.layer)
-  )
+    Effect.provide(FetchHttpClient.layer),
+  ),
 );
 const errorText = (cause: unknown): string => {
   if (cause && typeof cause === "object" && "detail" in cause)
@@ -65,38 +65,38 @@ export const outlineActions = {
   },
   async apply(
     operations: ReadonlyArray<OutlineOperation>,
-    baseRevision?: number
+    baseRevision?: number,
   ) {
     const revision = baseRevision ?? outlineAtom.value?.snapshot.revision;
     if (revision === undefined) return false;
     return this.perform(async () =>
       Effect.runPromise(
         (await client).outline.apply({
-          payload: new OperationBatch({ baseRevision: revision, operations })
-        })
-      )
+          payload: new OperationBatch({ baseRevision: revision, operations }),
+        }),
+      ),
     );
   },
   async review(
     proposalId: string,
     decision: "accept" | "reject",
-    nodeIds?: ReadonlyArray<string>
+    nodeIds?: ReadonlyArray<string>,
   ) {
     return this.perform(async () =>
       Effect.runPromise(
         (await client).outline.review({
-          payload: new ReviewRequest({ proposalId, decision, nodeIds })
-        })
-      )
+          payload: new ReviewRequest({ proposalId, decision, nodeIds }),
+        }),
+      ),
     );
   },
   async run(nodeId: string, agent: "codex" | "claude" | "shell") {
     return this.perform(async () =>
       Effect.runPromise(
         (await client).outline.run({
-          payload: new StartRunRequest({ nodeId, agent })
-        })
-      )
+          payload: new StartRunRequest({ nodeId, agent }),
+        }),
+      ),
     );
-  }
+  },
 };

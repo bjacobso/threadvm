@@ -10,7 +10,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -21,14 +21,14 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
-  FieldLabel
+  FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -37,7 +37,7 @@ import {
   SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,7 +45,7 @@ import {
   projectConfigAtom,
   projectRegistryActionAtom,
   projectRegistryMutationAtom,
-  useAtomRef
+  useAtomRef,
 } from "@/state/atoms";
 
 interface ProjectRegistryDialogProps {
@@ -63,16 +63,16 @@ const emptyProject = (): ProjectModel => ({
   bootstrap: [],
   dev: {
     command: "",
-    ports: []
+    ports: [],
   },
   herdr: {
     install: "manual",
-    sessionPrefix: "threadvm"
+    sessionPrefix: "threadvm",
   },
   agents: {
     default: "codex",
-    panes: []
-  }
+    panes: [],
+  },
 });
 
 const compactOptional = (value: string) => {
@@ -107,13 +107,13 @@ const parsePanes = (value: string): ProjectModel["agents"]["panes"] =>
     return {
       label,
       command,
-      ...(cwd.length > 0 ? { cwd } : {})
+      ...(cwd.length > 0 ? { cwd } : {}),
     };
   });
 
 export function ProjectRegistryDialog({
   open,
-  onOpenChange
+  onOpenChange,
 }: ProjectRegistryDialogProps) {
   const projectConfig = useAtomRef(projectConfigAtom);
   const mutation = useAtomRef(projectRegistryMutationAtom);
@@ -125,8 +125,10 @@ export function ProjectRegistryDialog({
     () =>
       selectedProjectId === newProjectValue
         ? undefined
-        : projectConfig.projects.find((project) => project.id === selectedProjectId),
-    [projectConfig.projects, selectedProjectId]
+        : projectConfig.projects.find(
+            (project) => project.id === selectedProjectId,
+          ),
+    [projectConfig.projects, selectedProjectId],
   );
 
   const [id, setId] = useState("");
@@ -172,7 +174,9 @@ export function ProjectRegistryDialog({
     setSubmitted(false);
     if (
       selectedProjectId !== newProjectValue &&
-      !projectConfig.projects.some((project) => project.id === selectedProjectId)
+      !projectConfig.projects.some(
+        (project) => project.id === selectedProjectId,
+      )
     ) {
       setSelectedProjectId(newProjectValue);
     }
@@ -192,19 +196,22 @@ export function ProjectRegistryDialog({
   const branchInvalid = submitted && defaultBranch.trim().length === 0;
   const workdirInvalid = submitted && workdir.trim().length === 0;
   const commandInvalid = submitted && devCommand.trim().length === 0;
-  const sessionPrefixInvalid = submitted && herdrSessionPrefix.trim().length === 0;
+  const sessionPrefixInvalid =
+    submitted && herdrSessionPrefix.trim().length === 0;
   const agentInvalid = submitted && agentDefault.trim().length === 0;
   const panesInvalid =
     submitted &&
     parsePanes(agentPanes).some(
-      (pane) => pane.label.length === 0 || pane.command.length === 0
+      (pane) => pane.label.length === 0 || pane.command.length === 0,
     );
 
   const projectFromForm = (): ProjectModel => ({
     id: id.trim(),
     repo: repo.trim(),
     defaultBranch: defaultBranch.trim(),
-    ...(compactOptional(baseDevbox) ? { baseDevbox: compactOptional(baseDevbox) } : {}),
+    ...(compactOptional(baseDevbox)
+      ? { baseDevbox: compactOptional(baseDevbox) }
+      : {}),
     ...(compactOptional(image) ? { image: compactOptional(image) } : {}),
     workdir: workdir.trim(),
     ...(compactOptional(branchPrefix)
@@ -214,16 +221,16 @@ export function ProjectRegistryDialog({
     dev: {
       command: devCommand.trim(),
       ...(compactOptional(devCwd) ? { cwd: compactOptional(devCwd) } : {}),
-      ports: parsePorts(devPorts)
+      ports: parsePorts(devPorts),
     },
     herdr: {
       install: herdrInstall,
-      sessionPrefix: herdrSessionPrefix.trim()
+      sessionPrefix: herdrSessionPrefix.trim(),
     },
     agents: {
       default: agentDefault.trim(),
-      panes: parsePanes(agentPanes)
-    }
+      panes: parsePanes(agentPanes),
+    },
   });
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -231,7 +238,7 @@ export function ProjectRegistryDialog({
     setSubmitted(true);
     const nextPanes = parsePanes(agentPanes);
     const nextPanesInvalid = nextPanes.some(
-      (pane) => pane.label.length === 0 || pane.command.length === 0
+      (pane) => pane.label.length === 0 || pane.command.length === 0,
     );
 
     if (
@@ -262,7 +269,7 @@ export function ProjectRegistryDialog({
       toast.success(response.message);
     } catch (cause) {
       toast.error("Project save failed", {
-        description: cause instanceof Error ? cause.message : String(cause)
+        description: cause instanceof Error ? cause.message : String(cause),
       });
     }
   };
@@ -272,13 +279,15 @@ export function ProjectRegistryDialog({
       return;
     }
     try {
-      const response = await projectRegistryActionAtom.remove(selectedProject.id);
+      const response = await projectRegistryActionAtom.remove(
+        selectedProject.id,
+      );
       setDeleteConfirmOpen(false);
       setSelectedProjectId(newProjectValue);
       toast.success(response.message);
     } catch (cause) {
       toast.error("Project remove failed", {
-        description: cause instanceof Error ? cause.message : String(cause)
+        description: cause instanceof Error ? cause.message : String(cause),
       });
     }
   };
@@ -317,7 +326,9 @@ export function ProjectRegistryDialog({
               ) : null}
 
               <Field>
-                <FieldLabel htmlFor="project-registry-select">Project</FieldLabel>
+                <FieldLabel htmlFor="project-registry-select">
+                  Project
+                </FieldLabel>
                 <Select
                   value={selectedProjectId}
                   onValueChange={setSelectedProjectId}
@@ -328,7 +339,9 @@ export function ProjectRegistryDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      <SelectItem value={newProjectValue}>New project</SelectItem>
+                      <SelectItem value={newProjectValue}>
+                        New project
+                      </SelectItem>
                       {projectConfig.projects.map((project) => (
                         <SelectItem key={project.id} value={project.id}>
                           {project.id}
@@ -354,7 +367,9 @@ export function ProjectRegistryDialog({
                   />
                   <FieldError
                     errors={
-                      idInvalid ? [{ message: "Project id is required." }] : undefined
+                      idInvalid
+                        ? [{ message: "Project id is required." }]
+                        : undefined
                     }
                   />
                 </Field>
@@ -385,7 +400,9 @@ export function ProjectRegistryDialog({
                 />
                 <FieldError
                   errors={
-                    repoInvalid ? [{ message: "Repository URL is required." }] : undefined
+                    repoInvalid
+                      ? [{ message: "Repository URL is required." }]
+                      : undefined
                   }
                 />
               </Field>
@@ -454,7 +471,9 @@ export function ProjectRegistryDialog({
 
               <FieldGroup className="grid gap-4 sm:grid-cols-2">
                 <Field data-invalid={commandInvalid || undefined}>
-                  <FieldLabel htmlFor="project-dev-command">Dev Command</FieldLabel>
+                  <FieldLabel htmlFor="project-dev-command">
+                    Dev Command
+                  </FieldLabel>
                   <Input
                     id="project-dev-command"
                     value={devCommand}
@@ -518,7 +537,9 @@ export function ProjectRegistryDialog({
                   <Input
                     id="project-herdr-prefix"
                     value={herdrSessionPrefix}
-                    onChange={(event) => setHerdrSessionPrefix(event.target.value)}
+                    onChange={(event) =>
+                      setHerdrSessionPrefix(event.target.value)
+                    }
                     disabled={busy}
                     placeholder="threadvm"
                     aria-invalid={sessionPrefixInvalid}
@@ -527,7 +548,9 @@ export function ProjectRegistryDialog({
               </FieldGroup>
 
               <Field data-invalid={agentInvalid || undefined}>
-                <FieldLabel htmlFor="project-agent-default">Default Agent</FieldLabel>
+                <FieldLabel htmlFor="project-agent-default">
+                  Default Agent
+                </FieldLabel>
                 <Input
                   id="project-agent-default"
                   value={agentDefault}
@@ -539,7 +562,9 @@ export function ProjectRegistryDialog({
               </Field>
 
               <Field data-invalid={panesInvalid || undefined}>
-                <FieldLabel htmlFor="project-agent-panes">Agent Panes</FieldLabel>
+                <FieldLabel htmlFor="project-agent-panes">
+                  Agent Panes
+                </FieldLabel>
                 <Textarea
                   id="project-agent-panes"
                   value={agentPanes}
